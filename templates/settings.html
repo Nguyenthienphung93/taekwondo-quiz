@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Setting</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+  <div class="card" style="max-width:520px; margin:0 auto;">
+    <h2 style="margin-top:0;">⚙️ Setting</h2>
+
+    <form method="POST" action="{{ url_for('save_settings') }}">
+      <label style="display:block; margin:12px 0 6px;"><b>Câu hỏi / lượt</b></label>
+      <select name="num_questions" class="input">
+        <option value="none" {% if cur_num is none %}selected{% endif %}>None (làm hết, không lặp)</option>
+        {% for n in NUMQ_OPTIONS %}
+          <option value="{{ n }}" {% if cur_num == n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+
+      <label style="display:block; margin:12px 0 6px;"><b>Thời gian / câu hỏi</b></label>
+      <select name="time_per_q" class="input">
+        <option value="none" {% if cur_time is none %}selected{% endif %}>None (không tính thời gian)</option>
+        {% for t in TIME_OPTIONS %}
+          <option value="{{ t }}" {% if cur_time == t %}selected{% endif %}>{{ t }} giây</option>
+        {% endfor %}
+      </select>
+
+      <div style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
+        <a class="btn gray" href="{{ url_for('sets') }}">← Quay lại</a>
+        <button class="btn" type="submit">💾 Lưu</button>
+      </div>
+
+      <div style="margin-top:10px; font-size:13px; opacity:.8;">
+      </div>
+    </form>
+  </div>
+</div>
+
+</body>
+</html>

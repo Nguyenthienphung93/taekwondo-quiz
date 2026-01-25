@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="result-wrapper">
+
+  <div class="result-card">
+
+    <div class="result-title">
+      🎉 Xin chúc mừng bạn đã đạt
+    </div>
+
+    <div class="result-score">
+      {{ score }} / {{ total }}
+    </div>
+
+    <div class="result-sub">
+      câu trả lời đúng
+    </div>
+
+    <!-- ===== ACTION BUTTONS ===== -->
+    <div class="result-actions">
+
+      <!-- HÀNG 1: CHƠI LẠI + KIỂM TRA -->
+      <div class="action-row">
+        <button class="btn-replay" type="button" id="btnReplay">
+          🔁 Chơi lại
+        </button>
+
+        <button class="btn-review" type="button" id="btnReview">
+          🔎 Kiểm tra
+        </button>
+      </div>
+
+      <!-- HÀNG 2: VỀ TRANG CHÍNH -->
+      <div class="action-row single">
+        <a class="btn-home" href="{{ url_for('sets') }}">
+          🏠 Về trang chính
+        </a>
+      </div>
+
+    </div>
+
+
+  </div>
+</div>
+
+<!-- ===== MODAL REVIEW ===== -->
+<div id="reviewModal" class="modal" aria-hidden="true">
+  <div class="modal-backdrop" id="closeBackdrop"></div>
+
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="font-weight:700;font-size:18px;">📌 Kiểm tra đáp án</div>
+      <button class="icon-btn" id="btnClose">✖</button>
+    </div>
+
+    <div class="modal-body">
+      {% for q, chosen, correct, is_correct in review %}
+        <div class="review-card">
+          <div class="review-q">
+            Câu {{ loop.index }}: {{ q.text }}
+          </div>
+
+          <div class="review-choices">
+            {% for c in q.choices %}
+              <div class="choice-line">
+                {% if chosen and c.id == chosen.id %}
+                  <span class="badge-chosen">Bạn chọn</span>
+                {% endif %}
+                {{ c.text }}
+                {% if c.is_correct %}
+                  <span class="badge-correct">Đúng</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if not is_correct %}
+            <div class="review-wrong">
+              ❌ Bạn chọn:
+              <b>{{ chosen.text if chosen else "Không chọn (hết giờ)" }}</b>
+            </div>
+            <div class="review-correct">
+              ✅ Đáp án đúng:
+              <b>{{ correct.text if correct else "Chưa có đáp án đúng" }}</b>
+            </div>
+          {% else %}
+            <div class="review-ok">✅ Trả lời đúng</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-main" id="btnClose2">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL REPLAY ===== -->
+<div id="replayModal" class="modal" aria-hidden="true">
+  <div class="modal-backdrop" id="replayBackdrop"></div>
+
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="font-weight:800;">🎯 Bắt đầu ôn tập</div>
+      <button class="icon-btn" id="btnReplayClose">✖</button>
+    </div>
+
+    <div class="modal-body" style="text-align:center;">
+      <h2 style="margin:12px 0 20px;">
+        {{ topic_name }}
+      </h2>
+
+      <a class="btn-main" href="{{ replay_url }}">
+        ▶ BẮT ĐẦU
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 🎆 CONFETTI -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<!-- 👏 CLAP SOUND -->
+<audio id="clapSound">
+  <source src="{{ url_for('static', filename='Clap.mp3') }}" type="audio/mpeg">
+</audio>
+
+<script>
+  /* ===== REVIEW MODAL ===== */
+  const modal = document.getElementById("reviewModal");
+  const btnReview = document.getElementById("btnReview");
+  const btnClose = document.getElementById("btnClose");
+  const btnClose2 = document.getElementById("btnClose2");
+  const backdrop = document.getElementById("closeBackdrop");
+
+  function openModal(){
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal(){
+    modal.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  btnReview.onclick = () => {
+    setTimeout(() => {
+      const sound = document.getElementById("clapSound");
+      if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(()=>{});
+      }
+    }, 2000);
+    openModal();
+  };
+
+  btnClose.onclick = closeModal;
+  btnClose2.onclick = closeModal;
+  backdrop.onclick = closeModal;
+
+  /* ===== REPLAY MODAL ===== */
+  const replayModal = document.getElementById("replayModal");
+  const btnReplay = document.getElementById("btnReplay");
+  const btnReplayClose = document.getElementById("btnReplayClose");
+  const replayBackdrop = document.getElementById("replayBackdrop");
+
+  function openReplay(){
+    replayModal.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+  function closeReplay(){
+    replayModal.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  btnReplay.onclick = openReplay;
+  btnReplayClose.onclick = closeReplay;
+  replayBackdrop.onclick = closeReplay;
+
+  /* ===== CONFETTI ===== */
+  const duration = 2600;
+  const end = Date.now() + duration;
+  (function frame(){
+    confetti({ particleCount: 6, angle: 60, spread: 70, origin:{x:0} });
+    confetti({ particleCount: 6, angle:120, spread: 70, origin:{x:1} });
+    if(Date.now() < end) requestAnimationFrame(frame);
+  })();
+</script>
+
+{% endblock %}

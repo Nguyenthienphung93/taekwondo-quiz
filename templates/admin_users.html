@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>👥 Quản lý người dùng</h2>
+
+<table border="1" cellpadding="6" cellspacing="0" width="100%">
+<tr style="background:#eee">
+  <th>User</th>
+  <th>Email</th>
+  <th>Role</th>
+  <th>Trạng thái</th>
+  <th>Hành động</th>
+</tr>
+
+{% for u in users %}
+<tr>
+  <td>{{ u.username }}</td>
+  <td>{{ u.email }}</td>
+  <td>{{ u.role }}</td>
+  <td>
+    {% if u.is_active %}
+      <span style="color:green">Hoạt động</span>
+    {% else %}
+      <span style="color:red">Khoá</span>
+    {% endif %}
+  </td>
+  <td>
+    <!-- 🔒 Khoá / Mở -->
+    <form method="post" style="display:inline;">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action" value="toggle_active" class="btn btn-sm">
+        🔒 Mở / Khoá
+      </button>
+    </form>
+
+    <!-- 🔁 Đổi role -->
+    <form method="post" style="display:inline;">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action" value="toggle_role" class="btn btn-sm btn-info">
+        🔁 Đổi role
+      </button>
+    </form>
+
+    <!-- ❌ Xoá -->
+    <form method="post" style="display:inline;"
+          onsubmit="return confirm('Bạn chắc chắn muốn xoá user {{ u.username }} ?');">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action" value="delete" class="btn btn-sm btn-danger">
+        ❌ Xoá
+      </button>
+    </form>
+  </td>
+
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

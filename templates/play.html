@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Làm bài</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <h2>Câu hỏi {{ progress[0] + 1 }} / {{ progress[1] }}</h2>
+    <div class="card" style="padding:10px 14px; min-width:150px; text-align:center;">
+      ⏳ Còn: <b id="timer"></b>s
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>{{ question.text }}</h3>
+
+    <form id="quizForm" method="POST">
+      {% for c in question.choices %}
+      <p>
+        <label>
+          <input type="radio" name="choice_id" value="{{ c.id }}">
+          {{ c.text }}
+        </label>
+      </p>
+      {% endfor %}
+
+      <button class="btn" type="submit">Tiếp theo</button>
+    </form>
+  </div>
+
+  <div style="margin-top:12px;">
+    <a class="btn" href="{{ url_for('sets') }}">← Thoát</a>
+  </div>
+</div>
+
+<script>
+  // ✅ Countdown theo time_per_q từ server
+  let remain = {{ time_per_q|int }};
+  const timerEl = document.getElementById("timer");
+  const form = document.getElementById("quizForm");
+
+  function tick(){
+    timerEl.textContent = remain;
+    remain--;
+
+    if (remain < 0) {
+      // Hết giờ => auto submit (nếu chưa chọn đáp án thì coi như sai)
+      form.submit();
+      return;
+    }
+    setTimeout(tick, 1000);
+  }
+  tick();
+</script>
+
+</body>
+</html>

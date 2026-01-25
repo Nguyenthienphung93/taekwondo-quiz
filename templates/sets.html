@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Bài ôn{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="topic-list">
+
+    {% for f1 in folder1_list %}
+      <a href="{{ url_for('view_set', folder1_id=f1.id) }}"
+         class="card-square card-btn">
+
+        <div class="card-image">
+          {% if f1.image %}
+            <img src="{{ url_for('static',
+              filename=(f1.image|replace('\\','/'))
+            ) }}">
+          {% else %}
+            <div class="img-placeholder">📁</div>
+          {% endif %}
+        </div>
+
+        <div class="card-title">{{ f1.name }}</div>
+      </a>
+    {% endfor %}
+
+    {% if folder1_list|length == 0 %}
+      <div style="opacity:.6; padding:20px;">
+        Chưa có chủ đề nào.
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}

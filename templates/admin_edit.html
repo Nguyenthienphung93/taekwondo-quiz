@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sửa câu hỏi</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>✏️ Sửa câu hỏi</h1>
+
+    {# Quay lại: ưu tiên folder3_id; nếu không có thì theo topic; cuối cùng là chung #}
+    {% if q.folder_id %}
+      <a class="btn gray" href="{{ url_for('admin_questions', folder3_id=q.folder_id) }}">← Quay lại danh sách</a>
+    {% elif topic %}
+      <a class="btn gray" href="{{ url_for('admin_questions', topic_id=topic.id) }}">← Quay lại danh sách</a>
+    {% else %}
+      <a class="btn gray" href="{{ url_for('admin_questions') }}">← Quay lại danh sách</a>
+    {% endif %}
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="card">
+        <ul>
+          {% for m in messages %}<li>{{m}}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="card">
+    <div class="badge">
+      Chủ đề:
+      {% if topic and topic.set %}
+        {{ topic.set.title }} — {{ topic.name }}
+      {% elif topic %}
+        {{ topic.name }}
+      {% else %}
+        (Chưa gán chủ đề)
+      {% endif %}
+    </div>
+
+    <form method="POST">
+      <p><b>Câu hỏi:</b></p>
+      <textarea name="question_text" rows="3" cols="70" required>{{ q.text }}</textarea>
+
+      <p><b>Đáp án:</b></p>
+      <p>A: <input name="a" size="80" value="{{ choices[0].text }}" required></p>
+      <p>B: <input name="b" size="80" value="{{ choices[1].text }}" required></p>
+      <p>C: <input name="c" size="80" value="{{ choices[2].text }}" required></p>
+      <p>D: <input name="d" size="80" value="{{ choices[3].text }}" required></p>
+
+      <p><b>Đáp án đúng:</b>
+        <select name="correct" required>
+          <option value="A" {% if correct_key=="A" %}selected{% endif %}>A</option>
+          <option value="B" {% if correct_key=="B" %}selected{% endif %}>B</option>
+          <option value="C" {% if correct_key=="C" %}selected{% endif %}>C</option>
+          <option value="D" {% if correct_key=="D" %}selected{% endif %}>D</option>
+        </select>
+      </p>
+
+      <button class="btn" type="submit">💾 Lưu thay đổi</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

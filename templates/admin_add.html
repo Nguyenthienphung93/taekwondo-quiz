@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin - Thêm câu hỏi</title>
+</head>
+<body>
+  <h2>Admin: Thêm câu hỏi (4 đáp án)</h2>
+
+  <p>
+    <a class="btn gray" href="/admin/questions">📋 Quản lý câu hỏi</a>
+    <a class="btn gray" href="/sets">⬅ Về Bài ôn</a>
+  </p>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+        {% for m in messages %}<li>{{m}}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST">
+    <p>
+      <label>Chủ đề:</label><br>
+      <select name="topic_id" required>
+        {% for t in topics %}
+          <option value="{{t.id}}">{{t.set.title}} — {{t.name}}</option>
+        {% endfor %}
+      </select>
+    </p>
+
+    <p>
+      <label>Câu hỏi:</label><br>
+      <textarea name="question_text" rows="3" cols="70" required></textarea>
+    </p>
+
+    <p><label>A:</label><br><input name="a" size="80" required></p>
+    <p><label>B:</label><br><input name="b" size="80" required></p>
+    <p><label>C:</label><br><input name="c" size="80" required></p>
+    <p><label>D:</label><br><input name="d" size="80" required></p>
+
+    <p>
+      <label>Đáp án đúng:</label><br>
+      <select name="correct" required>
+        <option value="A">A</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
+        <option value="D">D</option>
+      </select>
+    </p>
+
+    <button type="submit">➕ Thêm câu hỏi</button>
+  </form>
+
+  <p style="margin-top:16px;">
+    <a href="/sets">⬅ Về Bài ôn</a>
+  </p>
+</body>
+</html>
