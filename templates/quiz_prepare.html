@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="start-overlay">
+  <div class="start-box">
+
+    <!-- ❌ NÚT THOÁT (ĐẶT TRONG BOX) -->
+    <button class="start-close" id="btnClose">✕</button>
+
+    <h2 class="start-title">{{ topic_name }}</h2>
+    <button class="start-btn" id="btnStart">
+      <span class="start-icon">▶</span>
+      <span class="start-text">BẮT ĐẦU</span>
+    </button>
+  </div>
+</div>
+
+
+<div class="countdown-overlay" id="countdown" style="display:none;">
+  <div class="countdown-number" id="countNum">3</div>
+</div>
+
+<script>
+const btnStart = document.getElementById("btnStart");
+const btnClose = document.getElementById("btnClose");
+const overlay = document.querySelector(".start-overlay");
+const countdown = document.getElementById("countdown");
+const num = document.getElementById("countNum");
+
+let counting = false;
+
+/* ❌ THOÁT */
+btnClose.addEventListener("click", () => {
+  history.back();
+});
+
+/* ▶️ BẮT ĐẦU */
+btnStart.addEventListener("click", () => {
+  counting = true;
+
+  overlay.style.display = "none";
+  countdown.style.display = "flex";
+
+  let n = 3;
+  num.textContent = n;
+
+  const timer = setInterval(() => {
+    n--;
+    if (n > 0) {
+      num.textContent = n;
+    } else {
+      num.textContent = "BẮT ĐẦU";
+      clearInterval(timer);
+      setTimeout(() => {
+        window.location.href = "{{ start_url }}";
+      }, 600);
+    }
+  }, 1000);
+});
+</script>
+
+
+{% endblock %}

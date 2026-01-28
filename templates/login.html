@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Đăng nhập</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+
+<body class="login-page">
+
+  <!-- BACKGROUND -->
+  <div class="bg-layer"></div>
+  <div class="bg-overlay"></div>
+
+  <div class="login-wrapper">
+    <main class="login-container">
+
+      <h1 class="app-title">
+        PHẦN MỀM HỌC<br>TAEKWONDO
+      </h1>
+
+      <section class="login-card {% if get_flashed_messages(with_categories=true) %}shake{% endif %}">
+
+        <h2>Đăng nhập</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            {% if category in ["login_error", "login_warning"] %}
+              <div class="alert alert-login {{ category }}">
+                {{ message }}
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% endwith %}
+
+        <form method="post">
+
+          <label>Username</label>
+          <input type="text"
+                 name="username"
+                 value="{{ request.cookies.get('saved_user','') }}"
+                 required>
+
+          <label>Password</label>
+          <div class="login-password-wrap">
+            <input id="password" type="password" name="password" required>
+            <button type="button" class="eye-btn" id="togglePwd">🙂</button>
+          </div>
+
+          <button type="submit" class="ui-btn">Đăng nhập</button>
+        </form>
+
+        <div class="forgot-link">
+          <a href="#" onclick="openForgot()">Quên mật khẩu?</a>
+        </div>
+
+        <div class="register-link">
+          <a href="{{ url_for('register') }}">Đăng ký</a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    Chủ sở hữu: <b>Nguyen Thien Phung</b>
+  </footer>
+
+  <script>
+    const pwd = document.getElementById("password");
+    const btn = document.getElementById("togglePwd");
+
+    btn.addEventListener("click", () => {
+      const hide = pwd.type === "password";
+      pwd.type = hide ? "text" : "password";
+      btn.textContent = hide ? "😑" : "🙂";
+      pwd.focus();
+    });
+
+    function openForgot(){
+      document.getElementById("forgotModal").classList.add("show");
+    }
+    function closeForgot(){
+      document.getElementById("forgotModal").classList.remove("show");
+    }
+  </script>
+
+  <!-- MODAL QUÊN MẬT KHẨU -->
+  <div id="forgotModal" class="ui-modal-backdrop">
+    <div class="ui-modal-box">
+
+      <div class="ui-modal-header">
+        <b>Quên mật khẩu</b>
+        <button type="button" onclick="closeForgot()">✖</button>
+      </div>
+
+      <form method="POST" action="{{ url_for('forgot_password') }}">
+        <div class="ui-modal-body">
+          <input type="email" name="email" required placeholder="Email của bạn">
+        </div>
+        <div class="ui-modal-footer">
+          <button type="submit" class="ui-btn">Gửi</button>
+          <button type="button" class="ui-btn gray" onclick="closeForgot()">Đóng</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</body>
+</html>

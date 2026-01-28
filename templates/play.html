@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Làm bài{% endblock %}
+
+{% block content %}
+
+<div class="layout-container">
+
+  <!-- HEADER -->
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <h2>Câu hỏi {{ progress[0] + 1 }} / {{ progress[1] }}</h2>
+
+    <div class="ui-card" style="padding:10px 14px; min-width:150px; text-align:center;">
+      ⏳ Còn: <b id="timer"></b>s
+    </div>
+  </div>
+
+  <!-- QUESTION -->
+  <div class="ui-card" style="margin-top:14px;">
+    <h3>{{ question.text }}</h3>
+
+    <form id="quizForm" method="POST">
+
+      {% for c in question.choices %}
+        <label style="display:block; margin:8px 0;">
+          <input type="radio" name="choice_id" value="{{ c.id }}">
+          {{ c.text }}
+        </label>
+      {% endfor %}
+
+      <div style="margin-top:16px;">
+        <button class="ui-btn" type="submit">Tiếp theo</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ACTIONS -->
+  <div style="margin-top:14px;">
+    <a class="admin-btn ui-btn--gray" href="{{ url_for('sets') }}">← Thoát</a>
+  </div>
+
+</div>
+
+<script>
+  // ⏱ Countdown theo time_per_q từ server
+  let remain = {{ time_per_q|int }};
+  const timerEl = document.getElementById("timer");
+  const form = document.getElementById("quizForm");
+
+  function tick(){
+    timerEl.textContent = remain;
+    remain--;
+
+    if (remain < 0) {
+      form.submit();
+      return;
+    }
+    setTimeout(tick, 1000);
+  }
+  tick();
+</script>
+
+{% endblock %}

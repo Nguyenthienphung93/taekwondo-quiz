@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% block title %}Admin - Tạo câu hỏi{% endblock %}
+
+{% block content %}
+
+<!-- ===== ADMIN PAGE TITLE ===== -->
+<div class="admin-page">
+  <div class="admin-page-title">🛠️ Admin – Tạo Câu Hỏi</div>
+</div>
+
+<!-- ================= CHỌN CHỦ ĐỀ ================= -->
+<div class="admin-topic-select">
+  <div class="ui-card">
+    <h3>Hãy chọn chủ đề!</h3>
+
+    <!-- ===== CẤP 1 ===== -->
+    <div class="rowline">
+      <div class="title">Chủ đề 1:</div>
+
+      <form method="GET" action="/admin/questions" class="row-form">
+        <select name="folder1_id" required onchange="this.form.submit()">
+          {% for f in folder1_list %}
+            <option value="{{ f.id }}"
+              {% if selected_folder1 and selected_folder1.id == f.id %}selected{% endif %}>
+              {{ f.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <div class="actions">
+        <button class="admin-btn btn-add"
+                data-open="modalFolder"
+                data-level="1"
+                data-action="add">
+          ➕ Thêm
+        </button>
+
+        {% if selected_folder1 %}
+          <button class="admin-btn btn-edit"
+                  data-open="modalFolder"
+                  data-level="1"
+                  data-action="edit">
+            ✏️ Sửa
+          </button>
+
+          <form method="POST"
+                action="/admin/folder/{{ selected_folder1.id }}/delete"
+                onsubmit="return confirm('Xoá Chủ đề 1?');">
+            <button class="admin-btn ui-btn--gray">🗑️ Xoá</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== CẤP 2 ===== -->
+    <div class="rowline">
+      <div class="title">Chủ đề 2:</div>
+
+      <form method="GET" action="/admin/questions" class="row-form">
+        <input type="hidden" name="folder1_id" value="{{ selected_folder1.id if selected_folder1 else '' }}">
+        <select name="folder2_id" required onchange="this.form.submit()">
+          {% for f in folder2_list %}
+            <option value="{{ f.id }}"
+              {% if selected_folder2 and selected_folder2.id == f.id %}selected{% endif %}>
+              {{ f.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <div class="actions">
+        <button class="admin-btn btn-add"
+                data-open="modalFolder"
+                data-level="2"
+                data-action="add"
+                data-parent-id="{{ selected_folder1.id if selected_folder1 }}">
+          ➕ Thêm
+        </button>
+
+        {% if selected_folder2 %}
+          <button class="admin-btn btn-edit"
+                  data-open="modalFolder"
+                  data-level="2"
+                  data-action="edit">
+            ✏️ Sửa
+          </button>
+
+          <form method="POST"
+                action="/admin/folder/{{ selected_folder2.id }}/delete"
+                onsubmit="return confirm('Xoá Chủ đề 2?');">
+            <button class="admin-btn ui-btn--gray">🗑️ Xoá</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== CẤP 3 ===== -->
+    <div class="rowline">
+      <div class="title">Chủ đề 3:</div>
+
+      <form method="GET" action="/admin/questions" class="row-form">
+        <input type="hidden" name="folder1_id" value="{{ selected_folder1.id if selected_folder1 else '' }}">
+        <input type="hidden" name="folder2_id" value="{{ selected_folder2.id if selected_folder2 else '' }}">
+        <select name="folder3_id" required onchange="this.form.submit()">
+          {% for f in folder3_list %}
+            <option value="{{ f.id }}"
+              {% if selected_folder3 and selected_folder3.id == f.id %}selected{% endif %}>
+              {{ f.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <div class="actions">
+        <button class="admin-btn btn-add"
+                data-open="modalFolder"
+                data-level="3"
+                data-action="add"
+                data-parent-id="{{ selected_folder2.id if selected_folder2 }}">
+          ➕ Thêm
+        </button>
+
+        {% if selected_folder3 %}
+          <button class="admin-btn btn-edit"
+                  data-open="modalFolder"
+                  data-level="3"
+                  data-action="edit">
+            ✏️ Sửa
+          </button>
+
+          <form method="POST"
+                action="/admin/folder/{{ selected_folder3.id }}/delete"
+                onsubmit="return confirm('Xoá Chủ đề 3?');">
+            <button class="admin-btn ui-btn--gray">🗑️ Xoá</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ================= DANH SÁCH CÂU HỎI ================= -->
+{% if selected_folder3 %}
+<div class="admin-question-header">
+  <div class="question-header-app-content">
+
+    <div class="question-header">
+      <div class="qh-left">
+        <h2>📌 {{ selected_folder1.name }} — {{ selected_folder2.name }} — {{ selected_folder3.name }}</h2>
+        <div class="badge">{{ questions|length }} câu</div>
+      </div>
+      <div class="qh-right">
+        <button class="ui-btn" data-open="modalAddQuestion">
+          ➕ Thêm câu hỏi
+        </button>
+      </div>
+    </div>
+
+    {% for q in questions %}
+    <div class="admin-question-item color-{{ loop.index0 % 3 }}">
+
+      <div class="question-text">
+        <b>#{{ q.id }}</b> — {{ q.text }}
+      </div>
+
+      <div class="question-actions">
+        <a class="admin-btn btn-edit"
+           href="/admin/question/{{ q.id }}/edit">
+           ✏️ Sửa
+        </a>
+
+        <form method="POST"
+              action="/admin/question/{{ q.id }}/delete"
+              onsubmit="return confirm('Xoá câu hỏi này?');">
+          <button class="admin-btn ui-btn--gray">🗑️ Xoá</button>
+        </form>
+      </div>
+
+    </div>
+    {% endfor %}
+
+
+  </div>
+</div>
+{% endif %}
+
+<!-- ================= MODAL FOLDER ================= -->
+<div class="ui-modal-backdrop" id="modalFolder">
+  <div class="ui-modal-box ui-modal-admin">
+    <div class="ui-modal-header">
+      <div class="modal-title" id="folderModalTitle"></div>
+      <button class="icon-btn" type="button" data-close="modalFolder">✖</button>
+    </div>
+
+    <form method="POST" id="folderForm" enctype="multipart/form-data">
+      <div class="ui-modal-body">
+        <input type="hidden" name="level" id="folderLevel">
+        <input type="hidden" name="folder_id" id="folderId">
+        <input type="hidden" name="parent_id" id="folderParentId">
+
+        <div class="form-row">
+          <label>Tên chủ đề</label>
+          <input name="name" id="folderName" required>
+        </div>
+
+        <div class="form-row">
+          <label>Ảnh đại diện</label>
+          <input type="file" name="image" accept="image/*">
+        </div>
+      </div>
+
+      <div class="ui-modal-footer">
+        <button type="button" class="admin-btn ui-btn--gray" data-close="modalFolder">Huỷ</button>
+        <button type="submit" class="admin-btn btn-add">💾 Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODAL ADD QUESTION (NEW UI) ================= -->
+<div class="ui-modal-backdrop" id="modalAddQuestion">
+  <div class="ui-modal-box ui-modal-admin" style="max-width:640px;">
+    <div class="ui-modal-header">
+      <div class="modal-title">➕ Thêm câu hỏi</div>
+      <button class="icon-btn" type="button" data-close="modalAddQuestion">✖</button>
+    </div>
+
+    <div class="ui-modal-body">
+
+      <!-- CHỦ ĐỀ -->
+      <div class="edit-question-topic">
+        📌 {{ selected_folder1.name }}
+        — {{ selected_folder2.name }}
+        — {{ selected_folder3.name }}
+      </div>
+
+      <form method="POST" action="/admin/questions" class="admin-form-card" style="box-shadow:none;padding:0;">
+        <input type="hidden" name="folder3_id" value="{{ selected_folder3.id }}">
+
+        <!-- CÂU HỎI -->
+        <div class="form-row">
+          <label>Câu hỏi</label>
+          <textarea name="question_text" rows="3" required></textarea>
+        </div>
+
+        <!-- ĐÁP ÁN -->
+        <div class="form-row">
+          <label>Đáp án A</label>
+          <input name="choice1" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án B</label>
+          <input name="choice2" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án C</label>
+          <input name="choice3" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án D</label>
+          <input name="choice4" required>
+        </div>
+
+        <!-- ĐÁP ÁN ĐÚNG -->
+        <div class="form-row">
+          <label>Đáp án đúng</label>
+          <div class="answer-box">
+            {% for k in ["A","B","C","D"] %}
+              <label class="answer-item">
+                <input type="radio" name="correct" value="{{ k }}" required>
+                {{ k }}
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- ACTION -->
+        <div class="form-actions">
+          <button type="button"
+                  class="admin-btn ui-btn--gray"
+                  data-close="modalAddQuestion">
+            Huỷ
+          </button>
+
+          <button type="submit" class="ui-btn">
+            💾 Lưu
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- ================= SCRIPT ================= -->
+<script>
+document.addEventListener("click", e => {
+  const open = e.target.closest("[data-open]");
+  if (open) {
+    e.preventDefault();
+    const modalId = open.dataset.open;
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    // =========================
+    // MODAL FOLDER (ADD / EDIT)
+    // =========================
+    if (modalId === "modalFolder") {
+      const form = document.getElementById("folderForm");
+      const level = open.dataset.level;
+      const actionType = open.dataset.action;
+
+      // reset form
+      form.reset();
+
+      // set level
+      document.getElementById("folderLevel").value = level;
+
+      // set parent_id nếu có
+      document.getElementById("folderParentId").value =
+        open.dataset.parentId || "";
+
+      // ADD
+      if (actionType === "add") {
+        form.action = "/admin/folder/add";
+        document.getElementById("folderId").value = "";
+        document.getElementById("folderModalTitle").innerText = "➕ Thêm chủ đề";
+      }
+
+      // EDIT
+      if (actionType === "edit") {
+        let folderId = "";
+        let folderName = "";
+
+        if (level === "1") {
+          folderId = "{{ selected_folder1.id if selected_folder1 else '' }}";
+          folderName = "{{ selected_folder1.name if selected_folder1 else '' }}";
+        }
+        if (level === "2") {
+          folderId = "{{ selected_folder2.id if selected_folder2 else '' }}";
+          folderName = "{{ selected_folder2.name if selected_folder2 else '' }}";
+        }
+        if (level === "3") {
+          folderId = "{{ selected_folder3.id if selected_folder3 else '' }}";
+          folderName = "{{ selected_folder3.name if selected_folder3 else '' }}";
+        }
+
+        form.action = `/admin/folder/${folderId}/edit`;
+        document.getElementById("folderId").value = folderId;
+        document.getElementById("folderName").value = folderName;
+        document.getElementById("folderModalTitle").innerText = "✏️ Sửa chủ đề";
+      }
+    }
+
+    // reset radio khi mở modal thêm câu hỏi
+    if (modalId === "modalAddQuestion") {
+      modal
+        .querySelectorAll("input[type=radio]")
+        .forEach(r => r.checked = false);
+    }
+
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+
+  const close = e.target.closest("[data-close]");
+  if (close) {
+    document.getElementById(close.dataset.close)?.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+});
+</script>
+
+{% endblock %}

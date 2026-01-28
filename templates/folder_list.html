@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Bài ôn{% endblock %}
+
+{% block content %}
+
+<!-- 🔵 KHUNG NGOÀI – GIÃN THEO MÀN HÌNH -->
+<div class="sets-wrap">
+
+  <!-- 🔷 KHUNG TRONG – GIỐNG HEADER -->
+  <div class="sets-inner">
+
+    <div class="breadcrumb">
+      {% for b in breadcrumbs %}
+        {% if b.url %}
+          <a href="{{ b.url }}">{{ b.name }}</a>
+          <span class="sep">›</span>
+        {% else %}
+          <span class="current">{{ b.name }}</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="sets-grid">
+      {% for item in items %}
+        <a class="ui-card card-btn" href="{{ item.url }}">
+
+          <div class="folder-thumb">
+            {% if item.image %}
+              <img src="{{ item.image }}">
+            {% else %}
+              <div class="img-placeholder">📁</div>
+            {% endif %}
+          </div>
+
+          <div class="card-title">{{ item.name }}</div>
+
+        </a>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

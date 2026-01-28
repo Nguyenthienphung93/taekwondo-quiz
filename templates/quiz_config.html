@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Chọn chế độ{% endblock %}
+
+{% block content %}
+
+<div class="layout-container">
+
+  <!-- HEADER -->
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <h2>⚙️ Chọn chế độ làm bài</h2>
+    <a class="admin-btn ui-btn--gray" href="/set/{{ topic.set_id }}">← Quay lại</a>
+  </div>
+
+  <!-- CONFIG CARD -->
+  <div class="ui-card" style="margin-top:16px; max-width:520px;">
+
+    <h3 style="margin-top:0;">
+      {{ topic.set.title }} — {{ topic.name }}
+    </h3>
+
+    <form method="POST">
+
+      <div style="margin-top:14px;">
+        <label><b>Số câu / 1 lượt:</b></label><br>
+        <select name="qcount" required>
+          {% for n in count_opts %}
+            <option value="{{n}}" {% if n==10 %}selected{% endif %}>
+              {{n}} câu
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-top:14px;">
+        <label><b>Thời gian / 1 câu:</b></label><br>
+        <select name="tsec" required>
+          {% for s in time_opts %}
+            {% if s == 60 %}
+              <option value="{{s}}">1 phút</option>
+            {% elif s == 90 %}
+              <option value="{{s}}">1 phút 30s</option>
+            {% else %}
+              <option value="{{s}}">{{s}}s</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-top:20px;">
+        <button class="ui-btn" type="submit">
+          ▶ Bắt đầu làm bài
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="admin-page">
+
+  <div class="admin-users-grid">
+
+    <!-- ===== ADMIN ===== -->
+    <section class="admin-users-panel panel-admin">
+      <div class="panel-title">👑 Danh sách Admin</div>
+
+      <div class="table-wrap">
+        <table width="100%">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Số lần chơi</th>
+              <th>Điểm số</th>
+              <th>Trạng thái</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in admins %}
+              {% include "admin_user_row.html" %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== USER ===== -->
+    <section class="admin-users-panel panel-user">
+      <div class="panel-title">👤 Danh sách User</div>
+
+      <div class="table-wrap">
+        <table width="100%">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Số lần chơi</th>
+              <th>Điểm số</th>
+              <th>Trạng thái</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+              {% include "admin_user_row.html" %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+</div>
+
+{% endblock %}

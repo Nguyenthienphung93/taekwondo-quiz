@@ -1,0 +1,56 @@
+<tr class="{% if not u.is_active %}locked{% endif %}">
+  <td>{{ u.username }}</td>
+  <td>{{ u.email }}</td>
+
+  <td style="text-align:center; font-weight:700; color:#0d6efd;">
+    {{ u.play_count or 0 }}
+  </td>
+
+  <td style="text-align:center; font-weight:bold;">
+    {% if u.last_score is not none and u.last_total is not none %}
+      {{ u.last_score }}/{{ u.last_total }}
+    {% else %}
+      -
+    {% endif %}
+  </td>
+
+  <td>
+    {% if u.is_active %}
+      <span style="color:green;font-weight:600;">Hoạt động</span>
+    {% else %}
+      <span style="color:red;font-weight:600;">Khoá</span>
+    {% endif %}
+  </td>
+
+  <td style="display:flex; gap:6px; flex-wrap:wrap;">
+
+    <form method="post">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action"
+              value="toggle_active"
+              class="admin-btn ui-btn--gray">
+        🔒 Mở / Khoá
+      </button>
+    </form>
+
+    <form method="post">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action"
+              value="toggle_role"
+              class="admin-btn">
+        🔁 Đổi role
+      </button>
+    </form>
+
+    <form method="post"
+          onsubmit="return confirm('Bạn chắc chắn muốn xoá user {{ u.username }} ?');">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action"
+              value="delete"
+              class="admin-btn ui-btn--danger">
+        ❌ Xoá
+      </button>
+    </form>
+
+  </td>
+</tr>

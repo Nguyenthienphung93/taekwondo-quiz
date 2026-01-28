@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Tài khoản{% endblock %}
+
+{% block content %}
+<div class="account-page">
+  <div class="account-card">
+
+    <div class="account-title">
+
+      <div class="card" style="max-width:720px;margin:0 auto;">
+        <h2 style="margin-top:0;">👤 Tài Khoản</h2>
+      </div>
+
+      <form method="POST" action="{{ url_for('account') }}">
+        <div class="account-field-title">
+          <label style="font-weight:700;display:block;margin:10px 0 6px;">
+            1) Tên hiển thị (Nickname)
+          </label>
+          </div>
+        <input
+          type="text"
+          name="nickname"
+          value="{{ current_user.nickname or current_user.username }}"
+          placeholder="Nhập tên hiển thị..."
+          style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px;"
+        >
+
+        <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+        <div class="account-field-title">
+          <label style="font-weight:700;display:block;margin:10px 0 6px;">
+            3) Email
+          </label>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input
+            type="text"
+            value="{{ current_user.email }}"
+            disabled
+            style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;"
+          >
+          <button
+            type="button"
+            class="admin-btn ui-btn--gray"
+            id="btnOpenEmail"
+          >
+            ✏️ Đổi email
+          </button>
+
+        </div>
+
+        <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+        <div class="account-field-title">
+          <label style="font-weight:700;display:block;margin:10px 0 6px;">
+            2) Mật khẩu
+          </label>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input
+            type="password"
+            value="********"
+            disabled
+            style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;"
+          >
+          <button
+            type="button"
+            class="admin-btn ui-btn--gray"
+            id="btnOpenPw"
+          >
+            🔒 Đổi mật khẩu
+          </button>
+
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+          {% if not force_pw %}
+          <a class="admin-btn ui-btn--gray" href="{{ url_for('sets') }}">← Quay lại</a>
+          {% endif %}
+          <button class="btn-save" type="submit">💾 Lưu</button>
+        </div>
+
+        {% with msgs = get_flashed_messages(with_categories=true) %}
+          {% if msgs %}
+            <div style="margin-top:12px;">
+              {% for cat, msg in msgs %}
+                {% if cat in ["success","danger"] %}
+                  <div class="alert {{cat}}">{{ msg }}</div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL ĐỔI MẬT KHẨU ===== -->
+<div id="pwModal" class="modal" aria-hidden="true">
+  <div class="modal-backdrop" id="pwBackdrop"></div>
+
+  <div class="modal-box" style="max-width:520px;">
+    <div class="ui-modal-header">
+      <div style="font-weight:700;font-size:18px;">🔑 Đổi mật khẩu</div>
+      {% if not force_pw %}
+      <button class="icon-btn" id="pwClose">✖</button>
+      {% endif %}
+    </div>
+
+    <form method="POST" action="{{ url_for('account_change_password') }}" class="modal-body">
+      <div class="form-row">
+        <label>Mật khẩu hiện tại</label>
+        <div class="pw-wrap">
+          <input type="password" name="current_password" id="pwCur" required>
+          <button class="eye-btn" type="button" data-target="pwCur">🙂</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Mật khẩu mới</label>
+        <div class="pw-wrap">
+          <input type="password" name="new_password" id="pwNew" required>
+          <button class="eye-btn" type="button" data-target="pwNew">🙂</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Nhập lại mật khẩu</label>
+        <div class="pw-wrap">
+          <input type="password" name="re_password" id="pwRe" required>
+          <button class="eye-btn" type="button" data-target="pwRe">🙂</button>
+        </div>
+      </div>
+
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in msgs %}
+          {% if cat == "danger_pw" %}<div class="pw-error">{{ msg }}</div>{% endif %}
+          {% if cat == "success_pw" %}<div class="pw-success">{{ msg }}</div>{% endif %}
+        {% endfor %}
+      {% endwith %}
+
+      <div class="modal-footer">
+        {% if not force_pw %}
+        <button class="admin-btn ui-btn--gray" type="button" id="pwClose2">Đóng</button>
+        {% endif %}
+        <button class="btn-confirm" type="submit">✅ Đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== MODAL ĐỔI EMAIL ===== -->
+<div id="emailModal" class="modal" aria-hidden="true">
+  <div class="modal-backdrop" id="emailBackdrop"></div>
+
+  <div class="modal-box" style="max-width:520px;">
+    <div class="ui-modal-header">
+      <div style="font-weight:700;font-size:18px;">📧 Đổi email</div>
+      <button class="icon-btn" id="emailClose">✖</button>
+    </div>
+
+    <form method="POST" action="{{ url_for('change_email') }}" class="modal-body">
+      <div class="form-row">
+        <label>Email mới</label>
+        <input type="email" name="email" required>
+      </div>
+
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in msgs %}
+          {% if cat in ["danger_email","success_email"] %}
+            <div class="{{ 'email-error' if cat=='danger_email' else 'email-success' }}">{{ msg }}</div>
+          {% endif %}
+        {% endfor %}
+      {% endwith %}
+
+      <div class="modal-footer">
+        <button class="admin-btn ui-btn--gray" type="button" id="emailClose2">Đóng</button>
+        <button class="btn-confirm" type="submit">✅ Đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const FORCE_PW = {{ 'true' if force_pw else 'false' }};
+  const pwModal = document.getElementById("pwModal");
+  const emailModal = document.getElementById("emailModal");
+
+  function openPw(){ pwModal.classList.add("show"); document.body.style.overflow="hidden"; }
+  function closePw(){ pwModal.classList.remove("show"); document.body.style.overflow=""; }
+
+  function openEmail(){ emailModal.classList.add("show"); document.body.style.overflow="hidden"; }
+  function closeEmail(){ emailModal.classList.remove("show"); document.body.style.overflow=""; }
+
+  document.getElementById("btnOpenEmail")?.addEventListener("click", openEmail);
+  document.getElementById("btnOpenPw")?.addEventListener("click", openPw);
+  document.getElementById("pwClose")?.addEventListener("click", closePw);
+  document.getElementById("pwClose2")?.addEventListener("click", closePw);
+  document.getElementById("pwBackdrop")?.addEventListener("click", ()=>{ if(!FORCE_PW) closePw(); });
+
+  document.getElementById("emailClose")?.addEventListener("click", closeEmail);
+  document.getElementById("emailClose2")?.addEventListener("click", closeEmail);
+  document.getElementById("emailBackdrop")?.addEventListener("click", closeEmail);
+
+  document.querySelectorAll(".eye-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const input = document.getElementById(btn.dataset.target);
+      if(!input) return;
+
+      const isHidden = input.type === "password";
+      input.type = isHidden ? "text" : "password";
+      btn.textContent = isHidden ? "😑" : "🙂";
+      input.focus();
+    });
+  });
+
+  if(document.querySelector(".email-error, .email-success")) openEmail();
+  if(document.querySelector(".pw-error, .pw-success") || FORCE_PW) openPw();
+</script>
+
+{% endblock %}

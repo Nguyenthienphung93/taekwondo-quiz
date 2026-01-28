@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="layout-container">
+  <div class="result-wrapper">
+    <div class="result-page-card">
+
+      <div class="result-title">
+        🎉 Xin chúc mừng bạn đã đạt
+      </div>
+
+      <div class="result-score">
+        {{ score }} / {{ total }}
+      </div>
+
+      <div class="result-sub">
+        câu trả lời đúng
+      </div>
+
+      <!-- ===== ACTION BUTTONS ===== -->
+      <div class="result-actions">
+
+        <div class="action-row">
+          <button id="btnReplay" class="result-btn result-btn--replay">
+            🔁 Chơi lại
+          </button>
+
+          <button id="btnReview" class="result-btn result-btn--review">
+            🔎 Kiểm tra
+          </button>
+        </div>
+
+        <div class="action-row single">
+          <a href="{{ url_for('sets') }}" class="result-btn result-btn--home">
+            🏠 Về trang chính
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<!-- ================== REVIEW MODAL ================== -->
+<div id="reviewModal" class="ui-modal-backdrop">
+  <div class="ui-modal-box">
+
+    <div class="ui-modal-header">
+      <div style="font-weight:700;font-size:18px;">📌 Kiểm tra đáp án</div>
+      <button class="icon-btn" id="btnClose">✖</button>
+    </div>
+
+    <div class="ui-modal-body">
+      {% for q, chosen, correct, is_correct in review %}
+        <div class="review-card">
+
+          <div class="review-q">
+            Câu {{ loop.index }}: {{ q.text }}
+          </div>
+
+          <div class="review-choices">
+            {% for c in q.choices %}
+              <div class="choice-line">
+                {% if chosen and c.id == chosen.id %}
+                  <span class="badge-chosen">Bạn chọn</span>
+                {% endif %}
+                {{ c.text }}
+                {% if c.is_correct %}
+                  <span class="badge-correct">Đúng</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if not is_correct %}
+            <div class="review-wrong">
+              ❌ Bạn chọn:
+              <b>{{ chosen.text if chosen else "Không chọn (hết giờ)" }}</b>
+            </div>
+            <div class="review-correct">
+              ✅ Đáp án đúng:
+              <b>{{ correct.text if correct else "Chưa có đáp án đúng" }}</b>
+            </div>
+          {% else %}
+            <div class="review-ok">✅ Trả lời đúng</div>
+          {% endif %}
+
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="ui-modal-footer">
+      <button class="ui-btn ui-btn--gray" id="btnClose2">Đóng</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================== REPLAY MODAL ================== -->
+<div id="replayModal" class="ui-modal-backdrop">
+  <div class="ui-modal-box">
+
+    <div class="ui-modal-header">
+      <div style="font-weight:800;">🎯 Bắt đầu ôn tập</div>
+      <button class="icon-btn" id="btnReplayClose">✖</button>
+    </div>
+
+    <div class="ui-modal-body" style="text-align:center;">
+      <h2 style="margin:12px 0 20px;">
+        {{ topic_name }}
+      </h2>
+
+      <a class="ui-btn ui-btn--primary" href="{{ replay_url }}">
+        ▶ BẮT ĐẦU
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================== EFFECTS ================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<audio id="soundFirework" src="/static/sounds/firework.mp3" preload="auto"></audio>
+<audio id="soundClap" src="/static/sounds/Clap.mp3" preload="auto"></audio>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  /* 🔥 ĐẨY MODAL RA NGOÀI LAYOUT */
+  const root = document.getElementById("modal-root");
+  ["reviewModal", "replayModal"].forEach(id => {
+    const m = document.getElementById(id);
+    if (m && root) root.appendChild(m);
+  });
+
+  /* ===== MODAL CONTROL ===== */
+  const reviewModal = document.getElementById("reviewModal");
+  const replayModal = document.getElementById("replayModal");
+
+  document.getElementById("btnReview").onclick = () => openModal(reviewModal);
+  document.getElementById("btnReplay").onclick = () => openModal(replayModal);
+
+  document.getElementById("btnClose").onclick =
+  document.getElementById("btnClose2").onclick = () => closeModal(reviewModal);
+
+  document.getElementById("btnReplayClose").onclick = () => closeModal(replayModal);
+
+  function openModal(m){
+    m.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal(m){
+    m.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  /* ===== CONFETTI + SOUND ===== */
+  confetti({
+    particleCount: 160,
+    spread: 90,
+    origin: { y: 0.6 }
+  });
+
+  const end = Date.now() + 2200;
+  (function frame(){
+    confetti({ particleCount: 6, angle: 60, spread: 70, origin:{x:0} });
+    confetti({ particleCount: 6, angle:120, spread: 70, origin:{x:1} });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+
+  const firework = document.getElementById("soundFirework");
+  const clap = document.getElementById("soundClap");
+
+  firework.currentTime = 0;
+  clap.currentTime = 0;
+
+  firework.play().catch(()=>{});
+  clap.play().catch(()=>{});
+});
+</script>
+
+{% endblock %}

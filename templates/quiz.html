@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Làm bài{% endblock %}
+
+{% block content %}
+
+<div class="layout-container">
+
+  <div class="quiz-page-wrapper">
+
+    <!-- 🔹 CHỦ ĐỀ -->
+    <div class="quiz-topic">
+      <div class="quiz-topic-label">Chủ đề</div>
+      <div class="quiz-topic-name">
+        {{ question.folder.name if question.folder else "Ôn tập" }}
+      </div>
+    </div>
+
+    <!-- 🔹 KHUNG GAME -->
+    <div class="quiz-card">
+
+      <!-- 🔹 CÂU SỐ / TỔNG -->
+      <div class="quiz-progress">
+        Câu {{ progress[0] + 1 }} / {{ progress[1] }}
+      </div>
+
+      <!-- 🔹 TIMER -->
+      {% if time_per_q %}
+      <div class="quiz-top-center">
+        <div class="timer-inline">
+
+          <div class="timer-ring timer-safe" id="timerRing">
+            <svg width="72" height="72">
+              <circle class="bg"
+                      cx="36" cy="36" r="32"
+                      stroke-width="6"
+                      fill="none"/>
+              <circle class="progress"
+                      cx="36" cy="36" r="32"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                      fill="none"/>
+            </svg>
+            <div id="timer">{{ time_per_q }}</div>
+          </div>
+
+          <div class="timer-unit">giây</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ❓ CÂU HỎI -->
+      <div class="quiz-question">
+        {{ question.text }}
+      </div>
+
+      <!-- 🎯 ĐÁP ÁN -->
+      <form method="POST" id="quiz-form">
+        <div class="answers-grid">
+          {% for c in question.choices %}
+          <label class="quiz-answer-btn">
+            <input type="radio" name="choice_id" value="{{ c.id }}">
+            <span>{{ ['A','B','C','D'][loop.index0] }}. {{ c.text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <!-- ▶️ TIẾP THEO -->
+        <div class="next-btn-box">
+          <button type="button" class="next-btn" id="btnNext">
+            Tiếp theo
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ===============================
+     BEEP SOUND (FILE)
+     =============================== -->
+<audio id="beepSound" src="/static/sounds/beep.mp3" preload="auto"></audio>
+
+<script>
+/* ===== NEXT BUTTON ===== */
+const nextBtn  = document.getElementById("btnNext");
+const quizCard = document.querySelector(".quiz-card");
+const quizForm = document.getElementById("quiz-form");
+
+function showToast(msg){
+  const t = document.createElement("div");
+  t.className = "ui-toast ui-toast--danger";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+nextBtn.addEventListener("click", () => {
+  const checked = quizForm.querySelector("input[name='choice_id']:checked");
+  if (!checked) {
+    showToast("⚠️ Bạn chưa chọn đáp án!");
+    return;
+  }
+  quizCard.classList.add("fade-out");
+  setTimeout(() => quizForm.submit(), 350);
+});
+</script>
+
+{% if time_per_q %}
+<!-- ===============================
+     TIMER + BEEP (KHÔNG ĐƠ)
+     =============================== -->
+<script>
+let timeLeft = {{ time_per_q }};
+const total = timeLeft;
+
+const timerEl   = document.getElementById("timer");
+const timerRing = document.getElementById("timerRing");
+const progress  = document.querySelector(".timer-ring .progress");
+
+const beepSound = document.getElementById("beepSound");
+let beeped = new Set(); // ⛔ chặn beep trùng
+
+const RADIUS = 32;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+progress.style.strokeDasharray = CIRCUMFERENCE;
+
+// reset ban đầu
+timerRing.className = "timer-ring timer-safe";
+progress.style.strokeDashoffset = 0;
+timerEl.textContent = total;
+
+function playBeep(){
+  beepSound.currentTime = 0;
+  beepSound.play().catch(()=>{});
+}
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+
+  timerEl.textContent = timeLeft;
+  const offset = CIRCUMFERENCE * (1 - timeLeft / total);
+  progress.style.strokeDashoffset = offset;
+
+  // 🔊 BEEP 5 → 1 (mỗi giây 1 lần – KHÔNG ĐƠ)
+  if (timeLeft <= 5 && timeLeft > 0 && !beeped.has(timeLeft)) {
+    playBeep();
+    beeped.add(timeLeft);
+  }
+
+  timerRing.classList.remove(
+    "timer-safe",
+    "timer-warning",
+    "timer-danger",
+    "timer-warning-ring",
+    "timer-danger-ring"
+  );
+
+  if (timeLeft > 10) {
+    timerRing.classList.add("timer-safe");
+  }
+  else if (timeLeft > 5) {
+    timerRing.classList.add("timer-warning", "timer-warning-ring");
+  }
+  else {
+    timerRing.classList.add("timer-danger", "timer-danger-ring");
+  }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    quizForm.submit();
+  }
+}, 1000);
+</script>
+{% endif %}
+
+{% endblock %}

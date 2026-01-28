@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Taekwondo{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sets.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/effects.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_users.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+
+<body class="page-{{ request.endpoint }}">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="ui-toast ui-toast--{{ category }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="layout-app">
+
+  <!-- ===== HEADER ===== -->
+  <div class="layout-container-full layout-header-wrapper">
+    <header class="layout-header-main">
+
+      <!-- LOGO -->
+      <div class="layout-header-logo">
+        <a href="{{ url_for('sets') }}">
+          <img src="{{ url_for('static', filename='logo.jpg') }}">
+        </a>
+      </div>
+
+      <!-- TITLE -->
+      <div class="layout-header-title">
+        HỆ THỐNG ÔN TẬP TAEKWONDO
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="layout-header-actions">
+
+        <!-- ☰ HAMBURGER -->
+        <button class="hamburger-btn" id="hamburgerBtn">☰</button>
+
+        <!-- USER PANEL -->
+        <div id="userPanel" class="user-panel">
+          <div class="user-hello">
+            Xin chào! <b>{{ current_user.username }}</b>
+          </div>
+
+          <a href="{{ url_for('account') }}">👤 Tài khoản</a>
+          <a href="{{ url_for('settings') }}">⏱️ Cài đặt ôn tập</a>
+
+          {% if current_user.role == "admin" %}
+            <div class="menu-divider"></div>
+            <a href="{{ url_for('admin_questions') }}">📊 Tạo câu hỏi</a>
+            <a href="{{ url_for('admin_access') }}">🔐 Cấp quyền truy cập</a>
+            <a href="{{ url_for('admin_users') }}">👥 Quản lý user</a>
+          {% endif %}
+
+          <div class="menu-divider"></div>
+          <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
+        </div>
+
+      </div>
+    </header>
+  </div>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="layout-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  {% if current_user.is_authenticated %}
+  <footer class="layout-footer">
+    © {{ current_year }} – Created by Nguyen Thien Phung
+  </footer>
+  {% endif %}
+
+</div>
+
+<!-- ==================================================
+     🔥 GLOBAL MODAL ROOT (CỰC KỲ QUAN TRỌNG)
+     MỌI MODAL SẼ ĐƯỢC ĐẨY RA NGOÀI LAYOUT
+================================================== -->
+<div id="modal-root"></div>
+
+<!-- ===== HAMBURGER SCRIPT ===== -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("hamburgerBtn");
+  const panel = document.getElementById("userPanel");
+
+  if (btn && panel) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.classList.toggle("show");
+    });
+
+    document.addEventListener("click", () => {
+      panel.classList.remove("show");
+    });
+
+    panel.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+  }
+});
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

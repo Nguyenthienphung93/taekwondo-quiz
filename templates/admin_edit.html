@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Sửa câu hỏi{% endblock %}
+
+{% block content %}
+
+<div class="admin-page">
+  <div class="admin-page-title">✏️ Sửa câu hỏi</div>
+</div>
+
+<div class="ui-card admin-form-card">
+
+  <!-- ===== CHỦ ĐỀ ===== -->
+  <div class="edit-question-topic">
+    📌
+    {% if q.folder %}
+      {{ q.folder.parent.parent.name }}
+      — {{ q.folder.parent.name }}
+      — {{ q.folder.name }}
+    {% else %}
+      (Chưa gán chủ đề)
+    {% endif %}
+  </div>
+
+
+  <form method="POST">
+
+    <!-- ===== CÂU HỎI ===== -->
+    <div class="form-row">
+      <label>Câu hỏi</label>
+      <textarea name="question_text" rows="3" required>{{ q.text }}</textarea>
+    </div>
+
+    <!-- ===== ĐÁP ÁN ===== -->
+    <div class="form-row">
+      <label>Đáp án A</label>
+      <input name="a" value="{{ choices[0].text }}" required>
+    </div>
+
+    <div class="form-row">
+      <label>Đáp án B</label>
+      <input name="b" value="{{ choices[1].text }}" required>
+    </div>
+
+    <div class="form-row">
+      <label>Đáp án C</label>
+      <input name="c" value="{{ choices[2].text }}" required>
+    </div>
+
+    <div class="form-row">
+      <label>Đáp án D</label>
+      <input name="d" value="{{ choices[3].text }}" required>
+    </div>
+
+    <!-- ===== ĐÁP ÁN ĐÚNG ===== -->
+    <div class="form-row">
+      <label>Đáp án đúng</label>
+
+      <div class="answer-box">
+        {% for k in ["A","B","C","D"] %}
+          <label class="answer-item">
+            <input type="radio"
+                   name="correct"
+                   value="{{ k }}"
+                   {% if correct_key == k %}checked{% endif %}>
+            {{ k }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ===== ACTION ===== -->
+    <div class="form-actions">
+      <a class="admin-btn ui-btn--gray"
+         href="{{ url_for('admin_questions', folder3_id=q.folder_id) }}">
+        ← Quay lại
+      </a>
+
+      <button class="ui-btn" type="submit">
+        💾 Lưu thay đổi
+      </button>
+    </div>
+
+  </form>
+
+</div>
+
+{% endblock %}

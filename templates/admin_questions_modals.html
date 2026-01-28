@@ -1,0 +1,218 @@
+<!-- ========================================================= -->
+<!-- =============== MODAL FOLDER (ADD / EDIT) ================ -->
+<!-- ========================================================= -->
+<div class="ui-modal-backdrop" id="modalFolder">
+  <div class="ui-modal-box ui-modal-admin">
+
+    <div class="ui-modal-header">
+      <div class="modal-title" id="folderModalTitle">📁</div>
+      <button class="icon-btn" type="button" data-close="modalFolder">✖</button>
+    </div>
+
+    <form method="POST"
+          id="folderForm"
+          enctype="multipart/form-data">
+
+      <div class="ui-modal-body">
+
+        <!-- 🔑 BẮT BUỘC -->
+        <input type="hidden" name="level" id="folderLevel">
+        <input type="hidden" name="folder_id" id="folderId">
+        <input type="hidden" name="parent_id" id="folderParentId">
+
+        <div class="form-row">
+          <label>Tên chủ đề</label>
+          <input name="name" id="folderName" required>
+        </div>
+
+        <div class="form-row">
+          <label>Ảnh đại diện</label>
+          <input type="file" name="image" accept="image/*">
+        </div>
+
+      </div>
+
+      <div class="ui-modal-footer">
+        <button type="button"
+                class="admin-btn ui-btn--gray"
+                data-close="modalFolder">
+          Huỷ
+        </button>
+        <button type="submit" class="admin-btn btn-add">
+          💾 Lưu
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- ================= MODAL ADD QUESTION ==================== -->
+<!-- ========================================================= -->
+<div class="ui-modal-backdrop" id="modalAddQuestion">
+  <div class="ui-modal-box ui-modal-admin">
+
+    <div class="ui-modal-header">
+      <div class="modal-title">➕ Thêm câu hỏi</div>
+      <button class="icon-btn" type="button" data-close="modalAddQuestion">✖</button>
+    </div>
+
+    <form method="POST" action="/admin/questions">
+      <div class="ui-modal-body">
+
+        <!-- 🔑 GẮN CHẶT FOLDER 3 -->
+        <input type="hidden"
+               name="folder3_id"
+               value="{{ selected_folder3.id if selected_folder3 else '' }}">
+
+        <div class="form-row">
+          <label>Câu hỏi</label>
+          <textarea name="question_text" required></textarea>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án A</label>
+          <input name="choice1" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án B</label>
+          <input name="choice2" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án C</label>
+          <input name="choice3" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án D</label>
+          <input name="choice4" required>
+        </div>
+
+        <div class="form-row">
+          <label>Đáp án đúng</label>
+          <div class="answer-box">
+            <label class="answer-item">
+              <input type="radio" name="correct" value="A" required> A
+            </label>
+            <label class="answer-item">
+              <input type="radio" name="correct" value="B"> B
+            </label>
+            <label class="answer-item">
+              <input type="radio" name="correct" value="C"> C
+            </label>
+            <label class="answer-item">
+              <input type="radio" name="correct" value="D"> D
+            </label>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div class="ui-modal-footer">
+        <button type="button"
+                class="admin-btn ui-btn--gray"
+                data-close="modalAddQuestion">
+          Huỷ
+        </button>
+        <button type="submit" class="ui-btn">
+          💾 Lưu
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- ======================== SCRIPT ========================= -->
+<!-- ========================================================= -->
+<script>
+document.addEventListener("click", e => {
+
+  /* ===== OPEN MODAL ===== */
+  const openBtn = e.target.closest("[data-open]");
+  if (openBtn) {
+    e.preventDefault();
+
+    const modalId = openBtn.dataset.open;
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    const level    = openBtn.dataset.level;
+    const action   = openBtn.dataset.action;
+    const parentId = openBtn.dataset.parentId || "";
+
+    const title = document.getElementById("folderModalTitle");
+    const form  = document.getElementById("folderForm");
+
+    const inputLevel  = document.getElementById("folderLevel");
+    const inputId     = document.getElementById("folderId");
+    const inputName   = document.getElementById("folderName");
+    const inputParent = document.getElementById("folderParentId");
+
+    if (level && action) {
+      inputLevel.value  = level;
+      inputParent.value = parentId;
+
+      /* ===== ADD ===== */
+      if (action === "add") {
+        title.innerText = "➕ Thêm Chủ đề cấp " + level;
+        form.action = "/admin/folder/add";
+        inputId.value = "";
+        inputName.value = "";
+      }
+
+      /* ===== EDIT ===== */
+      if (action === "edit") {
+        title.innerText = "✏️ Sửa Chủ đề cấp " + level;
+
+        let current = null;
+
+        if (level == 1 && {{ 'true' if selected_folder1 else 'false' }}) {
+          current = {
+            id: {{ selected_folder1.id if selected_folder1 else 'null' }},
+            name: {{ selected_folder1.name|tojson if selected_folder1 else 'null' }}
+          };
+        }
+
+        if (level == 2 && {{ 'true' if selected_folder2 else 'false' }}) {
+          current = {
+            id: {{ selected_folder2.id if selected_folder2 else 'null' }},
+            name: {{ selected_folder2.name|tojson if selected_folder2 else 'null' }}
+          };
+        }
+
+        if (level == 3 && {{ 'true' if selected_folder3 else 'false' }}) {
+          current = {
+            id: {{ selected_folder3.id if selected_folder3 else 'null' }},
+            name: {{ selected_folder3.name|tojson if selected_folder3 else 'null' }}
+          };
+        }
+
+        if (current) {
+          inputId.value = current.id;
+          inputName.value = current.name;
+          form.action = `/admin/folder/${current.id}/edit`;
+        }
+      }
+    }
+
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+    return;
+  }
+
+  /* ===== CLOSE MODAL ===== */
+  const closeBtn = e.target.closest("[data-close]");
+  if (closeBtn) {
+    e.preventDefault();
+    const modalId = closeBtn.dataset.close;
+    document.getElementById(modalId)?.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+});
+</script>
