@@ -1,0 +1,150 @@
+.user-page{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  width:100%;
+}
+
+.panel{
+  position:static !important;   /* 🔥 DÒNG QUAN TRỌNG NHẤT */
+  width:100%;
+  max-width:100%;
+  background:#fff;
+  border-radius:14px;
+  box-shadow:0 8px 25px rgba(0,0,0,.08);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+
+.table-wrap{
+  overflow:auto;
+  width:100%;
+  flex:1;
+  overflow:auto;
+}
+
+
+
+/* ===== ADMIN USERS – FIXED HEIGHT SPLIT ===== */
+.fixed-split{
+  height: calc(100vh - 220px); 
+  /* 220px = header + padding + footer (ổn định) */
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 1/3 cho Admin */
+.fixed-split .admin-panel{
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2/3 cho User */
+.fixed-split .admin-user-panel{
+  flex: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Bảng cuộn bên trong */
+.fixed-split .table-wrap{
+  flex: 1;
+  overflow-y: auto;
+}
+
+
+
+
+/* ===== ADMIN USERS PAGE – USER PANEL ===== */
+.admin-user-panel{
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+
+.admin-users-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.admin-users-panel{
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.06);
+}
+
+@media(max-width: 1024px){
+  .admin-users-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ===== TABLE BASE ===== */
+.admin-users-panel table{
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 14px;
+}
+
+/* ===== HEADER CHUNG ===== */
+.admin-users-panel thead th{
+  padding: 10px 12px;
+  font-weight: 700;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* ===== DÒNG DATA ===== */
+.admin-users-panel tbody td{
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* ===== ADMIN PANEL ===== */
+.panel-admin{
+  background: #fff7ed;
+  border: 2px solid #fb923c;
+}
+
+.panel-admin thead th{
+  background: linear-gradient(135deg,#ffedd5,#fed7aa);
+  color: #9a3412;
+}
+
+/* ===== USER PANEL ===== */
+.panel-user{
+  background: #f0f9ff;
+  border: 2px solid #60a5fa;
+}
+
+.panel-user thead th{
+  background: linear-gradient(135deg,#e0f2fe,#bae6fd);
+  color: #1e3a8a;
+}
+
+/* ===== BO TRÒN HEADER ===== */
+.panel-admin thead th:first-child,
+.panel-user thead th:first-child{
+  border-top-left-radius: 10px;
+}
+
+.panel-admin thead th:last-child,
+.panel-user thead th:last-child{
+  border-top-right-radius: 10px;
+}

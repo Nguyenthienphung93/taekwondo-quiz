@@ -1,0 +1,224 @@
+/* ===== WRAPPER ===== */
+.quiz-page-wrapper{
+  max-width: 720px;
+  margin: 30px auto;
+  padding: 0 16px;
+}
+
+/* ===== CHỦ ĐỀ ===== */
+.quiz-topic{
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.quiz-topic-label{
+  font-size: 16px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.quiz-topic-name{
+  font-size: 30px;
+  font-weight: 900;
+  color: #ea580c;
+  margin-top: 4px;
+}
+
+/* ===== CARD GAME ===== */
+.quiz-card{
+  background: #fff7ed;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 16px 40px rgba(234,88,12,.25);
+  position: relative;
+}
+
+/* ===== TIMER CANH GIỮA ===== */
+.quiz-top-center{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+/* ===== CÂU SỐ / TỔNG ===== */
+.quiz-progress{
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #9a3412;
+  opacity: .85;
+}
+
+/* ===== QUESTION ===== */
+.quiz-question{
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  margin: 20px 0;
+}
+
+/* ===== ANSWERS ===== */
+.answers-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.quiz-answer-btn{
+  border: 2px solid #fed7aa;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 600;
+  background: #fff;
+  transition: all .15s ease;
+}
+
+.quiz-answer-btn input{
+  display: none;
+}
+
+.quiz-answer-btn:hover{
+  background: #fff7ed;
+  border-color: #fb923c;
+}
+
+.quiz-answer-btn input:checked + span{
+  background: #fb923c;
+  color: #fff;
+  display: block;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(234,88,12,.45);
+}
+
+/* ===== NEXT BUTTON ===== */
+.next-btn-box{
+  display: flex;
+  justify-content: center;
+  margin-top: 26px;
+}
+
+.next-btn{
+  background: #22c55e;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 42px;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(34,197,94,.45);
+}
+
+.next-btn:hover{
+  background: #16a34a;
+}
+
+/* ===== FADE OUT ===== */
+.quiz-card.fade-out{
+  animation: fadeOut .35s ease forwards;
+}
+
+/* ===== TIMER INLINE ===== */
+.timer-box{
+  display: flex;
+  justify-content: center;
+}
+
+.timer-inline{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timer-unit{
+  font-size: 16px;
+  font-weight: 600;
+  color: #444;
+}
+
+/* ===== SỐ GIÂY ===== */
+#timer{
+  font-size: 32px;
+  font-weight: 900;
+  color: #065f46;
+  z-index: 3;
+}
+
+/* ===== TIMER RING ===== */
+.timer-ring{
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  background: #86efac; /* 👈 FIX NỀN ĐEN */
+}
+
+
+/* SVG */
+.timer-ring svg{
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+  z-index: 2;
+}
+
+/* vòng nền */
+.timer-ring .bg{
+  stroke: #e5e7eb;
+}
+
+/* vòng chạy */
+.timer-ring .progress{
+  stroke: #22c55e;
+  transition: stroke .3s;
+}
+
+/* ===== NỀN TRÒN THEO TRẠNG THÁI ===== */
+.timer-ring.timer-safe{
+  background: #86efac;
+  border-radius: 50%;
+}
+
+.timer-ring.timer-warning{
+  background: #fde68a;
+  border-radius: 50%;
+  animation: blink-slow 1.2s infinite;
+}
+
+.timer-ring.timer-danger{
+  background: #ef4444;
+  border-radius: 50%;
+  animation: blink-fast .45s infinite;
+}
+
+/* màu vòng */
+.timer-warning-ring .progress{
+  stroke: #f59e0b;
+}
+
+.timer-danger-ring .progress{
+  stroke: #ef4444;
+}
+
+
+
+@keyframes blink-slow{
+  0%,100% { opacity: 1; }
+  50%     { opacity: .55; }
+}
+
+@keyframes blink-fast{
+  0%,100% { opacity: 1; }
+  50%     { opacity: .25; }
+}

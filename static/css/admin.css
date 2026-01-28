@@ -1,0 +1,1007 @@
+
+/* ===== ADMIN PAGE TITLE ===== */
+.admin-page-title {
+  font-size: 30px;
+  font-weight: 800;
+  text-align: center;
+  margin: 4px 0 10px;   /* 🔥 GIẢM MẠNH */
+  color: #1f2937;
+  letter-spacing: .3px;
+}
+
+/* ===== FIX KHOẢNG TRỐNG TRANG ADMIN QUESTIONS ===== */
+.page-admin-questions .app-content {
+  padding-top: 6px !important;
+}
+
+.page-admin-questions .admin-page-title {
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+
+
+/* ===== ADMIN QUESTIONS – CONTENT WRAPPER ===== */
+.question-header-app-content > * {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.06);
+
+    position: relative;   /* 🔥 QUAN TRỌNG */
+    z-index: 1;           /* 🔥 FIX CLICK TRIỆT ĐỂ */
+}
+
+/* giãn nhẹ giữa các block */
+.question-header-app-content > * + * {
+    margin-top: 16px;
+}
+
+/* ===== QUESTION HEADER FIX ===== */
+.question-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.qh-left{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.qh-right{
+  flex-shrink: 0;
+}
+
+.qh-right .ui-btn{
+  white-space: nowrap;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+@media (max-width: 768px){
+  .question-header{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .qh-right{
+    width: 100%;
+    text-align: right;
+  }
+}
+
+
+
+
+
+
+
+.rowline{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.rowline form{
+  flex: 1;
+  max-width: 420px;   /* tuỳ Ken, 380–480 đều đẹp */
+}
+
+
+.rowline .title{
+  width:92px;
+  font-weight:700;
+  opacity:.9;
+}
+.rowline .actions{
+  display: flex;
+  gap: 8px;
+  margin-left: auto;   /* 🔥 DÒNG QUAN TRỌNG */
+}
+
+.rowline select{
+  width: 100%;
+}
+
+@media (max-width: 720px){
+  .rowline .title{ width:auto; }
+  .rowline select{ min-width: 100%; max-width: 100%; }
+}
+
+
+
+
+
+
+
+/* ===== FORM ROW ===== */
+.form-row{
+  margin-bottom:14px;
+}
+
+.form-row label{
+  display:block;
+  font-weight:600;
+  margin-bottom:6px;
+}
+.form-row input, .form-row textarea, .form-row select{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid #ddd;
+  border-radius:10px;
+  outline:none;
+}
+.form-row textarea{ resize:vertical; }
+
+
+.question-count{
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ===== SAVE BUTTON (GREEN) ===== */
+.btn-save{
+  appearance:none;
+  border:none;
+  cursor:pointer;
+
+  padding:10px 18px;
+  border-radius:999px;
+  font-size:14px;
+  font-weight:700;
+
+  color:#fff;
+  background: linear-gradient(135deg, #16a34a, #4ade80);
+
+  box-shadow:
+    0 6px 16px rgba(22,163,74,.35),
+    inset 0 -2px 0 rgba(255,255,255,.25);
+
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s;
+}
+
+.btn-save:hover{
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow:
+    0 10px 22px rgba(22,163,74,.45),
+    inset 0 -2px 0 rgba(255,255,255,.3);
+}
+
+.btn-save:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 4px 10px rgba(22,163,74,.35),
+    inset 0 2px 6px rgba(0,0,0,.25);
+}
+
+/* ===== ACTION BUTTON ===== */
+.ui-btn--gray{
+  appearance:none;
+  border:none;
+  cursor:pointer;
+
+  padding:8px 14px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:700;
+
+  background: linear-gradient(135deg,#9ca3af,#d1d5db);
+  color:#111;
+
+  box-shadow:0 4px 10px rgba(0,0,0,.25);
+}
+
+.ui-btn--gray:hover{
+  filter: brightness(1.05);
+}
+
+/* ===== CONFIRM BUTTON ===== */
+.btn-confirm{
+  appearance:none;
+  border:none;
+  cursor:pointer;
+
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-weight:700;
+  color:#fff;
+
+  background: linear-gradient(135deg,#2563eb,#60a5fa);
+  box-shadow:0 6px 16px rgba(37,99,235,.35);
+}
+
+
+/* ===== MODAL CENTER FIX ===== */
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.show{
+  display: flex;
+}
+
+
+
+.modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.45);
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.45);
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.modal-box{
+  width: 100%;
+  max-width: 800px;
+
+  background:#fff;
+  border-radius:16px;
+  overflow: hidden;
+
+  box-shadow:0 20px 50px rgba(0,0,0,.35);
+  animation: scaleIn .2s ease;
+  position: relative;
+  z-index: 2;   /* 🔥 CAO HƠN BACKDROP */
+  pointer-events: auto;
+}
+
+
+
+/* ===== MODAL HEADER ===== */
+.ui-modal-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 14px 18px;
+  border-bottom: 1px solid #eee;
+
+  background: #f9fafb;
+}
+
+/* ===== MODAL BODY ===== */
+.modal-body{
+  padding: 20px 22px;
+}
+
+@media (min-width: 1200px){
+  .modal-box{
+    max-width: 860px;
+  }
+}
+
+.form-row{
+  margin-bottom: 14px;
+}
+
+/* ===== MODAL FOOTER ===== */
+.modal-footer{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  padding: 14px 18px;
+  border-top: 1px solid #eee;
+  background: #f9fafb;
+}
+.modal-footer .ui-btn--gray{
+  padding: 8px 16px;
+  border-radius: 999px;
+}
+
+@keyframes scaleIn{
+  from{ transform:scale(.95); opacity:0 }
+  to{ transform:scale(1); opacity:1 }
+}
+
+
+/* ===== PASSWORD WITH EYE ===== */
+.pw-wrap{
+  position: relative;
+  width: 100%;
+}
+
+.pw-wrap input{
+  width: 100%;
+  padding-right: 44px;   /* chừa chỗ cho icon 👁 */
+}
+
+.eye-btn{
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  font-size: 18px;
+  line-height: 1;
+  opacity: .6;
+}
+
+.eye-btn:hover{
+  opacity: 1;
+}
+
+
+/* ===== ADMIN USERS – PANEL COLOR ===== */
+
+/* 👑 ADMIN */
+.panel-admin{
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fed7aa;
+}
+
+/* 👤 USER */
+.panel-user{
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+}
+
+/* giữ table trắng cho dễ đọc */
+.panel-admin .table-wrap,
+.panel-user .table-wrap{
+  background:#fff;
+  border-radius:12px;
+}
+
+
+
+/* ===== ADMIN USERS – PANEL SPACING ===== */
+.admin-users-grid{
+  padding: 0 24px;          /* 🔥 tạo khoảng cách trái phải với cửa sổ */
+}
+
+/* ===== ADMIN PANEL (CAM) ===== */
+.panel-admin{
+  background: #fff7ed;      /* nền cam nhạt */
+  border: 2px solid #fb923c;/* viền cam đậm */
+}
+
+/* ===== USER PANEL (XANH) ===== */
+.panel-user{
+  background: #eff6ff;      /* nền xanh nhạt */
+  border: 2px solid #60a5fa;/* viền xanh đậm */
+}
+
+/* ===== PANEL CHUNG ===== */
+.admin-users-panel{
+  border-radius: 18px;
+  padding: 18px;
+}
+
+/* ===== TITLE ADMIN ===== */
+.panel-admin .panel-title{
+  color: #c2410c;           /* cam đậm */
+  font-weight: 800;
+}
+
+/* ===== TITLE USER ===== */
+.panel-user .panel-title{
+  color: #1d4ed8;           /* xanh đậm */
+  font-weight: 800;
+}
+
+
+/* ===== ANSWER BOX ===== */
+.answer-box{
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+
+  background: #fff7ed;;          /* xanh nhạt */
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+
+  padding: 12px 16px;
+  margin-top: 8px;
+}
+
+.answer-item{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.answer-item input{
+  transform: scale(1.15);
+  cursor: pointer;
+}
+
+/* ===== FIX WIDTH MODAL – ADMIN QUESTIONS ===== */
+.page-admin_questions .ui-modal-box{
+  width: 560px;
+  max-width: 90vw;
+}
+
+.page-admin_questions .ui-modal-body{
+  width: 100%;
+  max-width: none;
+}
+
+
+/* ===== EDIT BUTTON (SỬA) ===== */
+.btn-edit{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 14px;
+  border-radius: 999px;
+
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+
+  color: #92400e;
+  background: linear-gradient(135deg, #fff7cc, #fde68a);
+
+  border: 1px solid #facc15;
+  box-shadow: 0 4px 10px rgba(250,204,21,.35);
+
+  transition: all .2s ease;
+}
+
+.btn-edit:hover{
+  background: linear-gradient(135deg, #fde68a, #facc15);
+  box-shadow: 0 6px 14px rgba(250,204,21,.45);
+  transform: translateY(-1px);
+}
+
+.btn-edit:active{
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(250,204,21,.35);
+}
+
+
+
+
+/* ===== ADMIN EDIT FORM ===== */
+.admin-form-card{
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.form-actions{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ===== ANSWER BOX ===== */
+.answer-box{
+  display: flex;
+  gap: 24px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.answer-item{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.edit-question-topic{
+  font-size:18px;
+  font-weight:700;
+  margin-bottom:16px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#1f2937;
+}
+
+
+/* ===== ADMIN BUTTON COLORS ===== */
+
+.admin-btn{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+/* ➕ THÊM – XANH LÁ */
+.btn-add{
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(34,197,94,.35);
+}
+.btn-add:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(34,197,94,.45);
+}
+
+/* ✏️ SỬA – VÀNG */
+.btn-edit{
+  background: linear-gradient(135deg, #fde68a, #facc15);
+  color: #7c5700;
+  box-shadow: 0 6px 14px rgba(250,204,21,.35);
+}
+.btn-edit:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(250,204,21,.45);
+}
+
+.admin-layout{
+  display: grid;
+  grid-template-columns: 420px 1fr; /* trái cố định – phải co giãn */
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* cột trái */
+.admin-left{
+  min-width: 380px;
+}
+
+/* cột phải */
+.admin-right{
+  width: 100%;
+}
+
+
+/* ===== KHUNG CHỌN CHỦ ĐỀ ===== */
+.admin-topic-select{
+  background: linear-gradient(135deg, #fdf2f8, #fce7f3); /* sen nhạt */
+  border: 1px solid #f9a8d4;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+
+  box-shadow: 0 6px 18px rgba(236,72,153,.15);
+}
+
+.admin-topic-select label{
+  font-weight: 700;
+  color: #9d174d;
+}
+
+.admin-topic-select select{
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+
+/* ===== KHUNG DANH SÁCH CÂU HỎI ===== */
+.admin-question-header{
+  background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+  border: 1px solid #93c5fd;
+  border-radius: 18px;
+
+  padding: 16px 20px;
+  margin-bottom: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  box-shadow: 0 6px 20px rgba(59,130,246,.18);
+}
+
+.admin-question-header h3{
+  margin: 0;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+
+
+/* ===============================
+   ADMIN – QUESTION LIST COLORS
+   =============================== */
+
+.admin-question-item{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+
+  padding: 16px 22px;
+  margin-bottom: 12px;
+
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.admin-question-item:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.1);
+}
+
+/* TEXT */
+.admin-question-item .question-text{
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* ACTIONS */
+.admin-question-item .question-actions{
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ===== COLORS XEN KẼ ===== */
+
+/* 🌸 Sen nhạt */
+.admin-question-item.color-0{
+  background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+  border-left: 6px solid #ec4899;
+}
+
+/* 💙 Xanh dương nhạt */
+.admin-question-item.color-1{
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  border-left: 6px solid #0284c7;
+}
+
+/* 🍊 Cam nhạt */
+.admin-question-item.color-2{
+  background: linear-gradient(135deg, #ffedd5, #fed7aa);
+  border-left: 6px solid #f97316;
+}
+
+
+/* ===============================
+   ADMIN – FULL WIDTH LAYOUT FIX
+   =============================== */
+
+/* Toàn bộ trang admin không bị bóp */
+.page-admin_questions .layout-content{
+  padding: 24px 32px;
+}
+
+/* Khung chọn chủ đề */
+.page-admin_questions .admin-topic-select{
+  max-width: 100%;
+  margin: 0 auto 24px;
+}
+
+/* Khung header câu hỏi */
+.page-admin_questions .admin-question-header{
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Khung chứa danh sách câu hỏi */
+.page-admin_questions .question-header-app-content{
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Danh sách câu hỏi kéo full */
+.page-admin_questions .admin-question-item{
+  width: 100%;
+}
+
+/* Giữ lề đẹp 2 bên – không dính mép */
+.page-admin_questions{
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+
+/* ===============================
+   ACCESS PAGE – LAYOUT
+   =============================== */
+
+.access-page{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.access-title{
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 24px;
+}
+
+/* KHUNG LỚN */
+.access-card{
+  background: #f3f4f6;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.08);
+}
+
+/* ===== KHUNG 1 ===== */
+.access-setting{
+  background: #ecfdf5;
+  border-left: 6px solid #22c55e;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.access-setting h3{
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.access-setting label{
+  display: block;
+  font-weight: 600;
+  margin: 6px 0;
+}
+
+/* ===== KHUNG 2 ===== */
+.access-select{
+  background: #eff6ff;
+  border-left: 6px solid #3b82f6;
+  border-radius: 14px;
+  padding: 20px;
+
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  gap: 16px;
+}
+
+/* CỘT */
+.access-col h4{
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+/* ===============================
+   ACCESS – TRANSFER BUTTONS STYLE
+   =============================== */
+
+.access-arrows button{
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 900;
+
+  border: none;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow:
+    0 6px 14px rgba(0,0,0,.18),
+    inset 0 -2px 0 rgba(255,255,255,.35);
+
+  transition: all .18s ease;
+}
+
+/* ===== NÚT > (XANH LÁ) ===== */
+.access-arrows button:nth-child(1){
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+}
+
+.access-arrows button:nth-child(1):hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 22px rgba(34,197,94,.45),
+    inset 0 -2px 0 rgba(255,255,255,.45);
+}
+
+.access-arrows button:nth-child(1):active{
+  transform: translateY(1px);
+  box-shadow:
+    0 4px 10px rgba(34,197,94,.35),
+    inset 0 2px 6px rgba(0,0,0,.25);
+}
+
+/* ===== NÚT < (ĐỎ) ===== */
+.access-arrows button:nth-child(2){
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+}
+
+.access-arrows button:nth-child(2):hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 22px rgba(239,68,68,.45),
+    inset 0 -2px 0 rgba(255,255,255,.45);
+}
+
+.access-arrows button:nth-child(2):active{
+  transform: translateY(1px);
+  box-shadow:
+    0 4px 10px rgba(239,68,68,.35),
+    inset 0 2px 6px rgba(0,0,0,.25);
+}
+
+
+
+/* ===============================
+   ACCESS – FIX WIDTH SEARCH + LIST
+   =============================== */
+
+/* mỗi cột trái / phải */
+.access-col{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* input tìm kiếm */
+.access-col input[type="text"]{
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+}
+
+/* danh sách user */
+.access-col select{
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 260px;      /* 🔥 kéo cao đều */
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+/* grid khung chọn user */
+.access-select{
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr; /* 🔥 đều 2 bên */
+  align-items: stretch;
+}
+
+/* cột mũi tên */
+.access-arrows{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ===============================
+   ACCESS – SAVE BUTTON BAR
+   =============================== */
+
+.access-save-bar{
+  margin-top: 28px;              /* 🔥 tách khỏi khung trên */
+  padding-top: 22px;
+
+  display: flex;
+  justify-content: center;       /* ✅ canh giữa ngang */
+
+  border-top: 1px dashed #e5e7eb;/* 🔥 ngăn cách nhẹ */
+}
+
+/* nút lưu nổi bật hơn */
+.access-save-bar .btn-save{
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 800;
+
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+
+  color: #fff;
+  background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+
+  box-shadow:
+    0 8px 20px rgba(14,165,233,.45),
+    inset 0 -2px 0 rgba(255,255,255,.3);
+
+  transition: all .18s ease;
+}
+
+.access-save-bar .btn-save:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 26px rgba(14,165,233,.55),
+    inset 0 -2px 0 rgba(255,255,255,.4);
+}
+
+.access-save-bar .btn-save:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 4px 12px rgba(14,165,233,.4),
+    inset 0 2px 6px rgba(0,0,0,.25);
+}
+
+
+
+/* ===============================
+   ACCOUNT PAGE
+   =============================== */
+
+.account-page{
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.account-card{
+  width: 100%;
+  max-width: 720px;
+
+  background: linear-gradient(135deg, #f0f9ff, #ecfeff); /* 🔥 màu nhẹ */
+  border-radius: 20px;
+
+  padding: 28px 32px;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.08);
+
+  border: 1px solid #bae6fd;
+}
+
+/* ===== TITLE ===== */
+.account-title{
+  text-align: center;
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 26px;
+
+  color: #0f172a;
+}
+
+/* ===== INPUT SPACING ===== */
+.account-card input{
+  width: 100%;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.account-actions{
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 26px;
+}
+/* ===== ACCOUNT FIELD TITLE ===== */
+.account-field-title{
+  text-align: left;          /* ✅ canh trái */
+  font-weight: 700;
+  font-size: 15px;
+  margin: 10px 0 6px;
+
+  color: #0f172a;
+}

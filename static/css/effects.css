@@ -1,0 +1,279 @@
+@keyframes popIn{
+  from{
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to{
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut{
+  to{
+    opacity:0;
+    transform: translateY(-10px) scale(.98);
+  }
+}
+
+
+@keyframes shake-lite{
+  0%{ transform: translateX(0); }
+  25%{ transform: translateX(-2px); }
+  50%{ transform: translateX(2px); }
+  75%{ transform: translateX(-2px); }
+  100%{ transform: translateX(0); }
+}
+
+
+/* ===== SHAKE EFFECT ===== */
+@keyframes shake {
+    0% { transform: translateX(0); }
+    15% { transform: translateX(-10px); }
+    30% { transform: translateX(10px); }
+    45% { transform: translateX(-8px); }
+    60% { transform: translateX(8px); }
+    75% { transform: translateX(-5px); }
+    90% { transform: translateX(5px); }
+    100% { transform: translateX(0); }
+}
+
+
+
+.shake-lite {
+  animation: shake-lite .35s;
+}
+
+.shake-strong {
+    animation: shake 0.35s ease-in-out;
+}
+
+
+
+
+
+/* ===============================
+   PHÁO BÔNG KẾT THÚC
+   =============================== */
+
+.fireworks{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20000;
+}
+
+.firework{
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: red;
+  animation: explode 1s ease-out forwards;
+}
+
+/* Hiệu ứng */
+@keyframes modalPop{
+  from{
+    transform: scale(0.96) translateY(10px);
+    opacity: 0;
+  }
+  to{
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+
+
+
+@keyframes blink-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+
+@keyframes blink-fast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+
+
+
+@keyframes explode{
+  from{
+    transform: translate(0,0) scale(1);
+    opacity:1;
+  }
+  to{
+    transform: translate(var(--x), var(--y)) scale(.2);
+    opacity:0;
+  }
+}
+
+
+
+
+/* ===============================
+   START + COUNTDOWN OVERLAY
+   =============================== */
+
+.start-overlay,
+.countdown-overlay{
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.start-box{
+  position: relative;
+
++ display: flex;
++ flex-direction: column;
++ align-items: center;   /* 🔥 CANH GIỮA TẤT CẢ */
+
+  background: linear-gradient(
+    135deg,
+    rgba(255, 237, 213, 0.95),
+    rgba(255, 247, 237, 0.95)
+  );
+
+  padding:40px 60px;
+  border-radius:18px;
+- text-align:center;
+  box-shadow: 0 12px 40px rgba(234, 88, 12, 0.35);
+  animation: modalPop .25s ease;
+}
+
+
+.start-title{
+  color:#9a3412;
+  font-size:28px;
+  font-weight:900;
+  margin-bottom:30px;
+}
+
+/* ===== NÚT BẮT ĐẦU (GAME STYLE) ===== */
+.start-btn{
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;     /* 🔥 icon trên – chữ dưới */
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  width: 180px;
+  height: 110px;
+
+  border-radius: 999px;       /* bo tròn mạnh */
+  border: none;
+
+  background: linear-gradient(
+    135deg,
+    #fdba74,   /* cam nhạt */
+    #fb923c
+  );
+
+  color: #fff;
+  cursor: pointer;
+
+  box-shadow:
+    0 12px 30px rgba(234, 88, 12, 0.45),
+    inset 0 -3px 0 rgba(0,0,0,.15);
+
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+/* hover */
+.start-btn:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 38px rgba(234, 88, 12, 0.55),
+    inset 0 -3px 0 rgba(0,0,0,.2);
+}
+
+/* active */
+.start-btn:active{
+  transform: translateY(0);
+  box-shadow:
+    0 8px 18px rgba(234, 88, 12, 0.4),
+    inset 0 3px 6px rgba(0,0,0,.25);
+}
+
+/* icon > */
+.start-icon{
+  font-size: 34px;
+  line-height: 1;
+}
+
+/* chữ */
+.start-text{
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+
+
+.countdown-number{
+  font-size:120px;
+  font-weight:900;
+  color:#fff;
+  text-shadow:
+    0 0 25px rgba(255,120,0,.9),
+    0 12px 40px rgba(0,0,0,.9);
+- animation: pop 1s ease;
++ animation: popIn 1s ease;
+}
+
+/* ❌ trong box */
+.start-close{
+  position:absolute;
+  top:12px;
+  right:14px;
+
+  width:34px;
+  height:34px;
+  border-radius:50%;
+
+  border:none;
+  background:rgba(0,0,0,0.15);
+  color:#fff;
+
+  font-size:20px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.start-close:hover{
+  background:rgba(0,0,0,0.25);
+}
+
+/* ===== NÚT ĐÓNG OVERLAY ===== */
+.overlay-close{
+  position: fixed;
+  top: 20px;
+  right: 24px;
+
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+
+  background: rgba(255,255,255,0.15);
+  border: none;
+
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  cursor: pointer;
+
+  z-index: 10001;          /* 🔥 CAO HƠN OVERLAY */
+  pointer-events: auto;   /* 🔥 ÉP NHẬN CLICK */
+}
+
+.overlay-close:hover{
+  background: rgba(255,255,255,0.28);
+}

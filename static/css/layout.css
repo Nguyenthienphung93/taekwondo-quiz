@@ -1,0 +1,177 @@
+/* ===== LAYOUT CONTAINER ===== */
+.layout-container{
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.layout-container-full{
+  width: 100%;
+  padding: 24px 48px;
+}
+
+
+/* ===== HEADER MAIN ===== */
+.layout-header-main{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  background: #fff3e0;
+  border-bottom: 1px solid #FFE0B2;
+  border-radius: 16px;
+
+  padding: 16px 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+
+  position: sticky;   /* 🔥 QUAN TRỌNG */
+  top: 0;
+  z-index: 10001;     /* cao hơn layout-content */
+  overflow: visible;
+}
+
+/* LOGO */
+.layout-header-logo img{
+  height: 96px;
+  cursor: pointer;
+}
+
+/* ===== HEADER TITLE – RESPONSIVE FIX ===== */
+.layout-header-title{
+  flex: 1 1 auto;        /* cho phép co giãn */
+  min-width: 0;          /* 🔥 cực kỳ quan trọng */
+  text-align: center;
+
+  font-size: clamp(22px, 4vw, 42px);
+  font-weight: 900;
+  color: #ff6a00;
+  letter-spacing: 1px;
+
+  white-space: normal;   /* ✅ cho xuống dòng */
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* ACTIONS */
+.layout-header-actions{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+
+/* ===== HAMBURGER ===== */
+.hamburger-btn{
+  font-size: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 30;
+}
+.hamburger-btn:hover{
+  background: #FFD699;
+}
+
+
+/* ===== USER PANEL ===== */
+.user-panel{
+  position: absolute;
+  right: 24px;
+  top: calc(100% + 12px);
+
+  width: 220px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+
+  padding: 12px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 500;
+}
+.user-panel.show{ display:flex; }
+
+.user-panel a{
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #333;
+  font-weight: 600;
+}
+.user-panel a:hover{ background:#f3f4f6; }
+
+.user-hello{
+  font-size: 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+}
+
+
+/* ===== APP LAYOUT ===== */
+.layout-app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* ❌ chặn scroll toàn trang */
+}
+
+
+
+/* ===== MAIN CONTENT – FULL WIDTH ===== */
+.layout-content{
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 12px 0 0;
+  position: relative;
+  z-index: 1;
+
+  flex: 1;
+  overflow-y: auto;   /* ✅ CHỈ CONTENT ĐƯỢC SCROLL */
+}
+
+
+.layout-footer{
+  flex-shrink: 0;   /* ✅ khóa footer */
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+  padding: 10px 0 14px;
+  background: #fff;
+}
+
+
+/* ===== LOGIN / REGISTER FIXED FOOTER ===== */
+.site-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 0 3px 10px rgba(0,0,0,0.5);
+
+  z-index: 5;
+  pointer-events: none;
+}
+
+
+/* ===== BACKGROUND LAYERS ===== */
+.bg-layer{
+  z-index: -2;
+}
+
+.bg-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: -1;
+}

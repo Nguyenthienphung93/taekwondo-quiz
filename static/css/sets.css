@@ -1,0 +1,139 @@
+/* 🔵 KHUNG NGOÀI – FULL WIDTH THEO MÀN HÌNH */
+.sets-wrap{
+  width: 100%;
+  margin: 32px 0;
+}
+
+/* 🔷 KHUNG XANH – GIỐNG HEADER (KHÔNG BỊ BÓ) */
+.sets-inner{
+  width: calc(100% - 96px);
+  margin: 0 auto;
+  padding: 28px 32px;
+
+  min-height: calc(99vh - 260px);  /* 🔥 DÃN CHIỀU DỌC */
+
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(59,130,246,.12);
+}
+
+
+
+/* ===== GRID ===== */
+.sets-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+  gap: 28px;
+  margin-top: 20px;
+
+  justify-content: flex-start;  /* 🔥 BÁM GÓC TRÁI */
+}
+
+
+/* MOBILE */
+@media (max-width: 768px){
+  .sets-inner{
+    width: calc(100% - 32px);
+    padding: 20px 16px;
+  }
+}
+
+
+/* =========================
+   ẢNH ĐẠI DIỆN CHỦ ĐỀ
+========================= */
+
+.folder-thumb{
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+.folder-thumb img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+
+
+/* =========================
+   BREADCRUMB
+========================= */
+
+.breadcrumb{
+  margin-bottom:20px;
+  font-size:15px;
+  color:#555;
+}
+
+.breadcrumb a{
+  color:#2563eb;
+  text-decoration:none;
+  font-weight:600;
+}
+
+.breadcrumb span{
+  margin:0 6px;
+}
+
+.breadcrumb .current{
+  font-weight:700;
+  color:#111;
+}
+
+
+
+/* ===============================
+   KHUNG CHỦ ĐỀ – NỀN XANH NHẠT
+=============================== */
+
+.topic-section{
+  width: 100%;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(59,130,246,.12);
+  margin: 0 auto;
+}
+
+.topic-inner{
+  max-width: 1400px;      /* 🔥 KHUNG RỘNG */
+  margin: 0 auto;         /* 🔥 CANH GIỮA */
+  padding: 32px 40px;     /* 🔥 LỀ TRÁI PHẢI */
+}
+
+
+/* breadcrumb */
+.breadcrumb{
+  font-size: 14px;
+  color: #2563eb;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+/* grid chủ đề */
+.topic-section .sets-grid{
+  grid-template-columns: repeat(auto-fit, minmax(200px, 240px));
+  justify-content: flex-start;
+}
+
+
+/* mobile */
+@media (max-width: 768px){
+  .topic-inner{
+    padding: 16px 18px;
+  }
+}
+
+
+.card-title{
+  margin-top: 10px;
+  font-weight: 600;
+  text-align: center;
+}

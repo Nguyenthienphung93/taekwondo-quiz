@@ -1,0 +1,298 @@
+
+/* ===== LOGIN PAGE BASE ===== */
+body.login-page{
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+
+    background: 
+      linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)),
+      url("/static/bg.jpg") center/cover no-repeat;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.login-wrapper{
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.login-container {
+    width: 100%;
+    max-width: none;   /* ❌ bỏ bóp */
+    text-align: center;
+    padding: 14px;
+}
+
+.login-card{
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    backdrop-filter: blur(6px);
+    background: rgba(255,255,255,0.95);
+}
+
+
+
+.site-footer{
+    text-align: center;
+    font-size: 13px;
+    color: #fff;
+    padding: 10px 0;
+    opacity: 0.85;
+}
+
+
+
+.app-title {
+    color: #fff;
+    margin-bottom: 18px;
+    font-size: 42px;          /* ✅ TO HƠN */
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    text-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+
+.login-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 30px 28px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.35);
+}
+
+.login-card h2 {
+    margin-bottom: 18px;
+    color: #333;
+    font-size: 22px;
+}
+
+.login-card label {
+    display: block;
+    text-align: left;
+    font-weight: 600;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    color: #555;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #cfcfcf;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.login-card input:focus {
+    outline: none;
+    border-color: #2c5364;
+    box-shadow: 0 0 0 3px rgba(44,83,100,0.12);
+}
+
+/* ===== LOGIN BUTTON SPACING ===== */
+.login-card .ui-btn{
+    margin-top: 16px;   /* ⬅️ khoảng cách với ô password */
+}
+
+
+/* ===== PASSWORD + EYE ===== */
+.password-wrap {
+    position: relative;
+}
+
+.password-wrap input {
+    padding-right: 44px; /* chừa chỗ cho nút mắt */
+}
+
+.eye-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 6px;
+    border-radius: 8px;
+}
+
+.eye-btn:hover {
+    background: rgba(0,0,0,0.06);
+}
+
+
+
+
+
+
+
+
+
+.register-link {
+    margin-top: 14px;
+}
+
+.register-link a {
+    color: #2193b0;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.register-link a:hover {
+    text-decoration: underline;
+}
+
+.forgot-link {
+  margin-top: 8px;
+  text-align: right;
+}
+
+.forgot-link a {
+  font-size: 13px;
+  color: #1a73e8;
+  text-decoration: none;
+}
+
+.forgot-link a:hover {
+  text-decoration: underline;
+}
+
+.alert.error {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+
+.password-wrap{
+  position: relative;
+}
+.password-wrap input{
+  width:100%;
+  padding-right: 38px;
+}
+.toggle-eye{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform: translateY(-50%);
+  cursor:pointer;
+  user-select:none;
+  font-size: 16px;
+}
+
+.alert-login{
+  margin-bottom: 12px;
+}
+
+.login-password-wrap{
+  position: relative;
+}
+
+
+/* ===== FORGOT PASSWORD MODAL ===== */
+.ui-modal-backdrop{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.ui-modal-backdrop.show{
+    display: flex;
+}
+
+.ui-modal-box{
+    width: 100%;
+    max-width: 360px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+    overflow: hidden;
+}
+
+.ui-modal-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.ui-modal-header button{
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.ui-modal-body{
+    padding: 20px;
+}
+
+.ui-modal-body input{
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+
+.ui-modal-footer{
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 14px;
+    border-top: 1px solid #eee;
+}
+
+/* ===== BUTTON STYLE ===== */
+.ui-btn{
+    appearance: none;
+    border: none;
+    cursor: pointer;
+
+    padding: 10px 18px;
+    border-radius: 999px; /* bo tròn pill */
+    font-size: 14px;
+    font-weight: 700;
+
+    color: #fff;
+    background: linear-gradient(135deg, #2193b0, #6dd5ed);
+
+    box-shadow:
+      0 6px 14px rgba(0,0,0,0.25),
+      inset 0 -2px 0 rgba(255,255,255,0.25);
+
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s;
+}
+
+.ui-btn:hover{
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 20px rgba(0,0,0,0.28),
+      inset 0 -2px 0 rgba(255,255,255,0.3);
+    filter: brightness(1.05);
+}
+
+.ui-btn:active{
+    transform: translateY(1px);
+    box-shadow:
+      0 4px 10px rgba(0,0,0,0.25),
+      inset 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.ui-btn.gray{
+    background: linear-gradient(135deg, #9ca3af, #d1d5db);
+    color: #111;
+}
+
+
