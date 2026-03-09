@@ -5,4 +5,7 @@ Werkzeug
 gunicorn
 requests
 Pillow
-requests
+python-slugify
+mammoth
+python-docx
+python-dotenv
