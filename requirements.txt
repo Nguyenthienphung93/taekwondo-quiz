@@ -3,7 +3,6 @@ Flask-SQLAlchemy
 Flask-Login
 Werkzeug
 gunicorn
-<<<<<<< HEAD
 requests
 Pillow
 requests
