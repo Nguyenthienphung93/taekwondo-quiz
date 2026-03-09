@@ -1,0 +1,787 @@
+{% extends "base.html" %}
+{% block title %}Thông báo{% endblock %}
+{% block body_class %}page-notifications{% endblock %}
+
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}?v=20260309_1">
+{% endblock %}
+
+{% block content %}
+<div class="notifications-page">
+  <div class="notifications-shell">
+
+    <!-- CỘT TRÁI -->
+    <section class="notifications-left">
+      <div class="notifications-left-head">
+        <span>Thông báo</span>
+
+        {% if current_user.role == "admin" %}
+          <button type="button" class="notifications-add-btn" id="openAddNotificationModal">
+            ＋ Thêm
+          </button>
+        {% else %}
+          <button type="button" class="notifications-add-btn" id="openFeedbackModal">
+            Feedback
+          </button>
+        {% endif %}
+      </div>
+
+      {% if notifications %}
+        <div class="notifications-list">
+          {% for n in notifications %}
+            <a href="{{ url_for('notifications_page', id=n.id) }}"
+               class="notifications-mail-item {% if selected_notification and selected_notification.id == n.id %}active{% endif %} {% if not n.is_read %}unread{% endif %}">
+              
+              <div class="notifications-mail-top">
+                <div class="notifications-mail-title">
+                  {{ n.icon or "🔔" }} {{ n.title }}
+                </div>
+
+                <div class="notifications-mail-time">
+                  {{ n.created_at.strftime("%d/%m/%Y %H:%M") if n.created_at else "" }}
+                </div>
+              </div>
+
+              <div class="notifications-mail-preview">
+                {{ (n.message or "Không có nội dung.") | striptags }}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="notifications-empty-box">
+          Chưa có thông báo nào.
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- CỘT PHẢI -->
+    <section class="notifications-right">
+      <div class="notifications-right-head">
+        <span>Nội dung</span>
+
+        <div class="notifications-right-actions">
+          {% if current_user.role == "admin"
+                and selected_notification
+                and selected_notification.action_type == "feedback"
+                and not selected_notification.is_done %}
+            <button type="button"
+                    class="notifications-reply-btn"
+                    id="openReplyModal">
+              💬 Trả lời
+            </button>
+          {% endif %}
+
+          {% if selected_notification %}
+            <a href="{{ url_for('notification_delete', noti_id=selected_notification.id) }}"
+               class="notifications-delete-btn"
+               onclick="return confirm('Xóa thông báo này?');">
+              🗑️ Xóa
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if selected_notification %}
+        <div class="notifications-detail">
+          <div class="notifications-detail-title">
+            {{ selected_notification.icon or "🔔" }} {{ selected_notification.title }}
+          </div>
+
+          <div class="notifications-detail-meta">
+            <span><b>Thời gian:</b> {{ selected_notification.created_at.strftime("%d/%m/%Y %H:%M:%S") if selected_notification.created_at else "" }}</span>
+          </div>
+
+          <div class="notifications-detail-body">
+            {{ (selected_notification.message or "Không có nội dung chi tiết.") | safe }}
+          </div>
+
+          {% if current_user.role == "admin" and selected_notification.action_type == "renew_request" and not selected_notification.is_done %}
+            <div class="notifications-detail-action">
+              <a href="{{ url_for('notification_confirm', noti_id=selected_notification.id) }}"
+                 class="notifications-detail-btn">
+                Xác nhận
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="notifications-empty-box">
+          Hãy chọn một thông báo ở bên trái.
+        </div>
+      {% endif %}
+    </section>
+
+  </div>
+</div>
+
+{% if current_user.role == "admin" %}
+<div id="notificationCreateModal" class="notifications-modal">
+  <div class="notifications-modal-box">
+    <div class="notifications-modal-head">
+      <div class="notifications-modal-title">Thêm thông báo</div>
+      <button type="button" class="ui-close" id="closeAddNotificationModal">❌</button>
+    </div>
+
+    <form method="post"
+          action="{{ url_for('notification_create') }}"
+          class="notifications-modal-body"
+          id="notificationCreateForm"
+          novalidate>
+      <!-- KHUNG TRÁI -->
+      <div class="notifications-modal-left">
+        <div class="notifications-form-group">
+          <label>Gửi đến</label>
+          <select name="audience_type" id="audienceTypeSelect" class="notifications-input">
+            <option value="all">Toàn bộ thành viên</option>
+            <option value="member">Gói thành viên</option>
+            <option value="select">Lựa chọn</option>
+          </select>
+        </div>
+
+        <div class="notifications-form-group" id="memberPlanWrap" style="display:none;">
+          <label>Chọn gói</label>
+          <select name="member_plan" class="notifications-input">
+            <option value="">-- Chọn gói --</option>
+            <option value="BASIC">Cơ Bản</option>
+            <option value="ADVANCED">Nâng Cao</option>
+            <option value="PREMIUM">Cao cấp</option>
+          </select>
+        </div>
+
+        <div class="notifications-form-group" id="selectUsersWrap" style="display:none;">
+          <label>Chọn user</label>
+
+          <div class="notifications-user-table">
+            <div class="notifications-user-table-head">
+              <div>Chọn</div>
+              <div>Tên user</div>
+              <div>Email</div>
+            </div>
+
+            <div class="notifications-user-table-body">
+              {% for u in user_options %}
+              <label class="notifications-user-row">
+                <div>
+                  <input type="checkbox" name="selected_user_ids" value="{{ u.id }}">
+                </div>
+                <div>{{ u.username }}</div>
+                <div>{{ u.email or "-" }}</div>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KHUNG PHẢI -->
+      <div class="notifications-modal-right">
+        <div class="notifications-form-group">
+          <label>Tiêu đề</label>
+          <input type="text"
+                 name="title"
+                 class="notifications-input"
+                 placeholder="Nhập tiêu đề sẽ hiện ở chuông thông báo">
+        </div>
+
+        <div class="notifications-form-group notifications-form-group--grow">
+          <label>Nội dung chính</label>
+
+          <div class="notifications-editor-toolbar">
+            <button type="button" class="notifications-editor-btn" data-cmd="bold"><b>B</b></button>
+            <button type="button" class="notifications-editor-btn" data-cmd="italic"><i>I</i></button>
+
+            <div class="notifications-emoji-wrap">
+              <button type="button" class="notifications-editor-btn" id="toggleEmojiPicker">😊</button>
+
+              <div class="notifications-emoji-panel" id="emojiPickerPanel">
+                <div class="notifications-emoji-head">Emoji</div>
+                <div class="notifications-emoji-grid" id="emojiGrid"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="notificationEditor"
+               class="notifications-editor"
+               contenteditable="true"
+               data-placeholder="Nhập nội dung chi tiết thông báo...&#10;Ví dụ: 📢 Hệ thống vừa thêm bài học mới, mời các bạn vào xem."></div>
+
+          <textarea name="message"
+                    id="notificationMessage"
+                    class="notifications-hidden-textarea"></textarea>
+
+          <div id="notificationFormError" class="notifications-form-error" style="display:none;"></div>
+        </div>
+
+        <div class="notifications-modal-actions">
+          <button type="submit" class="notifications-send-btn">Gửi</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if current_user.role == "user" %}
+<div id="feedbackModal" class="notifications-modal">
+  <div class="notifications-modal-box notifications-modal-box--small">
+    <div class="notifications-modal-head">
+      <div class="notifications-modal-title">Feedback</div>
+      <button type="button" class="ui-close" id="closeFeedbackModal">❌</button>
+    </div>
+
+    <form method="post"
+          action="{{ url_for('notification_feedback') }}"
+          class="notifications-feedback-body"
+          id="feedbackForm"
+          novalidate>
+      <div class="notifications-form-group">
+        <label>Tiêu đề</label>
+        <input type="text"
+               name="feedback_title"
+               id="feedbackTitle"
+               class="notifications-input"
+               placeholder="Nhập tiêu đề feedback">
+      </div>
+
+      <div class="notifications-form-group notifications-form-group--grow">
+        <label>Chủ đề chính</label>
+        <textarea name="feedback_message"
+                  id="feedbackMessage"
+                  class="notifications-textarea notifications-feedback-textarea"
+                  placeholder="Nhập nội dung feedback gửi cho admin"></textarea>
+
+        <div id="feedbackFormError" class="notifications-form-error" style="display:none;"></div>
+      </div>
+
+      <div class="notifications-modal-actions">
+        <button type="submit" class="notifications-send-btn">Gửi</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if current_user.role == "admin" and selected_notification and selected_notification.action_type == "feedback" and not selected_notification.is_done %}
+<div id="replyFeedbackModal" class="notifications-modal">
+  <div class="notifications-modal-box notifications-modal-box--small">
+    <div class="notifications-modal-head">
+      <div class="notifications-modal-title">Trả lời feedback</div>
+      <button type="button" class="ui-close" id="closeReplyModal">❌</button>
+    </div>
+
+    <form method="post"
+          action="{{ url_for('notification_reply', noti_id=selected_notification.id) }}"
+          class="notifications-feedback-body"
+          id="replyFeedbackForm"
+          novalidate>
+      <div class="notifications-form-group">
+        <label>Tiêu đề</label>
+        <input type="text"
+               name="reply_title"
+               id="replyTitle"
+               class="notifications-input"
+               placeholder="Nhập tiêu đề trả lời">
+      </div>
+
+      <div class="notifications-form-group notifications-form-group--grow">
+        <label>Nội dung trả lời</label>
+        <textarea name="reply_message"
+                  id="replyMessage"
+                  class="notifications-textarea notifications-feedback-textarea"
+                  placeholder="Nhập nội dung trả lời user"></textarea>
+
+        <div id="replyFormError" class="notifications-form-error" style="display:none;"></div>
+      </div>
+
+      <div class="notifications-modal-actions">
+        <button type="submit" class="notifications-send-btn">Gửi trả lời</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+
+  {% if current_user.role == "admin" %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const modal = document.getElementById("notificationCreateModal");
+      const openBtn = document.getElementById("openAddNotificationModal");
+      const closeBtn = document.getElementById("closeAddNotificationModal");
+      const audienceSelect = document.getElementById("audienceTypeSelect");
+      const memberPlanWrap = document.getElementById("memberPlanWrap");
+      const selectUsersWrap = document.getElementById("selectUsersWrap");
+
+      const editor = document.getElementById("notificationEditor");
+      const hiddenMessage = document.getElementById("notificationMessage");
+      const form = document.getElementById("notificationCreateForm");
+      const errorBox = document.getElementById("notificationFormError");
+
+      const cmdButtons = modal ? modal.querySelectorAll(".notifications-editor-btn[data-cmd]") : [];
+      const toggleEmojiPicker = document.getElementById("toggleEmojiPicker");
+      const emojiPickerPanel = document.getElementById("emojiPickerPanel");
+      const emojiGrid = document.getElementById("emojiGrid");
+
+      const STORAGE_KEY = "admin_notification_draft_v1";
+
+      // ===== REPLY MODAL =====
+      const replyModal = document.getElementById("replyFeedbackModal");
+      const openReplyBtn = document.getElementById("openReplyModal");
+      const closeReplyBtn = document.getElementById("closeReplyModal");
+      const replyForm = document.getElementById("replyFeedbackForm");
+      const replyTitle = document.getElementById("replyTitle");
+      const replyMessage = document.getElementById("replyMessage");
+      const replyError = document.getElementById("replyFormError");
+
+      const EMOJIS = [
+        "😀","😁","😂","🤣","😃","😄","😅","😆",
+        "😉","😊","😋","😎","😍","😘","🥰","😗",
+        "😙","😚","🙂","🤗","🤩","🤔","🤨","😐",
+        "😑","😶","🙄","😏","😣","😥","😮","🤐",
+        "😯","😪","😫","🥱","😴","😌","😛","😜",
+        "😝","🤤","😒","😓","😔","😕","🙃","🫠",
+        "🫡","🤭","🫢","🤫","🤥","😳","🥵","🥶",
+        "😱","😨","😰","😥","😢","😭","😤","😠",
+        "😡","🤬","🤯","😬","😮‍💨","😵","😵‍💫","🤪",
+        "🥴","😇","🥳","🥸","😺","😸","😹","😻",
+        "🙌","👏","👍","👎","👊","✌️","🤝","🙏",
+        "💪","🫶","❤️","🧡","💛","💚","💙","💜",
+        "🖤","🤍","🤎","💔","❣️","💕","💞","💓",
+        "💗","💖","💘","💝","🔥","⭐","🌟","✨",
+        "⚡","💥","💯","✅","❌","⚠️","⏰","📢",
+        "📣","📘","📚","📝","🎉","🎊","🏆","🥇",
+        "🎯","🚀","🌈","☀️","🌙","🍀","🎵","🎶"
+      ];
+
+      function showError(msg) {
+        if (!errorBox) return;
+        errorBox.textContent = msg || "";
+        errorBox.style.display = msg ? "block" : "none";
+      }
+
+      function showReplyError(msg) {
+        if (!replyError) return;
+        replyError.textContent = msg || "";
+        replyError.style.display = msg ? "block" : "none";
+      }
+
+      function openReplyModalFn() {
+        if (!replyModal) return;
+        replyModal.classList.add("show");
+        document.body.style.overflow = "hidden";
+        if (replyTitle) setTimeout(() => replyTitle.focus(), 50);
+      }
+
+      function closeReplyModalFn() {
+        if (!replyModal) return;
+        replyModal.classList.remove("show");
+        document.body.style.overflow = "";
+        showReplyError("");
+      }
+
+      function openModalKeepDraft() {
+        if (!modal) return;
+        modal.classList.add("show");
+        document.body.style.overflow = "hidden";
+        syncAudienceUI();
+      }
+
+      function closeModalAndKeepDraft() {
+        if (!modal) return;
+        modal.classList.remove("show");
+        document.body.style.overflow = "";
+        if (emojiPickerPanel) emojiPickerPanel.classList.remove("show");
+      }
+
+      function syncAudienceUI() {
+        const val = (audienceSelect?.value || "").toLowerCase();
+
+        if (memberPlanWrap) {
+          memberPlanWrap.style.display = val === "member" ? "block" : "none";
+        }
+
+        if (selectUsersWrap) {
+          selectUsersWrap.style.display = val === "select" ? "block" : "none";
+        }
+      }
+
+      function focusEditor() {
+        if (editor) editor.focus();
+      }
+
+      function insertEmoji(emoji) {
+        if (!editor || !emoji) return;
+        focusEditor();
+        document.execCommand("insertText", false, emoji);
+        syncHiddenMessage();
+        saveDraft();
+      }
+
+      function normalizeEditorHtml(html) {
+        return (html || "")
+          .replace(/&nbsp;/g, " ")
+          .replace(/<div><br><\/div>/gi, "")
+          .replace(/<p><br><\/p>/gi, "")
+          .trim();
+      }
+
+      function getEditorHtml() {
+        return normalizeEditorHtml(editor ? editor.innerHTML : "");
+      }
+
+      function getEditorText() {
+        return (editor ? editor.innerText : "").replace(/\u00A0/g, " ").trim();
+      }
+
+      function syncHiddenMessage() {
+        if (!hiddenMessage) return;
+        hiddenMessage.value = getEditorHtml();
+      }
+
+      function renderEmojiPicker() {
+        if (!emojiGrid) return;
+        emojiGrid.innerHTML = "";
+
+        EMOJIS.forEach(function (emoji) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "notifications-emoji-item";
+          btn.textContent = emoji;
+          btn.addEventListener("click", function () {
+            insertEmoji(emoji);
+          });
+          emojiGrid.appendChild(btn);
+        });
+      }
+
+      function saveDraft() {
+        if (!form) return;
+
+        const titleInput = form.querySelector('input[name="title"]');
+        const memberPlan = form.querySelector('select[name="member_plan"]');
+        const selectedChecks = form.querySelectorAll('input[name="selected_user_ids"]:checked');
+
+        const draft = {
+          open: modal ? modal.classList.contains("show") : false,
+          audience_type: audienceSelect ? audienceSelect.value : "",
+          member_plan: memberPlan ? memberPlan.value : "",
+          title: titleInput ? titleInput.value : "",
+          message_html: editor ? editor.innerHTML : "",
+          selected_user_ids: Array.from(selectedChecks).map(el => el.value)
+        };
+
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+      }
+
+      function restoreDraft() {
+        if (!form) return;
+
+        let raw = sessionStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        try {
+          const draft = JSON.parse(raw);
+
+          const titleInput = form.querySelector('input[name="title"]');
+          const memberPlan = form.querySelector('select[name="member_plan"]');
+          const allChecks = form.querySelectorAll('input[name="selected_user_ids"]');
+
+          if (audienceSelect && draft.audience_type) {
+            audienceSelect.value = draft.audience_type;
+          }
+
+          syncAudienceUI();
+
+          if (memberPlan && draft.member_plan) {
+            memberPlan.value = draft.member_plan;
+          }
+
+          if (titleInput) {
+            titleInput.value = draft.title || "";
+          }
+
+          if (editor && draft.message_html) {
+            editor.innerHTML = draft.message_html;
+          }
+
+          allChecks.forEach(function (cb) {
+            cb.checked = Array.isArray(draft.selected_user_ids) && draft.selected_user_ids.includes(cb.value);
+          });
+
+          syncHiddenMessage();
+
+          if (draft.open) {
+            openModalKeepDraft();
+          }
+        } catch (e) {
+          console.warn("restoreDraft error:", e);
+        }
+      }
+
+      function validateForm() {
+        if (!form) return false;
+
+        syncHiddenMessage();
+
+        const titleInput = form.querySelector('input[name="title"]');
+        const title = titleInput ? titleInput.value.trim() : "";
+        const audience = audienceSelect ? audienceSelect.value.toLowerCase() : "";
+        const memberPlan = form.querySelector('select[name="member_plan"]');
+        const selectedChecks = form.querySelectorAll('input[name="selected_user_ids"]:checked');
+
+        const textOnly = getEditorText();
+        const htmlOnly = getEditorHtml();
+
+        showError("");
+
+        if (!title) {
+          showError("Vui lòng nhập tiêu đề thông báo.");
+          return false;
+        }
+
+        if (!textOnly || !htmlOnly) {
+          showError("Vui lòng nhập nội dung thông báo.");
+          focusEditor();
+          return false;
+        }
+
+        if (audience === "member" && (!memberPlan || !memberPlan.value.trim())) {
+          showError("Vui lòng chọn gói thành viên.");
+          return false;
+        }
+
+        if (audience === "select" && selectedChecks.length === 0) {
+          showError("Vui lòng chọn ít nhất 1 user.");
+          return false;
+        }
+
+        return true;
+      }
+
+      if (openBtn && modal) {
+        openBtn.addEventListener("click", function () {
+          openModalKeepDraft();
+          saveDraft();
+          setTimeout(function () {
+            if (editor) editor.focus();
+          }, 50);
+        });
+      }
+
+      if (closeBtn && modal) {
+        closeBtn.addEventListener("click", function () {
+          closeModalAndKeepDraft();
+          saveDraft();
+        });
+      }
+
+      if (modal) {
+        modal.addEventListener("click", function (e) {
+          if (e.target === modal) {
+            closeModalAndKeepDraft();
+            saveDraft();
+          }
+        });
+      }
+
+      if (audienceSelect) {
+        audienceSelect.addEventListener("change", function () {
+          syncAudienceUI();
+          saveDraft();
+        });
+        syncAudienceUI();
+      }
+
+      const memberPlanSelect = form ? form.querySelector('select[name="member_plan"]') : null;
+      if (memberPlanSelect) {
+        memberPlanSelect.addEventListener("change", saveDraft);
+      }
+
+      const titleInput = form ? form.querySelector('input[name="title"]') : null;
+      if (titleInput) {
+        titleInput.addEventListener("input", saveDraft);
+      }
+
+      const checkboxes = form ? form.querySelectorAll('input[name="selected_user_ids"]') : [];
+      checkboxes.forEach(function (cb) {
+        cb.addEventListener("change", saveDraft);
+      });
+
+      cmdButtons.forEach(function(btn){
+        btn.addEventListener("click", function(){
+          const cmd = btn.dataset.cmd;
+          if (!cmd) return;
+          focusEditor();
+          document.execCommand(cmd, false, null);
+          syncHiddenMessage();
+          saveDraft();
+        });
+      });
+
+      renderEmojiPicker();
+
+      if (toggleEmojiPicker && emojiPickerPanel) {
+        toggleEmojiPicker.addEventListener("click", function(e){
+          e.stopPropagation();
+          emojiPickerPanel.classList.toggle("show");
+        });
+      }
+
+      document.addEventListener("click", function(e){
+        if (!emojiPickerPanel || !toggleEmojiPicker) return;
+
+        const insidePanel = emojiPickerPanel.contains(e.target);
+        const insideButton = toggleEmojiPicker.contains(e.target);
+
+        if (!insidePanel && !insideButton) {
+          emojiPickerPanel.classList.remove("show");
+        }
+      });
+
+      if (editor) {
+        editor.addEventListener("input", function () {
+          syncHiddenMessage();
+          saveDraft();
+          showError("");
+        });
+      }
+
+      if (form) {
+        form.addEventListener("submit", function(e){
+          if (!validateForm()) {
+            e.preventDefault();
+            openModalKeepDraft();
+            saveDraft();
+            return;
+          }
+
+          syncHiddenMessage();
+          saveDraft();
+        });
+      }
+
+      // ===== REPLY EVENTS =====
+      if (openReplyBtn) {
+        openReplyBtn.addEventListener("click", function () {
+          openReplyModalFn();
+        });
+      }
+
+      if (closeReplyBtn) {
+        closeReplyBtn.addEventListener("click", function () {
+          closeReplyModalFn();
+        });
+      }
+
+      if (replyModal) {
+        replyModal.addEventListener("click", function (e) {
+          if (e.target === replyModal) {
+            closeReplyModalFn();
+          }
+        });
+      }
+
+      if (replyForm) {
+        replyForm.addEventListener("submit", function(e){
+          const title = replyTitle ? replyTitle.value.trim() : "";
+          const msg = replyMessage ? replyMessage.value.trim() : "";
+
+          showReplyError("");
+
+          if (!title) {
+            e.preventDefault();
+            showReplyError("Vui lòng nhập tiêu đề trả lời.");
+            openReplyModalFn();
+            return;
+          }
+
+          if (!msg) {
+            e.preventDefault();
+            showReplyError("Vui lòng nhập nội dung trả lời.");
+            openReplyModalFn();
+            return;
+          }
+        });
+      }
+
+      restoreDraft();
+    });
+  </script>
+  {% endif %}
+
+  {% if current_user.role == "user" %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const feedbackModal = document.getElementById("feedbackModal");
+      const openFeedbackBtn = document.getElementById("openFeedbackModal");
+      const closeFeedbackBtn = document.getElementById("closeFeedbackModal");
+      const feedbackForm = document.getElementById("feedbackForm");
+      const feedbackTitle = document.getElementById("feedbackTitle");
+      const feedbackMessage = document.getElementById("feedbackMessage");
+      const feedbackError = document.getElementById("feedbackFormError");
+
+      function showFeedbackError(msg) {
+        if (!feedbackError) return;
+        feedbackError.textContent = msg || "";
+        feedbackError.style.display = msg ? "block" : "none";
+      }
+
+      function openFeedback() {
+        if (!feedbackModal) return;
+        feedbackModal.classList.add("show");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeFeedback() {
+        if (!feedbackModal) return;
+        feedbackModal.classList.remove("show");
+        document.body.style.overflow = "";
+      }
+      
+
+      if (openFeedbackBtn) {
+        openFeedbackBtn.addEventListener("click", openFeedback);
+      }
+
+      if (closeFeedbackBtn) {
+        closeFeedbackBtn.addEventListener("click", closeFeedback);
+      }
+
+      if (feedbackModal) {
+        feedbackModal.addEventListener("click", function (e) {
+          if (e.target === feedbackModal) {
+            closeFeedback();
+          }
+        });
+      }
+
+      if (feedbackForm) {
+        feedbackForm.addEventListener("submit", function(e){
+          const title = feedbackTitle ? feedbackTitle.value.trim() : "";
+          const msg = feedbackMessage ? feedbackMessage.value.trim() : "";
+
+          showFeedbackError("");
+
+          if (!title) {
+            e.preventDefault();
+            showFeedbackError("Vui lòng nhập tiêu đề feedback.");
+            openFeedback();
+            return;
+          }
+
+          if (!msg) {
+            e.preventDefault();
+            showFeedbackError("Vui lòng nhập nội dung feedback.");
+            openFeedback();
+            return;
+          }
+        });
+      }
+    });
+  </script>
+  {% endif %}
+{% endblock %}

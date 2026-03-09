@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% block title %}Taekwondo{% endblock %}</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Global CSS (Ken không dùng style.css nữa) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/edu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson.css') }}?v=20260227_4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sets.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/effects.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+
+  {% block page_css %}{% endblock %}
+</head>
+
+<body class="some-existing-class {% block body_class %}{% endblock %}">
+  {% set PAGE_CLASS = (self.body_class()|trim) %}
+
+  <!-- ===== FLASH / TOAST ===== -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="ui-toast-layer" aria-live="polite" aria-atomic="true">
+        {% for category, message in messages %}
+          <div class="ui-toast ui-toast--{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="layout-app">
+
+    {% if PAGE_CLASS != "login-page" %}
+    <!-- ===== HEADER ===== -->
+    <div class="layout-container-full layout-header-wrapper">
+      <header class="layout-header-main">
+
+        <!-- LOGO -->
+        <div class="layout-header-logo">
+          <a href="{{ url_for('sets') }}">
+            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo">
+          </a>
+        </div>
+
+        <!-- TITLE -->
+        <div class="layout-header-title">
+          HỆ THỐNG HỌC TẬP TAEKWONDO
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="layout-header-actions">
+
+          {% if current_user.is_authenticated %}
+          <button class="ui-icon-btn ui-icon-btn--gray header-noti-btn"
+                  id="notificationBtn"
+                  aria-label="Mở thông báo"
+                  title="Thông báo">
+            🔔
+            {% if header_notification_unread and header_notification_unread > 0 %}
+              <span class="header-noti-badge">
+                {% if header_notification_unread > 99 %}99+{% else %}{{ header_notification_unread }}{% endif %}
+              </span>
+            {% endif %}
+          </button>
+          {% endif %}
+
+          <button class="ui-icon-btn ui-icon-btn--gray header-menu-btn"
+                  id="hamburgerBtn"
+                  aria-label="Mở menu"
+                  title="Bộ điều khiển">☰</button>
+
+          {% if current_user.is_authenticated %}
+          <div id="notificationPanel" class="header-dropdown-panel notification-panel">
+            <div class="notification-panel-head">
+              <div class="notification-panel-title">Thông báo</div>
+              <a href="{{ url_for('notifications_page') }}" class="notification-panel-all">Xem tất cả</a>
+            </div>
+
+            <div class="notification-panel-list">
+              {% if header_notifications %}
+                {% for n in header_notifications %}
+                  <a href="{{ url_for('notification_go', noti_id=n.id) }}"
+                     class="notification-item {% if not n.is_read %}is-unread{% endif %}">
+                    <div class="notification-item-icon">{{ n.icon or "🔔" }}</div>
+                    <div class="notification-item-body">
+                      <div class="notification-item-title">{{ n.title }}</div>
+                      <div class="notification-item-time">
+                        {{ n.created_at.strftime("%d/%m/%Y %H:%M") if n.created_at else "" }}
+                      </div>
+                    </div>
+                  </a>
+                {% endfor %}
+              {% else %}
+                <div class="notification-empty">Chưa có thông báo</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- USER PANEL -->
+          <div id="userPanel" class="user-panel">
+
+            {% if current_user.is_authenticated %}
+              <div class="user-hello">
+                Xin chào: <b>{{ current_user.username }}</b>!
+              </div>
+
+              <div class="menu-divider"></div>
+
+              {% if current_user.role == "user" and trial_remain_days is not none %}
+                <div class="trial-box" data-days="{{ trial_remain_days }}">
+                  <div class="trial-title">⏳ Thời gian sử dụng</div>
+                  <div class="trial-days">
+                    <div class="menu-remain">
+                      <span class="trial-remain {{ trial_remain_class }}">
+                        {{ trial_remain_label }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+
+              <!-- USER MENU -->
+              <a href="{{ url_for('account') }}">🙍‍♂️ Tài khoản</a>
+              <a href="{{ url_for('settings') }}">⏱️ Cài đặt ôn tập</a>
+              <a href="/exam">📝 Ôn tập</a>
+
+              {% if current_user.role == "user" %}
+                <a href="javascript:void(0);"
+                   id="btnOpenMemberPlansFromMenu"
+                   class="profile-menu-link">
+                  💳 Đăng ký gói cước
+                </a>
+              {% endif %}
+
+              {% if current_user.role == "admin" %}
+                <div class="menu-divider"></div>
+
+                <!-- ADMIN TITLE -->
+                <div class="menu-title">🛠️ Quản trị hệ thống</div>
+
+                <!-- ADMIN MENU -->
+                <a href="{{ url_for('admin_topic_manager') }}">📁 Quản lý chủ đề</a>
+                <a href="{{ url_for('admin_educations') }}">📖 Quản lý bài học</a>
+                <a href="{{ url_for('admin_questions') }}">❓ Quản lý câu hỏi</a>
+                <a href="{{ url_for('admin_users') }}">👥 Quản lý user</a>
+              {% endif %}
+
+              <div class="menu-divider"></div>
+
+              <!-- LOGOUT -->
+              <a href="{{ url_for('logout') }}">⏻ Đăng xuất</a>
+            {% else %}
+              <div class="user-hello">Chưa đăng nhập</div>
+              <div class="menu-divider"></div>
+              <a href="{{ url_for('login') }}">🔑 Đăng nhập</a>
+            {% endif %}
+
+          </div><!-- /userPanel -->
+
+        </div><!-- /actions -->
+
+      </header>
+    </div>
+    {% endif %}
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="layout-content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    {% if PAGE_CLASS != "login-page" and current_user.is_authenticated %}
+      <footer class="layout-footer">
+        © {{ current_year }} – Created by Nguyen Thien Phung
+      </footer>
+    {% endif %}
+
+  </div><!-- /layout-app -->
+
+  <!-- ===== GLOBAL MODAL ROOT ===== -->
+  <div id="modal-root">
+    {% block global_modals %}{% endblock %}
+  </div>
+
+  <!-- ===== USER PLAN MODALS ===== -->
+  {% if current_user.is_authenticated and current_user.role == "user" %}
+  <div id="planModal" class="ui-modal-backdrop" aria-hidden="true"
+       style="z-index:1000000;display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(6px);padding:18px;">
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="planTitle" style="width:min(860px,96vw);">
+      <div class="ui-modal-header">
+        <b id="planTitle">Đăng ký gói thành viên</b>
+        <button class="ui-close" type="button" id="btnClosePlan" aria-label="Đóng" title="Thoát">❌</button>
+      </div>
+
+      <div class="ui-modal-body" style="padding-top:14px;">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff7ed,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">Taekwondo Cơ Bản</div>
+            <div style="margin-top:6px;font-weight:900;color:#2563eb;">300.000 VNĐ / tháng</div>
+            <div style="margin-top:10px;color:#374151;line-height:1.55;">
+              Nội dung:
+              <br>+ Kỹ thuật cơ bản
+            </div>
+            <div style="margin-top:12px;">
+              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('BASIC', 300000)">Đăng ký</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#eff6ff,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">Taekwondo Nâng cao</div>
+            <div style="margin-top:6px;font-weight:900;color:#2563eb;">500.000 VNĐ / tháng</div>
+            <div style="margin-top:10px;color:#374151;line-height:1.55;">
+              Nội dung:
+              <br>+ Kỹ thuật cơ bản
+              <br>+ Kỹ thuật nâng cao
+              <br>+ Nội dung thi đẳng
+            </div>
+            <div style="margin-top:12px;">
+              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('PRO', 500000)">Đăng ký</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fdf2f8,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">Taekwondo Cao Cấp</div>
+            <div style="margin-top:6px;font-weight:900;color:#2563eb;">800.000 VNĐ / tháng</div>
+            <div style="margin-top:10px;color:#374151;line-height:1.55;">
+              Nội dung:
+              <br>+ Kỹ thuật cơ bản
+              <br>+ Kỹ thuật nâng cao
+              <br>+ Nội dung thi đẳng
+              <br>+ Kỹ thuật cao cấp
+              <br>+ Võ nhạc
+            </div>
+            <div style="margin-top:12px;">
+              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('VIP', 800000)">Đăng ký</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="durationModal" class="ui-modal-backdrop" aria-hidden="true"
+       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+              padding:18px; z-index:1000001;">
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="durationTitle"
+         style="width:min(620px,96vw);border-radius:22px;overflow:hidden;">
+
+      <div class="ui-modal-header" style="position:relative;">
+        <b id="durationTitle">Thời gian đăng ký</b>
+        <button class="ui-close" type="button" id="btnCloseDuration"
+                aria-label="Đóng" title="Thoát"
+                style="position:absolute;right:12px;top:10px;">❌</button>
+      </div>
+
+      <div class="ui-modal-body" style="background:#fff;">
+        <div style="font-size:14px;color:#374151;line-height:1.6;">
+          Gói đã chọn: <b id="pickedPlanName">-</b><br>
+          Đơn giá: <b id="pickedPlanPrice">-</b> VNĐ / tháng
+        </div>
+
+        <div style="margin-top:12px;">
+          <label class="ui-label" style="margin-bottom:6px;">Bạn muốn chọn</label>
+          <select id="monthsSelect" class="ui-input">
+            <option value="1">1 tháng</option>
+            <option value="2">2 tháng</option>
+            <option value="3">3 tháng (giảm 10%)</option>
+            <option value="6">6 tháng (giảm 15%)</option>
+            <option value="12">12 tháng (giảm 20%)</option>
+          </select>
+        </div>
+
+        <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#f8fafc;">
+          <div style="display:flex;justify-content:space-between;gap:10px;">
+            <span>Số tiền</span><b id="rawTotal">0</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+            <span>Giảm giá</span><b id="discount">0</b>
+          </div>
+          <div style="height:1px;background:#e5e7eb;margin:10px 0;"></div>
+          <div style="display:flex;justify-content:space-between;gap:10px;">
+            <span style="font-weight:900;">Thành tiền</span><b id="finalTotal" style="font-size:18px;">0</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:10px;">
+        <button style="min-width:150px;white-space:nowrap;"
+                class="ui-btn ui-btn--outline" type="button" id="btnBackPlans">
+          ← Chọn lại gói
+        </button>
+        <button class="ui-btn ui-btn--primary" type="button" id="btnGoPay">Thanh toán</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="payModal" class="ui-modal-backdrop" aria-hidden="true"
+       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+              padding:18px; z-index:1000002;">
+
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="payTitle"
+         style="width:min(860px,96vw);border-radius:22px;overflow:hidden;">
+
+      <div class="ui-modal-header" style="position:relative;height:40px;">
+        <b id="payTitle">Thanh toán</b>
+        <button class="ui-close" type="button" id="btnClosePay"
+                aria-label="Đóng" title="Thoát"
+                style="position:absolute;right:12px;top:10px;">❌</button>
+      </div>
+
+      <div class="ui-modal-body" style="padding:16px;background:linear-gradient(180deg,#ffffff,#fbfdff);">
+        <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:14px;align-items:start;max-width:100%;">
+
+          <div style="border:1px solid #e5e7eb;border-radius:18px;padding:14px;background:#fff;
+                      box-shadow:0 10px 30px rgba(0,0,0,.06);">
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#eff6ff;border:1px solid #dbeafe;color:#2563eb;font-weight:900;">👤</div>
+              <div style="font-weight:900;font-size:16px;">Thông tin khách hàng</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
+              <div style="color:#6b7280;font-weight:900;">Tên user</div>
+              <div><b id="payUser">{{ current_user.username }}</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Email</div>
+              <div>
+                <span id="payEmailText"
+                      style="display:inline-flex;align-items:center;gap:8px;
+                             background:#f3f4f6;border:1px solid #e5e7eb;
+                             padding:7px 10px;border-radius:999px;font-weight:900;color:#111827;">
+                  {{ current_user.email or 'Chưa có email' }}
+                </span>
+              </div>
+            </div>
+
+            <div style="height:1px;background:#e5e7eb;margin:14px 0;"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-weight:900;">🧾</div>
+              <div style="font-weight:900;font-size:16px;">Thông tin đơn hàng</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
+              <div style="color:#6b7280;font-weight:900;">Tên gói</div>
+              <div><b id="payPlan">-</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Số tháng</div>
+              <div><b id="payMonths">-</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Số tiền</div>
+              <div><b id="payFinal" style="font-size:18px;">-</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Ghi chú</div>
+              <div>
+                <span id="payNote"
+                      style="display:inline-block;font-weight:900;color:#111827;
+                             background:#f3f4f6;border:1px solid #e5e7eb;
+                             padding:7px 10px;border-radius:999px;">-</span>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;padding:10px 12px;border-radius:14px;
+                        background:#f8fafc;border:1px solid #e5e7eb;
+                        font-size:12px;color:#6b7280;line-height:1.5;">
+              ✅ Khi chuyển khoản, vui lòng ghi đúng <b>Ghi chú</b> để admin duyệt nhanh.
+            </div>
+
+            <div style="height:1px;background:#e5e7eb;margin:14px 0;"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#dcfce7;border:1px solid #bbf7d0;color:#16a34a;font-weight:900;">🏦</div>
+              <div style="font-weight:900;font-size:16px;">Thông tin người nhận</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
+              <div style="color:#6b7280;font-weight:900;">Tên</div>
+              <div><b>Nguyễn Thiên Phụng</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">STK</div>
+              <div><b>682657</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Ngân hàng</div>
+              <div><b>ACB</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Ghi chú:</div>
+              <div><b>Theo ghi chú phần thông tin đơn hàng bên trên</b></div>
+            </div>
+
+          </div>
+
+          <div style="border:1px solid #e5e7eb;border-radius:18px;background:#fff;
+                      box-shadow:0 10px 30px rgba(0,0,0,.06);overflow:hidden;">
+            <div style="padding:14px;display:flex;align-items:center;gap:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#dcfce7;border:1px solid #bbf7d0;color:#16a34a;font-weight:900;">📷</div>
+              <div style="font-weight:900;font-size:16px;">Quét QR để chuyển khoản</div>
+            </div>
+
+            <div style="padding:0 14px 14px;">
+              <div style="border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;
+                          padding:12px;display:flex;align-items:center;justify-content:center;">
+                <img id="payQrImg" src="" alt="QR chuyển khoản"
+                     style="width:min(390px,72vw);height:auto;display:block;border-radius:12px;background:#fff;">
+              </div>
+
+              <div style="margin-top:10px;padding:10px 12px;border-radius:14px;
+                          background:#f8fafc;border:1px solid #e5e7eb;
+                          font-size:12px;color:#6b7280;line-height:1.45;">
+                Nếu QR không hiện: Học viên vui lòng chuyển khoản qua thông tin người nhận
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <style>
+          @media (max-width: 720px){
+            #payModal .ui-modal-body > div { grid-template-columns: 1fr !important; }
+          }
+        </style>
+      </div>
+
+      <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:12px;">
+        <button class="ui-btn ui-btn--outline ui-btn--lg" type="button" id="btnBackDuration"
+                style="min-width:150px;white-space:nowrap;border-radius:14px;">
+          ← Quay lại
+        </button>
+
+        <button class="ui-btn ui-btn--primary ui-btn--lg" type="button" id="btnPaid"
+                style="min-width:210px;border-radius:14px;font-weight:900;">
+          Tôi đã thanh toán
+        </button>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ===== GLOBAL LOADING OVERLAY ===== -->
+  <div id="globalLoading" class="global-loading" aria-hidden="true">
+    <div class="global-loading-box">
+      <div class="tkd-loader">
+        <img class="tkd-frame tkd-left"  src="{{ url_for('static', filename='soi_punch_left.png') }}"  alt="">
+        <img class="tkd-frame tkd-right" src="{{ url_for('static', filename='soi_punch_right.png') }}" alt="">
+      </div>
+      <div class="global-loading-text">ĐANG XỬ LÝ... VUI LÒNG ĐỢI</div>
+      <div class="global-loading-sub">Hệ thống sẽ tự động hoàn tất trong giây lát.</div>
+    </div>
+  </div>
+
+  <!-- ==================================================
+       GLOBAL SCRIPTS
+  ================================================== -->
+
+  <!-- Hamburger -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const menuBtn = document.getElementById("hamburgerBtn");
+      const userPanel = document.getElementById("userPanel");
+
+      const notiBtn = document.getElementById("notificationBtn");
+      const notiPanel = document.getElementById("notificationPanel");
+
+      if (userPanel) {
+        const trialBox = userPanel.querySelector(".trial-box");
+        if (trialBox) {
+          const days = Number(trialBox.dataset.days);
+          trialBox.classList.remove("is-green","is-yellow","is-orange","is-red");
+
+          if (Number.isFinite(days)) {
+            if (days > 10) trialBox.classList.add("is-green");
+            else if (days >= 7) trialBox.classList.add("is-yellow");
+            else if (days >= 4) trialBox.classList.add("is-orange");
+            else trialBox.classList.add("is-red");
+          }
+        }
+      }
+
+      function closeAllPanels() {
+        userPanel?.classList.remove("show");
+        notiPanel?.classList.remove("show");
+      }
+
+      if (menuBtn && userPanel) {
+        menuBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          notiPanel?.classList.remove("show");
+          userPanel.classList.toggle("show");
+        });
+
+        userPanel.addEventListener("click", (e) => e.stopPropagation());
+      }
+
+      if (notiBtn && notiPanel) {
+        notiBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          userPanel?.classList.remove("show");
+          notiPanel.classList.toggle("show");
+        });
+
+        notiPanel.addEventListener("click", (e) => e.stopPropagation());
+      }
+
+      document.addEventListener("click", closeAllPanels);
+    });
+  </script>
+
+  <!-- Close modal by [data-close] -->
+  <script>
+    document.addEventListener("click", function (e) {
+      const closeBtn = e.target.closest("[data-close]");
+      if (!closeBtn) return;
+
+      const id = closeBtn.dataset.close;
+      const modal = document.getElementById(id);
+      modal?.classList.remove("show");
+      document.body.style.overflow = "";
+    });
+  </script>
+
+  <!-- Global loading on submit / navigation -->
+  <script>
+    (function(){
+      const SHOW_DELAY_MS = 450;
+      let timer = null;
+      let locked = false;
+
+      function showLoading(text){
+        const el = document.getElementById("globalLoading");
+        if(!el) return;
+        const t = el.querySelector(".global-loading-text");
+        if(t) t.textContent = text || "ĐANG XỬ LÝ... VUI LÒNG ĐỢI";
+        el.classList.add("show");
+        document.body.style.overflow = "hidden";
+      }
+
+      function scheduleLoading(text){
+        if(timer) clearTimeout(timer);
+        timer = setTimeout(() => showLoading(text), SHOW_DELAY_MS);
+      }
+
+      function cancelLoading(){
+        if(timer) clearTimeout(timer);
+        timer = null;
+        const el = document.getElementById("globalLoading");
+        if(el) el.classList.remove("show");
+        document.body.style.overflow = "";
+        locked = false;
+      }
+
+      window.addEventListener("pageshow", cancelLoading);
+
+      document.addEventListener("submit", function(e){
+        const form = e.target;
+        if(!(form instanceof HTMLFormElement)) return;
+
+        if(locked){
+          e.preventDefault();
+          return;
+        }
+        locked = true;
+
+        form.querySelectorAll("button[type='submit'], input[type='submit']").forEach(btn=>{
+          btn.disabled = true;
+          btn.style.opacity = "0.7";
+          btn.style.cursor = "not-allowed";
+        });
+
+        const msg = form.dataset.loadingText || "ĐANG LƯU... VUI LÒNG ĐỢI";
+        scheduleLoading(msg);
+      });
+
+      document.addEventListener("click", function(e){
+        const a = e.target.closest("a");
+        if(!a) return;
+
+        const href = a.getAttribute("href") || "";
+        if(a.target === "_blank") return;
+        if(href.startsWith("#")) return;
+        if(href.startsWith("javascript:")) return;
+        if(href.startsWith("mailto:")) return;
+        if(href.trim() === "") return;
+
+        scheduleLoading(a.dataset.loadingText || "ĐANG TẢI TRANG... VUI LÒNG ĐỢI");
+      });
+
+      window.__cancelGlobalLoading__ = cancelLoading;
+    })();
+  </script>
+
+  <!-- User membership popup -->
+  {% if current_user.is_authenticated and current_user.role == "user" %}
+  <script>
+    (function(){
+      const $ = (id) => document.getElementById(id);
+
+      function openBackdrop(id){
+        const m = $(id);
+        if(!m) return;
+        m.style.display = "flex";
+        m.setAttribute("aria-hidden","false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeBackdrop(id){
+        const m = $(id);
+        if(!m) return;
+        m.style.display = "none";
+        m.setAttribute("aria-hidden","true");
+        document.body.style.overflow = "";
+      }
+
+      window.__pickedPlan = { name:"", price:0, months:1, discountRate:0, raw:0, off:0, final:0 };
+
+      function formatVND(x){
+        x = Math.max(0, Math.round(x || 0));
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " VNĐ";
+      }
+
+      function calc(){
+        const s = window.__pickedPlan;
+        const months = parseInt(($("monthsSelect")?.value || "1"), 10);
+        s.months = months;
+
+        let rate = 0;
+        if(months === 3) rate = 0.10;
+        else if(months === 6) rate = 0.15;
+        else if(months === 12) rate = 0.20;
+
+        s.discountRate = rate;
+        s.raw = s.price * months;
+        s.off = Math.round(s.raw * rate);
+        s.final = s.raw - s.off;
+
+        if($("rawTotal")) $("rawTotal").textContent = formatVND(s.raw);
+        if($("discount")) $("discount").textContent = "-" + formatVND(s.off);
+        if($("finalTotal")) $("finalTotal").textContent = formatVND(s.final);
+      }
+
+      window.selectPlan = function(planName, planPrice){
+        window.__pickedPlan.name = planName;
+        window.__pickedPlan.price = planPrice;
+
+        if($("pickedPlanName")) $("pickedPlanName").textContent = planName;
+        if($("pickedPlanPrice")) $("pickedPlanPrice").textContent =
+          planPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+        closeBackdrop("planModal");
+        openBackdrop("durationModal");
+        calc();
+      };
+
+      const btnOpenMemberPlansFromMenu = $("btnOpenMemberPlansFromMenu");
+      if(btnOpenMemberPlansFromMenu){
+        btnOpenMemberPlansFromMenu.addEventListener("click", function(e){
+          e.preventDefault();
+          const userPanel = $("userPanel");
+          if(userPanel) userPanel.classList.remove("show");
+          openBackdrop("planModal");
+        });
+      }
+
+      const btnClosePlan = $("btnClosePlan");
+      if(btnClosePlan){
+        btnClosePlan.addEventListener("click", ()=> closeBackdrop("planModal"));
+      }
+
+      const btnCloseDuration = $("btnCloseDuration");
+      if(btnCloseDuration){
+        btnCloseDuration.addEventListener("click", ()=> closeBackdrop("durationModal"));
+      }
+
+      const btnBackPlans = $("btnBackPlans");
+      if(btnBackPlans){
+        btnBackPlans.addEventListener("click", ()=>{
+          closeBackdrop("durationModal");
+          openBackdrop("planModal");
+        });
+      }
+
+      const monthsSelect = $("monthsSelect");
+      if(monthsSelect){
+        monthsSelect.addEventListener("change", calc);
+      }
+
+      const btnGoPay = $("btnGoPay");
+      if(btnGoPay){
+        btnGoPay.addEventListener("click", ()=>{
+          const s = window.__pickedPlan;
+          const u = "{{ current_user.username }}";
+          const plan = s.name || "-";
+          const months = s.months || 1;
+          const final = s.final || 0;
+          const note = `${u} - ${plan} - ${months}m`;
+
+          const setText = (id, val)=>{
+            const el = $(id);
+            if(el) el.textContent = val;
+          };
+
+          setText("payPlan", plan);
+          setText("payMonths", String(months));
+          setText("payFinal", formatVND(final));
+          setText("payNote", note);
+
+          const amount = Math.max(0, Math.round(final || 0));
+          const accountName = "Nguyen Thien Phung";
+
+          const qrUrl =
+            "https://img.vietqr.io/image/ACB-682657-compact2.png"
+            + "?amount=" + encodeURIComponent(String(amount))
+            + "&addInfo=" + encodeURIComponent(note)
+            + "&accountName=" + encodeURIComponent(accountName);
+
+          const img = $("payQrImg");
+          if(img) img.src = qrUrl;
+
+          closeBackdrop("durationModal");
+          openBackdrop("payModal");
+        });
+      }
+
+      const btnClosePay = $("btnClosePay");
+      if(btnClosePay){
+        btnClosePay.addEventListener("click", ()=> closeBackdrop("payModal"));
+      }
+
+      const btnBackDuration = $("btnBackDuration");
+      if(btnBackDuration){
+        btnBackDuration.addEventListener("click", ()=>{
+          closeBackdrop("payModal");
+          openBackdrop("durationModal");
+        });
+      }
+
+      const btnPaid = $("btnPaid");
+      if(btnPaid){
+        btnPaid.addEventListener("click", async ()=>{
+          const s = window.__pickedPlan || {};
+          const u = "{{ current_user.username }}";
+          const userEmail = "{{ current_user.email or '' }}";
+          const plan = s.name || "-";
+          const months = s.months || 1;
+          const raw_total = s.raw || 0;
+          const discount = s.off || 0;
+          const final_total = s.final || 0;
+          const note = `${u} - ${plan} - ${months}m`;
+
+          btnPaid.disabled = true;
+          const oldText = btnPaid.textContent;
+          btnPaid.textContent = "Đang gửi...";
+
+          try{
+            const res = await fetch("/renew/confirm_paid", {
+              method: "POST",
+              headers: {"Content-Type":"application/json"},
+              body: JSON.stringify({
+                username: u,
+                email: userEmail,
+                plan_code: plan,
+                plan_name: plan,
+                months: months,
+                raw_total: raw_total,
+                discount: discount,
+                final_total: final_total,
+                note: note
+              })
+            });
+
+            const js = await res.json().catch(()=>null);
+            if(!res.ok || !js || !js.ok){
+              alert((js && js.message) ? js.message : "Có lỗi khi xác nhận thanh toán.");
+              return;
+            }
+
+            closeBackdrop("payModal");
+            alert("Cảm ơn bạn đã thanh toán. Hệ thống đã gửi yêu cầu gia hạn, vui lòng đợi admin duyệt.");
+            window.location.reload();
+          }catch(e){
+            alert("Có lỗi khi xác nhận thanh toán.");
+          }finally{
+            btnPaid.disabled = false;
+            btnPaid.textContent = oldText;
+          }
+        });
+      }
+
+      ["planModal","durationModal","payModal"].forEach(mid=>{
+        const m = $(mid);
+        if(!m) return;
+        m.addEventListener("click", (e)=>{
+          if(e.target === m) closeBackdrop(mid);
+        });
+      });
+
+      document.addEventListener("keydown", (e)=>{
+        if(e.key !== "Escape") return;
+
+        const pay = $("payModal");
+        const dur = $("durationModal");
+        const plan = $("planModal");
+
+        if(pay && pay.style.display === "flex") return closeBackdrop("payModal");
+        if(dur && dur.style.display === "flex") return closeBackdrop("durationModal");
+        if(plan && plan.style.display === "flex") return closeBackdrop("planModal");
+      });
+    })();
+  </script>
+  {% endif %}
+
+  <!-- Auto hide toasts -->
+  <script>
+    setTimeout(() => {
+      const layer = document.querySelector(".ui-toast-layer");
+      if(!layer) return;
+      layer.style.transition = "opacity .3s ease";
+      layer.style.opacity = "0";
+      setTimeout(() => layer.remove(), 300);
+    }, 3000);
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

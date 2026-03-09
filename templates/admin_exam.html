@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Ôn tập{% endblock %}
+{% block body_class %}page-admin-exam{% endblock %}
+
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_exam.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="exam-wrapper">
+
+  <div class="exam-header">
+    <h2 class="exam-title">CÂU HỎI ÔN TẬP</h2>
+
+    <button type="button"
+            class="ui-btn ui-btn--warn ui-btn--sm"
+            id="btnRandom"
+            title="Bốc thăm câu hỏi">
+      🎲 Random
+    </button>
+  </div>
+
+  <div class="exam-list" id="examList">
+    {% for q in questions %}
+      <div class="exam-row" data-qid="{{ q.id }}">
+        <div class="exam-id">Câu hỏi: #{{ q.id }}</div>
+        <div class="exam-text">{{ q.text }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- ================= POPUP CÂU HỎI ================= -->
+<div class="ui-modal-backdrop" id="examModal" aria-hidden="true">
+  <div class="ui-modal-box exam-modal" role="dialog" aria-modal="true">
+    <div>
+      <h3 id="examTitle" class="exam-modal-title"></h3>
+      <button type="button"
+              class="ui-close exam-close"
+              id="btnCloseExam"
+              aria-label="Đóng"
+              title="Thoát">❌</button>
+    </div>
+    
+    <div id="examContent" class="exam-modal-content"></div>
+    <div id="examChoices" class="exam-modal-choices"></div>
+
+    <div class="exam-modal-actions">
+      <button type="button" class="ui-btn ui-btn--primary" id="btnCheck">
+        🔎 Kiểm Tra 🔎
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= POPUP KẾT QUẢ ================= -->
+<div class="ui-modal-backdrop" id="examResult" aria-hidden="true">
+  <div class="ui-modal-box exam-result" role="dialog" aria-modal="true">
+    <div id="examIcon" class="exam-result-icon"></div>
+    <div id="examMsg" class="exam-result-msg"></div>
+    <div id="examSub" class="exam-result-sub"></div>
+
+    <div class="exam-result-actions">
+      <div id="examExtraActions" class="exam-extra-actions"></div>
+      <button id="examAction" type="button" class="ui-btn ui-btn--primary"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  // ✅ chống init 2 lần nếu lỡ include trùng
+  if (window.__ADMIN_EXAM_INIT__) return;
+  window.__ADMIN_EXAM_INIT__ = true;
+
+  let currentQuestionId = null;
+  let selectedChoiceId = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  const examModal = $("examModal");
+  const examResult = $("examResult");
+
+  const examTitle = $("examTitle");
+  const examContent = $("examContent");
+  const examChoices = $("examChoices");
+
+  const examIcon = $("examIcon");
+  const examMsg = $("examMsg");
+  const examSub = $("examSub");
+
+  const examAction = $("examAction");
+  const examExtraActions = $("examExtraActions");
+
+  const btnRandom = $("btnRandom");
+  const btnCheck  = $("btnCheck");
+  const btnCloseExam = $("btnCloseExam");
+
+  function show(el){
+    el?.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+  function hide(el){
+    el?.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  function closeExam(){ hide(examModal); }
+  function closeResult(){ hide(examResult); }
+
+  async function openQuestion(qid){
+    try{
+      const res = await fetch(`/exam/question/${qid}`);
+      const d = await res.json();
+
+      if(!d || !d.ok){
+        alert(d?.error || "Không load được câu hỏi");
+        return;
+      }
+
+      currentQuestionId = d.id;
+      selectedChoiceId = null;
+
+      examTitle.textContent = `CÂU HỎI SỐ ${d.id}`;
+      examContent.textContent = d.text || "";
+      examChoices.innerHTML = "";
+
+      (d.choices || []).forEach((c, i) => {
+        const label = document.createElement("label");
+        label.innerHTML = `
+          <input type="radio" name="examChoice" value="${c.id}">
+          <span>${String.fromCharCode(65 + i)}. ${c.text}</span>
+        `;
+        label.addEventListener("click", () => {
+          selectedChoiceId = c.id;
+          examChoices.querySelectorAll("label").forEach(x => x.classList.remove("selected"));
+          label.classList.add("selected");
+          const radio = label.querySelector("input[type=radio]");
+          if(radio) radio.checked = true;
+        });
+        examChoices.appendChild(label);
+      });
+
+      show(examModal);
+    }catch(err){
+      console.error(err);
+      alert("Lỗi mạng / lỗi server khi load câu hỏi");
+    }
+  }
+
+  async function checkAnswer(){
+    if(!selectedChoiceId){
+      alert("Vui lòng chọn đáp án");
+      return;
+    }
+
+    try{
+      const res = await fetch("/exam/check", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          question_id: currentQuestionId,
+          choice_id: selectedChoiceId
+        })
+      });
+
+      const d = await res.json();
+
+      closeExam();
+      examExtraActions.innerHTML = "";
+      examExtraActions.classList.remove("two-btns");
+
+      if(d && d.correct){
+        try{ new Audio("/static/sounds/Correct.mp3").play(); }catch(_){}
+        examIcon.textContent = "✔";
+        examIcon.className = "exam-result-icon ok";
+        examMsg.textContent = "ĐÚNG RỒI!";
+        examSub.textContent = "";
+
+        // ✅ đúng: hiện thêm Random
+        examExtraActions.classList.add("two-btns");
+        const btnR = document.createElement("button");
+        btnR.type = "button";
+        btnR.className = "ui-btn ui-btn--warn ui-btn--sm";
+        btnR.textContent = "🎲 Random";
+        btnR.addEventListener("click", () => {
+          closeResult();
+          openRandomQuestion();
+        });
+        examExtraActions.appendChild(btnR);
+
+        examAction.className = "ui-btn ui-btn--success ui-btn--sm";
+        examAction.textContent = "Thoát";
+        examAction.onclick = closeResult;
+      }else{
+        try{ new Audio("/static/sounds/Incorrect.mp3").play(); }catch(_){}
+        examIcon.textContent = "❌";
+        examIcon.className = "exam-result-icon fail";
+        examMsg.textContent = "SAI RỒI!";
+        examSub.textContent = "";
+
+        examAction.className = "ui-btn ui-btn--danger ui-btn--sm";
+        examAction.textContent = "Làm lại";
+        examAction.onclick = () => {
+          closeResult();
+          openQuestion(currentQuestionId);
+        };
+      }
+
+      show(examResult);
+    }catch(err){
+      console.error(err);
+      alert("Lỗi mạng / lỗi server khi chấm đáp án");
+    }
+  }
+
+  function openRandomQuestion(){
+    const rows = document.querySelectorAll(".exam-row[data-qid]");
+    if(!rows.length){
+      alert("Không có câu hỏi");
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * rows.length);
+    const qid = rows[randomIndex].dataset.qid;
+    if(qid) openQuestion(qid);
+  }
+
+  // ===== Bind events
+  document.addEventListener("click", (e) => {
+    const row = e.target.closest(".exam-row[data-qid]");
+    if(row){
+      const qid = row.dataset.qid;
+      if(qid) openQuestion(qid);
+    }
+  });
+
+  btnRandom?.addEventListener("click", openRandomQuestion);
+  btnCheck?.addEventListener("click", checkAnswer);
+  btnCloseExam?.addEventListener("click", closeExam);
+
+  // click nền để đóng
+  examModal?.addEventListener("click", (e) => { if(e.target === examModal) closeExam(); });
+  examResult?.addEventListener("click", (e) => { if(e.target === examResult) closeResult(); });
+
+  // ESC để đóng
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){
+      if(examModal?.classList.contains("show")) closeExam();
+      if(examResult?.classList.contains("show")) closeResult();
+    }
+  });
+})();
+</script>
+{% endblock %}

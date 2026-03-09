@@ -1,0 +1,139 @@
+<tr class="{% if u.status == 'LOCK' %}locked{% endif %}"
+    data-user-id="{{ u.id }}"
+    data-username="{{ u.username|e }}"
+    data-email="{{ (u.email or '')|e }}"
+    data-remain="{% if u.role=='user' %}{{ u._remain_label }}{% else %}-{% endif %}"
+    data-status="{% if u.status=='LOCK' %}Khoá{% elif u.role=='user' and not u.email_verified %}Chờ kích hoạt{% elif u.role=='user' and u._remain_seconds is not none and u._remain_seconds <= 0 %}Chờ gia hạn{% else %}Hoạt động{% endif %}"
+    data-member="{{ (u.member or 'basic')|lower }}">
+
+  <td>{{ u.username }}</td>
+  <td>{{ u.email }}</td>
+
+  <td style="text-align:center; font-weight:700; color:#0d6efd;">
+    {{ u.play_count or 0 }}
+  </td>
+
+  <td style="text-align:center; font-weight:bold;">
+    {% if u.last_score is not none and u.last_total is not none %}
+      {{ u.last_score }}/{{ u.last_total }}
+    {% else %}
+      -
+    {% endif %}
+  </td>
+
+  {% if u.role == "user" %}
+    <td style="text-align:center;">
+      {{ u.trial_start.strftime("%d/%m/%Y") if u.trial_start else "-" }}
+    </td>
+
+    <td style="text-align:center;">
+      {{ u.trial_end.strftime("%d/%m/%Y") if u.trial_end else "-" }}
+    </td>
+
+    <td style="text-align:center; font-weight:900;">
+      <span class="trial-remain {{ u._remain_class }}">
+        {{ u._remain_label }}
+      </span>
+    </td>
+  {% endif %}
+
+  <!-- STATUS -->
+  <td style="text-align:center;">
+    {% if u.status == "LOCK" %}
+      <span style="color:#ef4444;font-weight:900;">Khoá</span>
+
+    {% elif u.role=="user" and not u.email_verified %}
+      <span style="color:#f59e0b;font-weight:900;">Chờ kích hoạt</span>
+
+    {% elif u.role=="user" and u._remain_seconds is not none and u._remain_seconds <= 0 %}
+      <span style="color:#f59e0b;font-weight:900;">Chờ gia hạn</span>
+
+    {% else %}
+      <span style="color:#16a34a;font-weight:900;">Hoạt động</span>
+    {% endif %}
+  </td>
+
+  <!-- MEMBER PLAN -->
+  {% if u.role == "user" %}
+    <!-- MEMBER PLAN (chỉ User) -->
+    <td style="text-align:center; font-weight:900;">
+      {% set m = (u.member or 'Basic')|lower %}
+      {% if m == 'basic' %}
+        <span style="color:#2563eb;">Cơ bản</span>
+      {% elif m == 'pro' %}
+        <span style="color:#7c3aed;">Nâng cao</span>
+      {% elif m == 'vip' %}
+        <span style="color:#f59e0b;">Cao cấp</span>
+      {% else %}
+        <span style="color:#64748b;">-</span>
+      {% endif %}
+    </td>
+  {% endif %}
+
+
+
+  <!-- ACTIONS -->
+  <td class="user-actions">
+
+    {% if u.role == "user" %}
+    <button type="button"
+            class="admin-btn btn-extend"
+            data-extend-btn
+            data-user-id="{{ u.id }}"
+            data-username="{{ u.username|e }}"
+            data-email="{{ (u.email or '')|e }}"
+            title="Gia hạn">
+
+      ⏳
+    </button>
+    {% endif %}
+
+    <form method="post" class="ua-form">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action"
+              value="toggle_active"
+              class="admin-btn {% if u.is_active %}btn-lock{% else %}btn-unlock{% endif %}">
+        {% if u.status == "LOCK" %}
+          🔓
+        {% else %}
+          🔒
+        {% endif %}
+      </button>
+    </form>
+
+    <!-- ✏️ EDIT -->
+    {% if u.role == "admin" %}
+    <button type="button"
+            id="btnBulkEdit"
+            class="ui-icon-btn ui-icon-btn--warn"
+            title="Chỉnh sửa hàng loạt">
+      ✏️
+    </button>
+    {% endif %}
+
+    <form method="post" class="ua-form">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action"
+              value="toggle_role"
+              class="admin-btn btn-role {% if not u.is_active %}btn-disabled{% endif %}"
+              {% if not u.is_active %}disabled{% endif %}
+              title="Đổi">
+        🔁
+      </button>
+    </form>
+
+    <form method="post"
+          class="ua-form"
+          onsubmit="return confirm('Bạn chắc chắn muốn xoá user {{ u.username }} ?');">
+      <input type="hidden" name="user_id" value="{{ u.id }}">
+      <button name="action"
+              value="delete"
+              class="admin-btn btn-del {% if not u.is_active %}btn-disabled{% endif %}"
+              {% if not u.is_active %}disabled{% endif %}
+              title="Xóa">
+        🗑
+      </button>
+    </form>
+
+  </td>
+</tr>

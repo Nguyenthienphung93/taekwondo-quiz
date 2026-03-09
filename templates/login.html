@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập</title>
+
+  <!-- UI core -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css', v=APP_VERSION) }}">
+  <!-- Page CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css', v=APP_VERSION) }}">
+</head>
+
+<body class="login-page">
+  <!-- BACKGROUND -->
+  <div class="bg-layer" aria-hidden="true"></div>
+  <div class="bg-overlay" aria-hidden="true"></div>
+
+  <div class="login-wrapper">
+    <main class="login-container" role="main" aria-label="Trang đăng nhập">
+
+      <h1 class="app-title">
+        PHẦN MỀM HỌC<br>TAEKWONDO
+      </h1>
+
+      <section class="login-card {% if get_flashed_messages(with_categories=true) %}shake{% endif %}">
+        <h2 class="login-title">Đăng nhập</h2>
+
+        <!-- FLASH -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              {% if category in ["login_error","login_warning"] %}
+                <div class="alert alert-login {{ category }}" role="alert">
+                  {{ message }}
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" class="login-form" autocomplete="on">
+          <label class="ui-label" for="username">Username</label>
+          <div class="ui-input-wrap">
+            <input
+              id="username"
+              type="text"
+              name="username"
+              value="{{ request.cookies.get('saved_user','') }}"
+              required
+              class="ui-input"
+              autocomplete="username"
+              placeholder="Nhập username hoặc email"
+            >
+          </div>
+
+          <label class="ui-label" for="password">Password</label>
+          <div class="ui-input-wrap ui-input-wrap--icon">
+            <input
+              id="password"
+              type="password"
+              name="password"
+              required
+              class="ui-input ui-input--with-icon"
+              autocomplete="current-password"
+              placeholder="Nhập mật khẩu"
+            >
+            <button
+              type="button"
+              class="ui-input-icon"
+              id="togglePwd"
+              aria-label="Hiện/Ẩn mật khẩu"
+              aria-pressed="false"
+              title="Hiện/Ẩn mật khẩu"
+            >🙂</button>
+          </div>
+
+          <div class="login-actions">
+            <button type="submit" class="ui-btn ui-btn--primary ui-btn--lg ui-btn--block">
+              Đăng nhập
+            </button>
+
+            <button type="button" class="login-forgot" onclick="openForgot()">
+              Quên mật khẩu
+            </button>
+
+            <a class="ui-btn ui-btn--outline ui-btn--lg ui-btn--block" href="{{ url_for('register') }}">
+              Đăng ký
+            </a>
+          </div>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    Chủ sở hữu: <b>Nguyen Thien Phung</b>
+  </footer>
+
+  <!-- MODAL QUÊN MẬT KHẨU -->
+  <div id="forgotModal" class="ui-modal-backdrop" aria-hidden="true">
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="forgotTitle">
+      <div class="ui-modal-header">
+        <b id="forgotTitle">Quên mật khẩu</b>
+        <button class="ui-close" type="button" onclick="closeForgot()" aria-label="Đóng" title="Thoát">❌</button>
+      </div>
+
+      <form method="POST" action="{{ url_for('forgot_password') }}">
+        <div class="ui-modal-body">
+          <div class="ui-input-wrap">
+            <input
+              type="email"
+              name="email"
+              required
+              class="ui-input"
+              placeholder="Email của bạn"
+              autocomplete="email"
+            >
+          </div>
+        </div>
+
+        <div class="ui-modal-footer">
+          <button class="ui-btn ui-btn--success" type="submit" title="Lưu">💾</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ================= POPUP: WAIT_RENEW (HẾT HẠN) ================= #}
+  {% if wait_renew %}
+  <div id="waitRenewPopup"
+       style="position:fixed;inset:0;background:rgba(0,0,0,.58);backdrop-filter:blur(6px);
+              display:flex;align-items:center;justify-content:center;z-index:999999;padding:18px;">
+
+    <div style="position:relative;
+                width:min(640px,94vw);
+                background:linear-gradient(180deg,#ffffff,#fbfdff);
+                border-radius:22px;
+                padding:22px 22px 18px;
+                box-shadow:0 28px 90px rgba(0,0,0,.32);
+                font-family:Arial,sans-serif;
+                border:1px solid rgba(255,255,255,.45);
+                overflow:hidden;">
+
+      <div style="position:absolute;inset:-60px -60px auto -60px;height:140px;
+                  background:radial-gradient(circle at 40% 40%, rgba(239,68,68,.25), rgba(255,255,255,0) 60%);
+                  pointer-events:none;"></div>
+
+      <button type="button" class="ui-close" id="btnCloseWaitRenew"
+              style="position:absolute;top:12px;right:12px;z-index:2;">
+        ❌
+      </button>
+
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;position:relative;z-index:1;">
+        <div style="width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(180deg,#fee2e2,#fff);
+                    border:1px solid #fecaca;
+                    color:#dc2626;font-size:26px;font-weight:900;flex:0 0 52px;">
+          ⛔
+        </div>
+
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:22px;font-weight:900;color:#dc2626;line-height:1.15;">
+            Bạn đã hết thời gian sử dụng thử
+          </div>
+
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <span style="font-size:12px;font-weight:800;color:#374151;
+                         background:#f3f4f6;border:1px solid #e5e7eb;
+                         padding:6px 10px;border-radius:999px;">
+              Tài khoản: <b style="color:#111827;">{{ expired_username or "" }}</b>
+            </span>
+
+            <span style="font-size:12px;font-weight:800;color:#b91c1c;
+                         background:#fff1f2;border:1px solid #fecdd3;
+                         padding:6px 10px;border-radius:999px;">
+              Trạng thái: <b>Chờ gia hạn</b>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;z-index:1;font-size:15px;line-height:1.65;color:#374151;margin-top:6px;">
+        <h2>Tài khoản của bạn đã hết hạn.</h2>
+        <h2>Nếu muốn sử dụng tiếp, vui lòng <b>gia hạn gói học</b>.</h2>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:18px;position:relative;z-index:1;">
+        <button type="button"
+                class="ui-btn ui-btn--primary ui-btn--lg"
+                id="btnOpenPlans"
+                style="min-width:260px;border-radius:999px;font-weight:900;">
+          Đăng ký gói thành viên
+        </button>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  {# ================= POPUP: WAIT_ACCEPT (ĐÃ THANH TOÁN - CHỜ DUYỆT) ================= #}
+  {% if wait_accept %}
+  <div id="waitAcceptPopup"
+       style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(5px);
+              display:flex;align-items:center;justify-content:center;z-index:999999;padding:18px;">
+    <div style="width:min(660px,94vw);background:#fff;border-radius:18px;padding:20px 22px 18px;
+                box-shadow:0 25px 70px rgba(0,0,0,.28);font-family:Arial,sans-serif;
+                border:1px solid rgba(255,255,255,.35);">
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+                    background:#dcfce7;color:#16a34a;font-size:22px;font-weight:900;flex:0 0 42px;">✅</div>
+        <div style="flex:1;">
+          <div style="font-size:20px;font-weight:900;color:#16a34a;line-height:1.1;">
+            Cảm ơn bạn đã thanh toán
+          </div>
+          <div style="font-size:13px;color:#6b7280;margin-top:2px;">
+            Xin vui lòng đợi admin duyệt sau 24h. Nếu quá 24h xin vui lòng liên hệ email hoặc hotline.
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:15px;font-weight:900;line-height:1.6;color:#374151;margin-top:6px;">Nếu quá lâu, vui lòng liên hệ:</div>
+      <div style="font-size:15px;line-height:1.6;color:#374151;margin-top:6px;">
+        Email: silentnight1993pro@gmail.com
+        <br>Zalo: +84 989030493
+        <br>Telegram: +84 989030493
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button type="button" class="ui-btn ui-btn--primary ui-btn--lg" id="btnCloseWaitAccept">Đóng</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ================= MODAL: CHỌN GÓI ================= #}
+  <div id="planModal" class="ui-modal-backdrop" aria-hidden="true" style="z-index:1000000;">
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="planTitle" style="width:min(860px,96vw);">
+      <div class="ui-modal-header">
+        <b id="planTitle">Đăng ký gói thành viên</b>
+        <button class="ui-close" type="button" id="btnClosePlan" aria-label="Đóng" title="Thoát">❌</button>
+      </div>
+
+      <div class="ui-modal-body" style="padding-top:14px;">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff7ed,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">Taekwondo Cơ Bản</div>
+            <div style="margin-top:6px;font-weight:900;color:#2563eb;">300.000 VNĐ / tháng</div>
+            <div style="margin-top:10px;color:#374151;line-height:1.55;">
+              Nội dung:
+              <br>+ Kỹ thuật cơ bản
+            </div>
+            <div style="margin-top:12px;">
+              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('BASIC', 300000)">Đăng ký</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#eff6ff,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">Taekwondo Nâng cao</div>
+            <div style="margin-top:6px;font-weight:900;color:#2563eb;">500.000 VNĐ / tháng</div>
+            <div style="margin-top:10px;color:#374151;line-height:1.55;">
+              Nội dung:
+              <br>+ Kỹ thuật cơ bản
+              <br>+ Kỹ thuật nâng cao
+              <br>+ Nội dung thi đẳng
+            </div>
+            <div style="margin-top:12px;">
+              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('PRO', 500000)">Đăng ký</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fdf2f8,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">Taekwondo Cao Cấp</div>
+            <div style="margin-top:6px;font-weight:900;color:#2563eb;">800.000 VNĐ / tháng</div>
+            <div style="margin-top:10px;color:#374151;line-height:1.55;">
+              Nội dung:
+              <br>+ Kỹ thuật cơ bản
+              <br>+ Kỹ thuật nâng cao
+              <br>+ Nội dung thi đẳng
+              <br>+ Kỹ thuật cao cấp
+              <br>+ Võ nhạc
+            </div>
+            <div style="margin-top:12px;">
+              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('VIP', 800000)">Đăng ký</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ================= MODAL: THỜI GIAN ĐĂNG KÝ ================= #}
+  <div id="durationModal" class="ui-modal-backdrop" aria-hidden="true"
+       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+              padding:18px; z-index:1000001;">
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="durationTitle"
+         style="width:min(620px,96vw);border-radius:22px;overflow:hidden;">
+
+      <div class="ui-modal-header" style="position:relative;">
+        <b id="durationTitle">Thời gian đăng ký</b>
+        <button class="ui-close" type="button" id="btnCloseDuration"
+                aria-label="Đóng" title="Thoát"
+                style="position:absolute;right:12px;top:10px;">❌</button>
+      </div>
+
+      <div class="ui-modal-body" style="background:#fff;">
+        <div style="font-size:14px;color:#374151;line-height:1.6;">
+          Gói đã chọn: <b id="pickedPlanName">-</b><br>
+          Đơn giá: <b id="pickedPlanPrice">-</b> VNĐ / tháng
+        </div>
+
+        <div style="margin-top:12px;">
+          <label class="ui-label" style="margin-bottom:6px;">Bạn muốn chọn</label>
+          <select id="monthsSelect" class="ui-input">
+            <option value="1">1 tháng</option>
+            <option value="2">2 tháng</option>
+            <option value="3">3 tháng (giảm 10%)</option>
+            <option value="6">6 tháng (giảm 15%)</option>
+            <option value="12">12 tháng (giảm 20%)</option>
+          </select>
+        </div>
+
+        <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#f8fafc;">
+          <div style="display:flex;justify-content:space-between;gap:10px;">
+            <span>Số tiền</span><b id="rawTotal">0</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+            <span>Giảm giá</span><b id="discount">0</b>
+          </div>
+          <div style="height:1px;background:#e5e7eb;margin:10px 0;"></div>
+          <div style="display:flex;justify-content:space-between;gap:10px;">
+            <span style="font-weight:900;">Thành tiền</span><b id="finalTotal" style="font-size:18px;">0</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:10px;">
+        <button style="min-width:150px;white-space:nowrap;"
+                class="ui-btn ui-btn--outline" type="button" id="btnBackPlans">
+          ← Chọn lại gói
+        </button>
+        <button class="ui-btn ui-btn--primary" type="button" id="btnGoPay">Thanh toán</button>
+      </div>
+
+    </div>
+  </div>
+
+  {# ================= MODAL: THANH TOÁN (QR) ================= #}
+  <div id="payModal" class="ui-modal-backdrop" aria-hidden="true"
+       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+              padding:18px; z-index:1000002;">
+
+    <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="payTitle"
+         style="width:min(860px,96vw);border-radius:22px;overflow:hidden;">
+
+      <div class="ui-modal-header" style="position:relative;height:40px;">
+        <b id="payTitle">Thanh toán</b>
+        <button class="ui-close" type="button" id="btnClosePay"
+                aria-label="Đóng" title="Thoát"
+                style="position:absolute;right:12px;top:10px;">❌</button>
+      </div>
+
+      <div class="ui-modal-body" style="padding:16px;background:linear-gradient(180deg,#ffffff,#fbfdff);">
+        <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:14px;align-items:start;max-width:100%;">
+
+          <div style="border:1px solid #e5e7eb;border-radius:18px;padding:14px;background:#fff;
+                      box-shadow:0 10px 30px rgba(0,0,0,.06);">
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#eff6ff;border:1px solid #dbeafe;color:#2563eb;font-weight:900;">👤</div>
+              <div style="font-weight:900;font-size:16px;">Thông tin khách hàng</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
+              <div style="color:#6b7280;font-weight:900;">Tên user</div>
+              <div><b id="payUser">{{ expired_username or "" }}</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Email</div>
+              <div>
+                <span id="payEmailText"
+                      style="display:inline-flex;align-items:center;gap:8px;
+                             background:#f3f4f6;border:1px solid #e5e7eb;
+                             padding:7px 10px;border-radius:999px;font-weight:900;color:#111827;">
+                  {{ (expired_email or 'Chưa có email') }}
+                </span>
+              </div>
+            </div>
+
+            <div style="height:1px;background:#e5e7eb;margin:14px 0;"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-weight:900;">🧾</div>
+              <div style="font-weight:900;font-size:16px;">Thông tin đơn hàng</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
+              <div style="color:#6b7280;font-weight:900;">Tên gói</div>
+              <div><b id="payPlan">-</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Số tháng</div>
+              <div><b id="payMonths">-</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Số tiền</div>
+              <div><b id="payFinal" style="font-size:18px;">-</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Ghi chú</div>
+              <div>
+                <span id="payNote"
+                      style="display:inline-block;font-weight:900;color:#111827;
+                             background:#f3f4f6;border:1px solid #e5e7eb;
+                             padding:7px 10px;border-radius:999px;">-</span>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;padding:10px 12px;border-radius:14px;
+                        background:#f8fafc;border:1px solid #e5e7eb;
+                        font-size:12px;color:#6b7280;line-height:1.5;">
+              ✅ Khi chuyển khoản, vui lòng ghi đúng <b>Ghi chú</b> để admin duyệt nhanh.
+            </div>
+
+            <div style="height:1px;background:#e5e7eb;margin:14px 0;"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#dcfce7;border:1px solid #bbf7d0;color:#16a34a;font-weight:900;">🏦</div>
+              <div style="font-weight:900;font-size:16px;">Thông tin người nhận</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
+              <div style="color:#6b7280;font-weight:900;">Tên</div>
+              <div><b>Nguyễn Thiên Phụng</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">STK</div>
+              <div><b>682657</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Ngân hàng</div>
+              <div><b>ACB</b></div>
+
+              <div style="color:#6b7280;font-weight:900;">Ghi chú:</div>
+              <div><b>Theo ghi chú phần thông tin đơn hàng bên trên</b></div>
+            </div>
+
+          </div>
+
+          <div style="border:1px solid #e5e7eb;border-radius:18px;background:#fff;
+                      box-shadow:0 10px 30px rgba(0,0,0,.06);overflow:hidden;">
+            <div style="padding:14px;display:flex;align-items:center;gap:10px;">
+              <div style="width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                          background:#dcfce7;border:1px solid #bbf7d0;color:#16a34a;font-weight:900;">📷</div>
+              <div style="font-weight:900;font-size:16px;">Quét QR để chuyển khoản</div>
+            </div>
+
+            <div style="padding:0 14px 14px;">
+              <div style="border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;
+                          padding:12px;display:flex;align-items:center;justify-content:center;">
+                <img id="payQrImg" src="" alt="QR chuyển khoản"
+                     style="width:min(390px,72vw);height:auto;display:block;border-radius:12px;background:#fff;">
+              </div>
+
+              <div style="margin-top:10px;padding:10px 12px;border-radius:14px;
+                          background:#f8fafc;border:1px solid #e5e7eb;
+                          font-size:12px;color:#6b7280;line-height:1.45;">
+                Nếu QR không hiện: Học viên vui lòng chuyển khoản qua thông tin người nhận
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <style>
+          @media (max-width: 720px){
+            #payModal .ui-modal-body > div { grid-template-columns: 1fr !important; }
+          }
+        </style>
+      </div>
+
+      <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:12px;">
+        <button class="ui-btn ui-btn--outline ui-btn--lg" type="button" id="btnBackDuration"
+                style="min-width:150px;white-space:nowrap;border-radius:14px;">
+          ← Quay lại
+        </button>
+
+        <button class="ui-btn ui-btn--primary ui-btn--lg" type="button" id="btnPaid"
+                style="min-width:210px;border-radius:14px;font-weight:900;">
+          Tôi đã thanh toán
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  {# ================= POPUP: CHƯA KÍCH HOẠT ================= #}
+  {% set warn_msgs = get_flashed_messages(category_filter=['login_warning']) %}
+  {% set act_hint = session.get('pending_activation_hint') %}
+  {% if warn_msgs %}
+    <div id="verifyModal" class="ui-modal show" role="dialog" aria-modal="true" aria-labelledby="verifyTitle">
+      <div class="ui-modal__backdrop" data-close="1"></div>
+
+      <div class="ui-modal__dialog">
+        <button class="ui-close" type="button" data-close="1" aria-label="Đóng">❌</button>
+
+        <div class="ui-modal__head">
+          <div class="ui-modal__icon">📩</div>
+          <div>
+            <div id="verifyTitle" class="ui-modal__title">Tài khoản chưa kích hoạt</div>
+            <div class="ui-modal__sub">Bạn cần kích hoạt email trước khi đăng nhập.</div>
+          </div>
+        </div>
+
+        <div class="ui-modal__body">
+          <div class="ui-alert ui-alert--warn">
+            {{ warn_msgs[0] }}
+          </div>
+
+          {% if act_hint %}
+            <div class="ui-modal__hint" style="margin-top:10px;">
+              ✅ Hệ thống đã ghi nhớ tài khoản. Bạn có thể bấm <b>Gửi lại email kích hoạt</b> ngay.<br>
+              Nếu không thấy email, vui lòng kiểm tra <b>Spam/Quảng cáo</b>.
+            </div>
+          {% else %}
+            <div class="ui-modal__hint" style="margin-top:10px;">
+              ⚠️ Vui lòng nhập <b>Username hoặc Email</b> vào ô đăng nhập, rồi bấm <b>Gửi lại email kích hoạt</b>.<br>
+              Nếu không thấy email, vui lòng kiểm tra <b>Spam/Quảng cáo</b>.
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="ui-modal__foot">
+
+          <button type="button" class="ui-btn ui-btn--primary" id="btnResendActivation">
+            Gửi lại email kích hoạt
+          </button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- =================== JS (ONLY ONCE, NO DUPLICATES) =================== -->
+  <script>
+  (function(){
+    const $ = (id) => document.getElementById(id);
+
+    function openBackdrop(id){
+      const m = $(id);
+      if(!m) return;
+      m.style.display = "flex";
+      m.setAttribute("aria-hidden","false");
+      document.body.style.overflow = "hidden";
+    }
+    function closeBackdrop(id){
+      const m = $(id);
+      if(!m) return;
+      m.style.display = "none";
+      m.setAttribute("aria-hidden","true");
+      document.body.style.overflow = "";
+    }
+
+    // =============== Toggle password ===============
+    (function(){
+      const pwd = $("password");
+      const btn = $("togglePwd");
+      if(!pwd || !btn) return;
+
+      btn.addEventListener("click", () => {
+        const hide = pwd.type === "password";
+        pwd.type = hide ? "text" : "password";
+        btn.textContent = hide ? "😑" : "🙂";
+        btn.setAttribute("aria-pressed", hide ? "true" : "false");
+        pwd.focus();
+      });
+    })();
+
+    // =============== Forgot modal (global for onclick) ===============
+    window.openForgot = function(){
+      const m = $("forgotModal");
+      if(!m) return;
+      m.classList.add("show");
+      m.setAttribute("aria-hidden", "false");
+      const first = m.querySelector("input");
+      if(first) setTimeout(() => first.focus(), 30);
+    };
+
+    window.closeForgot = function(){
+      const m = $("forgotModal");
+      if(!m) return;
+      m.classList.remove("show");
+      m.setAttribute("aria-hidden", "true");
+    };
+
+    (function(){
+      const m = $("forgotModal");
+      if(!m) return;
+      m.addEventListener("click", (e)=>{ if(e.target === m) window.closeForgot(); });
+      document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") window.closeForgot(); });
+    })();
+
+    // =============== Verify modal (resend activation) ===============
+    (function(){
+      const m = $("verifyModal");
+      if(!m) return;
+
+      function closeModal(){
+        m.classList.remove("show");
+        document.body.classList.remove("modal-open");
+      }
+      document.body.classList.add("modal-open");
+
+      m.addEventListener("click", (e)=>{
+        const t = e.target;
+        if(t && t.getAttribute && t.getAttribute("data-close") === "1") closeModal();
+      });
+
+      document.addEventListener("keydown", (e)=>{
+        if(e.key === "Escape") closeModal();
+      });
+
+      const btnResend = $("btnResendActivation");
+      if(btnResend){
+        btnResend.addEventListener("click", ()=>{
+          const inp = document.querySelector('input[name="username"], input#username, input[type="text"]');
+          const q = (inp && inp.value ? inp.value.trim() : "");
+          const base = "{{ url_for('resend_activation') }}";
+          const url = q ? (base + "?q=" + encodeURIComponent(q)) : base;
+          window.location.href = url;
+        });
+      }
+    })();
+
+    // =============== Close WAIT popups ===============
+    const btnCloseWaitRenew = $("btnCloseWaitRenew");
+    const waitRenewPopup = $("waitRenewPopup");
+    if(btnCloseWaitRenew && waitRenewPopup){
+      btnCloseWaitRenew.addEventListener("click", ()=> waitRenewPopup.remove());
+    }
+
+    const btnCloseWaitAccept = $("btnCloseWaitAccept");
+    const waitAcceptPopup = $("waitAcceptPopup");
+    if(btnCloseWaitAccept && waitAcceptPopup){
+      btnCloseWaitAccept.addEventListener("click", ()=> waitAcceptPopup.remove());
+    }
+
+    // =============== Membership flow (PLAN → DURATION → PAY) ===============
+    window.__pickedPlan = { name:"", price:0, months:1, discountRate:0, raw:0, off:0, final:0 };
+
+    function formatVND(x){
+      x = Math.max(0, Math.round(x||0));
+      return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " VNĐ";
+    }
+
+    function calc(){
+      const s = window.__pickedPlan;
+      const months = parseInt(($("monthsSelect")?.value || "1"), 10);
+      s.months = months;
+
+      let rate = 0;
+      if(months === 3) rate = 0.10;
+      else if(months === 6) rate = 0.15;
+      else if(months === 12) rate = 0.20;
+
+      s.discountRate = rate;
+      s.raw = s.price * months;
+      s.off = Math.round(s.raw * rate);
+      s.final = s.raw - s.off;
+
+      if($("rawTotal")) $("rawTotal").textContent = formatVND(s.raw);
+      if($("discount")) $("discount").textContent = "-" + formatVND(s.off);
+      if($("finalTotal")) $("finalTotal").textContent = formatVND(s.final);
+    }
+
+    window.selectPlan = function(planName, planPrice){
+      window.__pickedPlan.name = planName;
+      window.__pickedPlan.price = planPrice;
+
+      if($("pickedPlanName")) $("pickedPlanName").textContent = planName;
+      if($("pickedPlanPrice")) $("pickedPlanPrice").textContent =
+        planPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+      closeBackdrop("planModal");
+      openBackdrop("durationModal");
+      calc();
+    };
+
+    const btnOpenPlans = $("btnOpenPlans");
+    if(btnOpenPlans){
+      btnOpenPlans.addEventListener("click", ()=>{
+        if(waitRenewPopup) waitRenewPopup.remove();
+        openBackdrop("planModal");
+      });
+    }
+
+    const btnClosePlan = $("btnClosePlan");
+    if(btnClosePlan) btnClosePlan.addEventListener("click", ()=> closeBackdrop("planModal"));
+
+    const btnCloseDuration = $("btnCloseDuration");
+    if(btnCloseDuration) btnCloseDuration.addEventListener("click", ()=> closeBackdrop("durationModal"));
+
+    const btnBackPlans = $("btnBackPlans");
+    if(btnBackPlans){
+      btnBackPlans.addEventListener("click", ()=>{
+        closeBackdrop("durationModal");
+        openBackdrop("planModal");
+      });
+    }
+
+    const monthsSelect = $("monthsSelect");
+    if(monthsSelect) monthsSelect.addEventListener("change", calc);
+
+    const btnGoPay = $("btnGoPay");
+    if(btnGoPay){
+      btnGoPay.addEventListener("click", ()=>{
+        const s = window.__pickedPlan;
+
+        const plan = s.name || "-";
+        const months = s.months || 1;
+        const final = s.final || 0;
+
+        const u = "{{ expired_username or '' }}";
+        const note = `${u} - ${plan} - ${months}m`;
+
+        const setText = (id, val)=>{ const el=$(id); if(el) el.textContent = val; };
+        setText("payPlan", plan);
+        setText("payMonths", String(months));
+        setText("payFinal", (final||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " VNĐ");
+        setText("payNote", note);
+
+        const amount = Math.max(0, Math.round(final||0));
+        const accountName = "Nguyen Thien Phung";
+
+        const qrUrl =
+          "https://img.vietqr.io/image/ACB-682657-compact2.png"
+          + "?amount=" + encodeURIComponent(String(amount))
+          + "&addInfo=" + encodeURIComponent(note)
+          + "&accountName=" + encodeURIComponent(accountName);
+
+        const img = $("payQrImg");
+        if(img) img.src = qrUrl;
+
+        closeBackdrop("durationModal");
+        openBackdrop("payModal");
+      });
+    }
+
+    const btnClosePay = $("btnClosePay");
+    if(btnClosePay) btnClosePay.addEventListener("click", (e)=>{ e.preventDefault(); closeBackdrop("payModal"); });
+
+    const btnBackDuration = $("btnBackDuration");
+    if(btnBackDuration){
+      btnBackDuration.addEventListener("click", ()=>{
+        closeBackdrop("payModal");
+        openBackdrop("durationModal");
+      });
+    }
+
+    const btnPaid = $("btnPaid");
+    if(btnPaid){
+      btnPaid.addEventListener("click", async ()=>{
+        const s = window.__pickedPlan || {};
+        const u = "{{ expired_username or '' }}";
+        const plan = s.name || "-";
+        const months = s.months || 1;
+
+        const raw_total = s.raw || 0;
+        const discount = s.off || 0;
+        const final_total = s.final || 0;
+
+        const note = `${u} - ${plan} - ${months}m`;
+
+        btnPaid.disabled = true;
+        const oldText = btnPaid.textContent;
+        btnPaid.textContent = "Đang gửi...";
+
+        try{
+          const res = await fetch("/renew/confirm_paid", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({
+              username: "{{ expired_username or '' }}",
+              email: "{{ expired_email or '' }}",
+              plan_code: plan,
+              plan_name: plan,
+              months: months,
+              raw_total: raw_total,
+              discount: discount,
+              final_total: final_total,
+              note: note
+            })
+          });
+
+          const js = await res.json().catch(()=>null);
+          if(!res.ok || !js || !js.ok){
+            alert((js && js.message) ? js.message : "Có lỗi khi xác nhận thanh toán. Ken gửi log cho Sam nhé.");
+            return;
+          }
+
+          window.location.href = "/login?wait_accept=1";
+        }catch(e){
+          alert("Có lỗi khi xác nhận thanh toán. Ken gửi log cho Sam nhé.");
+        }finally{
+          btnPaid.disabled = false;
+          btnPaid.textContent = oldText;
+        }
+      });
+    }
+
+    // click outside to close (plan/duration/pay)
+    ["planModal","durationModal","payModal"].forEach(mid=>{
+      const m = $(mid);
+      if(!m) return;
+      m.addEventListener("click", (e)=>{ if(e.target === m) closeBackdrop(mid); });
+    });
+
+    // ESC to close: pay > duration > plan
+    document.addEventListener("keydown", (e)=>{
+      if(e.key !== "Escape") return;
+      const pay = $("payModal");
+      const dur = $("durationModal");
+      const plan = $("planModal");
+      if(pay && pay.style.display === "flex") return closeBackdrop("payModal");
+      if(dur && dur.style.display === "flex") return closeBackdrop("durationModal");
+      if(plan && plan.style.display === "flex") return closeBackdrop("planModal");
+    });
+
+  })();
+  </script>
+</body>
+</html>

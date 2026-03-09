@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt{% endblock %}
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v=APP_VERSION) }}">
+{% endblock %}
+{% block content %}
+
+<div class="settings-page">
+  <div class="settings-card">
+
+    <!-- HEADER -->
+    <div class="settings-header">
+      <h2 class="settings-title">⚙️ Cài đặt</h2>
+      <a class="ui-close" href="{{ url_for('sets') }}" aria-label="Quay lại" title="Thoát">❌</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('save_settings') }}" class="settings-form">
+
+      <!-- ===== SỐ CÂU / LƯỢT ===== -->
+      <div class="settings-field">
+        <label class="ui-label"><b>Câu hỏi / lượt</b></label>
+        <select name="num_questions" class="settings-select">
+          <option value="none" {% if cur_num is none %}selected{% endif %}>
+            None (làm hết, không lặp)
+          </option>
+          {% for n in NUMQ_OPTIONS %}
+            <option value="{{ n }}" {% if cur_num == n %}selected{% endif %}>
+              {{ n }} câu
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <!-- ===== THỜI GIAN / CÂU ===== -->
+      <div class="settings-field">
+        <label class="ui-label"><b>Thời gian / câu hỏi</b></label>
+        <select name="time_per_q" class="settings-select">
+          <option value="none" {% if cur_time is none %}selected{% endif %}>
+            None (không tính thời gian)
+          </option>
+          {% for t in TIME_OPTIONS %}
+            <option value="{{ t }}" {% if cur_time == t %}selected{% endif %}>
+              {{ t }} giây
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- ACTIONS: Lưu + X (cùng hàng) -->
+      <div class="settings-actions">
+        <button class="ui-btn ui-btn--success" type="submit" title="Lưu">💾</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% endblock %}
