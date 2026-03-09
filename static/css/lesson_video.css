@@ -1,0 +1,169 @@
+/* ===== VIDEO STAGE ===== */
+.lesson-video-stage{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%;
+}
+
+.video-frame{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.video-frame iframe,
+.video-frame video{
+  width:100%;
+  height:100%;
+  border-radius: 14px;
+  background:#000;
+}
+
+/* ===== DRIVE/WEB PDF IFRAME ===== */
+.pdf-iframe-wrap{
+  width:100%;
+  height:100%;
+  border-radius: 14px;
+  overflow:hidden;
+  background:#111;
+}
+
+.pdf-iframe{
+  width:100%;
+  height:100%;
+  border:0;
+}
+
+/* ===== FOOTER CONTROLS ===== */
+.lesson-video-footer{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-top: 1px solid rgba(0,0,0,.08);
+  background:#fff;
+}
+
+
+.vslider{
+  flex:1;
+  height: 6px;
+}
+
+.vtime{
+  min-width: 120px;
+  text-align:right;
+  font-weight:600;
+  color:#111827;
+}
+
+/* =========================
+   LESSON WEB (IFRAME) – FULL VIEW
+   ========================= */
+html, body{
+  height: 100%;
+  overflow: hidden;  /* ✅ không scroll trang */
+}
+
+.lesson-web-page .lesson-window.lesson-web-window{
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #eef2f7; /* nền nhẹ giống hệ */
+}
+
+/* giữ header như pdf/youtube */
+.lesson-web-header{
+  flex: 0 0 64px;
+}
+
+/* body full phần còn lại */
+.lesson-web-body{
+  flex: 1 1 auto;
+  min-height: 0;     /* ✅ quan trọng để iframe co giãn */
+  overflow: hidden;
+  display: flex;
+}
+
+/* stage full */
+.lesson-web-stage{
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;        /* ✅ không ép lề */
+  margin: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* iframe chiếm trọn */
+.lesson-web-iframe{
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* ===== DRIVE/WEB VIEW: FULL STAGE ===== */
+html, body{
+  height: 100%;
+  overflow: hidden;          /* không scroll trang */
+}
+
+.lesson-window{
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lesson-modal-header{
+  flex: 0 0 64px;            /* header cố định */
+}
+
+.lesson-body{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* nếu trang Drive vẫn đang dùng layout có sidebar */
+.lesson-body{
+  display: grid;
+  grid-template-columns: 0 1fr;   /* ✅ tắt sidebar */
+  gap: 0;
+}
+
+/* ẩn sidebar hẳn */
+.lesson-sidebar{
+  display: none !important;
+}
+
+.lesson-content.lesson-video-stage{
+  padding: 0 !important;     /* ❌ bỏ padding làm hẹp khung */
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  height: 100%;
+  width: 100%;
+  background: #000;          /* nền đen cho giống viewer */
+}
+
+/* iframe wrap full */
+.pdf-iframe-wrap{
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.pdf-iframe{
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}

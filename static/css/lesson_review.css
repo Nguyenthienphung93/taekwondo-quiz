@@ -1,0 +1,322 @@
+/* =====================================================
+   LESSON REVIEW – UI REVAMP (PDF CANVAS)
+   Dán CUỐI lesson_review.css
+===================================================== */
+
+html, body{
+  height: 100%;
+  margin: 0;
+  overflow: hidden;          /* ✅ không scroll trang */
+  background: #f6f8fc;
+}
+
+/* khung tổng thể */
+.lesson-window{
+  width: 100vw !important;   /* ✅ dãn full ngang */
+  height: 100vh !important;  /* ✅ full cao */
+  margin: 0 !important;      /* ✅ bỏ canh giữa */
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 0 !important;
+  max-width: none !important;
+  box-shadow: 0 18px 55px rgba(0,0,0,.10);
+  overflow: hidden;
+
+  display:flex;
+  flex-direction:column;
+}
+
+/* header */
+.lesson-modal-header{
+  flex: 0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #fff7ed, #ffffff);
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+.lesson-title-text{
+  margin:0;
+  font-size: 20px;
+  font-weight: 900;
+  color:#111827;
+}
+
+.lesson-modal-header .ui-close{
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: #fff;
+  box-shadow: 0 10px 20px rgba(0,0,0,.10);
+  cursor:pointer;
+}
+.lesson-modal-header .ui-close:active{
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,.10);
+}
+
+/* body layout */
+.lesson-body{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  background: #fff;
+}
+
+/* sidebar */
+.lesson-sidebar{
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  background: #f8fafc;
+  border-right: 1px solid rgba(0,0,0,.06);
+}
+
+.lesson-nav-btn{
+  width:100%;
+  text-align:left;
+  border: 1px solid rgba(0,0,0,.10);
+  background:#fff;
+  color:#111827;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+
+  box-shadow: 0 10px 20px rgba(0,0,0,.08);
+  cursor:pointer;
+  transition: transform .06s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.lesson-nav-btn:hover{
+  border-color: rgba(37,99,235,.25);
+  box-shadow: 0 14px 26px rgba(0,0,0,.10);
+}
+
+.lesson-nav-btn:active{
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,.08);
+}
+
+.lesson-nav-btn.active{
+  border-color: rgba(37,99,235,.45);
+  background: rgba(37,99,235,.08);
+  box-shadow: 0 14px 26px rgba(37,99,235,.12);
+}
+
+/* content stage */
+.lesson-content{
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  background: radial-gradient(1000px 500px at 50% 0%, rgba(59,130,246,.10), transparent 55%),
+              #ffffff;
+}
+
+#pdfCanvas{
+  display:block;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.12);
+}
+
+/* pager */
+.lesson-pager{
+  flex: 0 0 auto;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(0,0,0,.06);
+  background: #fff;
+}
+
+.pager-btn{
+  border: 1px solid rgba(0,0,0,.10);
+  background:#fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 900;
+  cursor:pointer;
+  box-shadow: 0 10px 20px rgba(0,0,0,.10);
+}
+.pager-btn:active{
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,.10);
+}
+
+.pager-pill{
+  min-width: 120px;
+  text-align:center;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.92);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 900;
+  box-shadow: 0 10px 20px rgba(0,0,0,.08);
+  color:#111827;
+}
+.pager-pill .sep{ opacity:.45; margin: 0 6px; }
+
+/* mobile */
+@media (max-width: 860px){
+  .lesson-window{
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+    margin: 8px auto;
+  }
+  .lesson-body{
+    grid-template-columns: 1fr;
+  }
+  .lesson-sidebar{
+    display: flex;
+    gap: 10px;
+    overflow: auto;
+    white-space: nowrap;
+    border-right: 0;
+    border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+  .lesson-nav-btn{
+    margin: 0;
+    flex: 0 0 auto;
+    text-align:center;
+  }
+}
+
+html, body{ overflow: hidden !important; }
+.lesson-window{ height:100vh !important; ... }
+.lesson-body{ display:grid !important; ... }
+
+body.drive-mode{
+  overflow: hidden !important;
+}
+body.drive-mode .lesson-window{ ... }
+body.drive-mode .lesson-body{ ... }
+
+/* ===== KILL HORIZONTAL SCROLL INSIDE ===== */
+.lesson-body,
+.lesson-content{
+  overflow-x: hidden !important;
+}
+
+/* vùng content không được padding quá làm tràn */
+.lesson-content{
+  padding: 12px !important;
+  overflow: hidden !important;   /* ✅ không cho kéo ngang */
+}
+
+/* canvas không vượt quá khung */
+#pdfCanvas{
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+
+.lesson-content{
+  overflow: hidden !important;
+}
+
+/* ===== PAGE INDICATOR BIGGER ===== */
+.pager-pill,
+#pageInfo{
+  font-size: 18px !important;
+  font-weight: 1000 !important;
+  letter-spacing: .3px;
+  min-width: 150px !important;
+  padding: 12px 18px !important;
+}
+
+/* =====================================================
+   🎨 CUSTOM COLOR THEME – ORANGE / BLUE
+   DÁN CUỐI FILE lesson_review.css
+===================================================== */
+
+/* ===== HEADER CAM ===== */
+.lesson-modal-header{
+  background: linear-gradient(180deg, #FF9900, #FF9900) !important;
+  border-bottom: 2px solid #e65c00 !important;
+}
+
+.lesson-title-text{
+  color: #ffffff !important;
+  font-weight: 1000 !important;
+  letter-spacing: .5px;
+}
+
+.lesson-modal-header .ui-close{
+  background: #ffffff !important;
+  border: 2px solid #ff6a00 !important;
+}
+
+
+/* ===== SIDEBAR XANH DƯƠNG NHẠT ===== */
+.lesson-sidebar{
+  background: #eaf4ff !important;
+  border-right: 2px solid #c9e0ff !important;
+}
+
+
+/* ===== NÚT BÌNH THƯỜNG ===== */
+.lesson-nav-btn{
+  background: #ffffff !important;
+  border: 2px solid #b6d4ff !important;
+  color: #1e3a8a !important;
+  font-weight: 900;
+}
+
+
+/* ===== NÚT HOVER ===== */
+.lesson-nav-btn:hover{
+  background: #dbeafe !important;
+  border-color: #3b82f6 !important;
+}
+
+
+/* ===== NÚT ACTIVE (ĐẬM NHẤT) ===== */
+.lesson-nav-btn.active{
+  background: #3399FF !important;      /* xanh đậm */
+  color: #ffffff !important;
+  border: 3px solid #1e40af !important; /* viền đậm nhất */
+  box-shadow: 0 8px 20px rgba(37,99,235,.35) !important;
+}
+
+
+/* ===== CONTENT BACKGROUND NHẸ ===== */
+.lesson-content{
+  background: #ffffff !important;
+}
+
+
+/* ===== FOOTER / PAGER MÀU XÁM NHẠT ===== */
+.lesson-pager{
+  background: #f1f3f5 !important;
+  border-top: 2px solid #e2e8f0 !important;
+}
+
+
+/* ===== PAGE INDICATOR NỔI BẬT ===== */
+.pager-pill{
+  background: #ffffff !important;
+  border: 2px solid #cbd5e1 !important;
+  font-size: 20px !important;
+  font-weight: 1000 !important;
+  color: #1e293b !important;
+}
+
+/* ===== DISABLED NAV BUTTON ===== */
+.pager-btn.disabled,
+.pager-btn:disabled{
+  opacity: .35;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}

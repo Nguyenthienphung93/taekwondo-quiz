@@ -1,0 +1,83 @@
+html, body{
+  height:100%;
+  margin:0;
+  overflow:hidden;
+  background:#f6f7fb;
+}
+
+.lesson-window{
+  width:100vw;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+.lesson-body{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  overflow:hidden;
+}
+
+.lesson-content{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:stretch;
+  justify-content:stretch;
+  padding:14px;
+}
+
+.media-wrap{
+  width:100%;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background:#0b1220;
+  border-radius:16px;
+  box-shadow:0 18px 45px rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.10);
+  overflow:hidden;
+}
+
+#html5Player{
+  width:100%;
+  height:100%;
+  max-height:100%;
+  background:#000;
+  outline:none;
+}
+
+/* audio nhìn đẹp hơn: căn giữa */
+body.is-drive-media audio#html5Player{
+  height:auto;
+  width:min(900px, 94%);
+  padding:22px;
+  background:transparent;
+}
+
+.video-footer{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  background:#fff;
+  border-top:1px solid rgba(0,0,0,.08);
+}
+
+.vbtn{
+  border:0;
+  padding:10px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  background:#2563eb;
+  color:#fff;
+  font-weight:800;
+}
+.vbtn.gray{ background:#64748b; }
+
+.vtime{ font-weight:700; color:#111827; min-width:120px; text-align:center; }
+.vseek{ flex:1 1 auto; }

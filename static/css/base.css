@@ -1,0 +1,281 @@
+* {
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+html, body{
+  margin:0;
+  padding:0;
+  height:100%;
+  overflow:auto;   /* 🔥 đổi lại */
+}
+
+
+body {
+  min-height: 100vh;
+  font-family: "Segoe UI", sans-serif;
+  color: #222;
+  background: none;
+}
+
+a {
+  text-decoration: none;
+  color: #2563eb;
+}
+
+.hidden {
+  display: none !important;
+}
+
+
+/* ===== GLOBAL LOADING – TAEKWONDO STYLE ===== */
+.global-loading{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+
+  /* MỜ TOÀN TRANG */
+  background: rgba(0,0,0,.58);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  z-index: 300000;
+}
+
+.global-loading.show{ display:flex; }
+
+.global-loading-box{
+  width: min(520px, calc(100% - 36px));
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px 18px;
+  text-align: center;
+
+  /* SANG + SẮC NÉT */
+  border: 2px solid rgba(249,115,22,.28);
+  box-shadow:
+    0 22px 60px rgba(0,0,0,.35),
+    0 0 0 6px rgba(249,115,22,.10);
+
+  position: relative;
+  overflow: hidden;
+}
+
+/* Thanh “chém” cam phía trên cho cảm giác võ thuật */
+.global-loading-box::before{
+  content:"";
+  position:absolute;
+  left:-20%;
+  top:0;
+  width:140%;
+  height:6px;
+  background: linear-gradient(90deg, transparent, #f97316, transparent);
+  opacity:.95;
+}
+
+/* Spinner kiểu “đai” */
+.global-spinner{
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 6px solid #e5e7eb;
+  border-top-color: #f97316;
+  border-right-color: #111827;
+  margin: 0 auto 12px;
+  animation: spin 0.85s linear infinite;
+}
+
+/* Text mạnh mẽ */
+.global-loading-text{
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #111827;
+  font-size: 13.5px;
+}
+
+/* Subtext nhỏ (nếu muốn thêm) */
+.global-loading-sub{
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* ===== TAEKWONDO MASCOT LOADER ===== */
+.tkd-loader{
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 12px;
+}
+
+.tkd-frame{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 70%;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.25));
+}
+
+/* Luân phiên hiện trái/phải */
+.tkd-left{
+  animation: punchLeft 0.72s infinite steps(1, end);
+}
+.tkd-right{
+  animation: punchRight 0.72s infinite steps(1, end);
+}
+
+/* Nhịp đấm: hơi “giật” tới trước cho cảm giác lực */
+@keyframes punchLeft{
+  0%   { opacity:1; transform: translateX(-2px) translateY(0) scale(1.02); }
+  49%  { opacity:1; transform: translateX(2px)  translateY(-1px) scale(1.04); }
+  50%  { opacity:0; transform: translateX(0) translateY(0) scale(1); }
+  100% { opacity:0; transform: translateX(0) translateY(0) scale(1); }
+}
+
+@keyframes punchRight{
+  0%   { opacity:0; transform: translateX(0) translateY(0) scale(1); }
+  49%  { opacity:0; transform: translateX(0) translateY(0) scale(1); }
+  50%  { opacity:1; transform: translateX(2px) translateY(0) scale(1.02); }
+  99%  { opacity:1; transform: translateX(-2px) translateY(-1px) scale(1.04); }
+  100% { opacity:0; transform: translateX(0) translateY(0) scale(1); }
+}
+
+.global-loading-box{
+  position: relative;
+  overflow: hidden;
+}
+
+/* =========================================
+   GLOBAL FONT LOCK (ONE FONT FOR ALL)
+========================================= */
+:root{
+  --font-main: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+}
+
+/* 1) Khóa font cho toàn trang */
+html, body{
+  font-family: var(--font-main) !important;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2) Bắt tất cả thành phần inherit font */
+*,
+*::before,
+*::after{
+  font-family: inherit;
+}
+
+/* 3) Các phần hay bị “lệch font” nhất */
+button, input, select, textarea{
+  font-family: inherit !important;
+}
+
+h1, h2, h3, h4, h5, h6{
+  font-family: inherit !important;
+}
+
+small, label, a, p, span, li{
+  font-family: inherit !important;
+}
+
+/* 4) Nếu có icon font/emoji, không ép font vào svg */
+svg, svg *{
+  font-family: initial;
+}
+
+/* =========================================
+   GLOBAL FONT LOCK (ONE FONT FOR ALL)
+========================================= */
+:root{
+  --font-main: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+}
+
+/* 1) Khóa font cho toàn trang */
+html, body{
+  font-family: var(--font-main) !important;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2) Bắt tất cả thành phần inherit font */
+*,
+*::before,
+*::after{
+  font-family: inherit;
+}
+
+/* 3) Các phần hay bị “lệch font” nhất */
+button, input, select, textarea{
+  font-family: inherit !important;
+}
+
+h1, h2, h3, h4, h5, h6{
+  font-family: inherit !important;
+}
+
+small, label, a, p, span, li{
+  font-family: inherit !important;
+}
+
+/* 4) Nếu có icon font/emoji, không ép font vào svg */
+svg, svg *{
+  font-family: initial;
+}
+
+/* ===== REMAIN BADGE (ngày còn lại) ===== */
+/* Mặc định: dùng cho bảng admin */
+.trial-remain{
+  display:inline-block;
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.75);
+}
+
+/* Chỉ trong menu user: phóng to badge */
+.user-menu .trial-remain,
+.user-menu-pop .trial-remain,
+.dropdown-menu .trial-remain{
+  font-size: 16px;
+  padding: 8px 12px;
+  font-weight: 900;
+}
+
+/* >10 ngày */
+.remain-green{ color:#16a34a; border-color: rgba(22,163,74,.35); background: rgba(22,163,74,.10); }
+
+/* 10-7 ngày */
+.remain-yellow{ color:#f59e0b; border-color: rgba(245,158,11,.40); background: rgba(245,158,11,.12); }
+
+/* 6-4 ngày */
+.remain-orange{ color:#f97316; border-color: rgba(249,115,22,.40); background: rgba(249,115,22,.12); }
+
+/* <3 ngày => giờ */
+.remain-red{ color:#ef4444; border-color: rgba(239,68,68,.40); background: rgba(239,68,68,.12); }
+
+/* none */
+.remain-gray{ color:#64748b; border-color: rgba(100,116,139,.25); background: rgba(100,116,139,.08); }
+
+/* Chắc chắn chỉ phóng to trong menu */
+.menu-remain .trial-remain{
+  font-size: 60px;
+  padding: 9px 14px;
+  font-weight: 950;
+}
