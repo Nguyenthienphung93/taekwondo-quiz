@@ -192,8 +192,9 @@ for i in (1, 2, 3):
     os.makedirs(os.path.join(UPLOAD_ROOT, f"folder{i}"), exist_ok=True)
 
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev_secret_change_me")
-BASE_URL = "http://127.0.0.1:5000/"
-LOGO_URL = BASE_URL + "static/logo.jpg"
+
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+LOGO_URL = f"{BASE_URL}/static/logo.jpg"
 
 from datetime import datetime
 
@@ -3033,32 +3034,65 @@ def quiz_do(attempt_id):
         return redirect(url_for("quiz_result", attempt_id=attempt.id))
 
     q = db.session.get(Question, unanswered.question_id)
+    if not q:
+        return "Câu hỏi không tồn tại", 404
 
     # ===================== POST – CHẤM CÂU =====================
     if request.method == "POST":
 
         # ===== MULTI (NHIỀU LỰA CHỌN) =====
-        # ===== MULTI =====
         if q.type == "multi":
-            chosen_ids = request.form.getlist("choice_ids[]")
-            chosen_ids = sorted(map(int, chosen_ids))  # A B C
+            raw_ids = request.form.getlist("choice_ids[]")
 
-            correct_ids = sorted(
-                c.id for c in q.choices if c.is_correct
-            )
+            # Không chọn gì -> tính sai, nhưng không báo lỗi trắng trang
+            if not raw_ids:
+                unanswered.answered = True
+                unanswered.chosen_choice_id = None
+                unanswered.chosen_choice_ids = json.dumps([])
+                unanswered.is_correct = False
+                db.session.commit()
+                return redirect(url_for("quiz_do", attempt_id=attempt.id))
+
+            # Ép kiểu an toàn
+            try:
+                chosen_ids = sorted(int(x) for x in raw_ids if str(x).strip())
+            except (TypeError, ValueError):
+                unanswered.answered = True
+                unanswered.chosen_choice_id = None
+                unanswered.chosen_choice_ids = json.dumps([])
+                unanswered.is_correct = False
+                db.session.commit()
+                return redirect(url_for("quiz_do", attempt_id=attempt.id))
+
+            # Kiểm tra các choice có thật và có thuộc đúng câu hiện tại không
+            selected_choices = Choice.query.filter(Choice.id.in_(chosen_ids)).all()
+            valid_choice_ids = sorted(c.id for c in selected_choices if c.question_id == q.id)
+
+            # Nếu có id lạ / không thuộc câu này -> coi là sai, không văng lỗi
+            if valid_choice_ids != chosen_ids:
+                unanswered.answered = True
+                unanswered.chosen_choice_id = None
+                unanswered.chosen_choice_ids = json.dumps(chosen_ids)
+                unanswered.is_correct = False
+                db.session.commit()
+                return redirect(url_for("quiz_do", attempt_id=attempt.id))
+
+            correct_ids = sorted(c.id for c in q.choices if c.is_correct)
 
             unanswered.answered = True
             unanswered.chosen_choice_id = None
             unanswered.chosen_choice_ids = json.dumps(chosen_ids)
 
-            # ✅ CHỈ ĐÚNG KHI CHỌN ĐỦ & KHÔNG DƯ
+            # Đúng khi chọn đủ và không dư
             unanswered.is_correct = (chosen_ids == correct_ids)
 
             db.session.commit()
             return redirect(url_for("quiz_do", attempt_id=attempt.id))
+
         # ===== MCQ / BOOLEAN (1 LỰA CHỌN) =====
         chosen_id = request.form.get("choice_id")
 
+        # Không chọn gì -> tính sai, đi tiếp
         if not chosen_id:
             unanswered.answered = True
             unanswered.chosen_choice_id = None
@@ -3066,9 +3100,25 @@ def quiz_do(attempt_id):
             db.session.commit()
             return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
-        chosen = db.session.get(Choice, int(chosen_id))
+        # Ép kiểu an toàn
+        try:
+            chosen_id = int(chosen_id)
+        except (TypeError, ValueError):
+            unanswered.answered = True
+            unanswered.chosen_choice_id = None
+            unanswered.is_correct = False
+            db.session.commit()
+            return redirect(url_for("quiz_do", attempt_id=attempt.id))
+
+        chosen = db.session.get(Choice, chosen_id)
+
+        # Choice không tồn tại hoặc không thuộc câu hiện tại -> tính sai, không trắng trang
         if not chosen or chosen.question_id != q.id:
-            return "Đáp án không hợp lệ", 400
+            unanswered.answered = True
+            unanswered.chosen_choice_id = None
+            unanswered.is_correct = False
+            db.session.commit()
+            return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
         unanswered.answered = True
         unanswered.chosen_choice_id = chosen.id
