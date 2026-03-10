@@ -8,8 +8,4 @@ Pillow
 python-slugify
 mammoth
 python-docx
-<<<<<<< HEAD
 python-dotenv
-=======
-python-dotenv
->>>>>>> d6c3fa1bd2f7c7c30b936a3f9045af336c34355f

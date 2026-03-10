@@ -115,6 +115,18 @@
         .forEach((b, i) => b.classList.toggle("active", i === idx));
     }
 
+    function toggleSidebar() {
+      const sidebar = document.getElementById("lessonSidebar");
+      if (!sidebar) return;
+      sidebar.classList.toggle("collapsed");
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById("lessonSidebar");
+      if (!sidebar) return;
+      sidebar.classList.add("collapsed");
+    }
+
     function getSectionPages(idx) {
       const sec = sections[idx];
       if (!sec) return [];
@@ -151,36 +163,45 @@
     }
 
     async function renderPage(pdfPageNumber, total) {
-      if (!pdfDoc || !canvas) return;
+      if (!pdfDoc || !canvas || !contentEl) return;
 
       try {
         const page = await pdfDoc.getPage(pdfPageNumber);
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        // available area
-        const availW = Math.max(320, (contentEl?.clientWidth || 800) - 24);
-        const availH = Math.max(320, (contentEl?.clientHeight || 600) - 24);
+        // ✅ lấy đúng vùng hiển thị thực tế
+        const availW = Math.max(200, contentEl.clientWidth - 24);
+        const availH = Math.max(200, contentEl.clientHeight - 24);
 
         const vp0 = page.getViewport({ scale: 1 });
 
-        // Fit height first
-        let scale = availH / vp0.height;
-        // If overflow width -> fit width
-        if (vp0.width * scale > availW) scale = availW / vp0.width;
+        // ✅ fit tối đa theo cả rộng và cao
+        let scale = Math.min(availW / vp0.width, availH / vp0.height);
 
-        scale = scale * 1.005;
+        // ✅ phóng thêm nhẹ
+        scale *= 0.98;
 
         const viewport = page.getViewport({ scale });
 
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
+        // ✅ render nét hơn trên màn hình retina
+        const dpr = window.devicePixelRatio || 1;
 
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({
+          canvasContext: ctx,
+          viewport
+        }).promise;
 
         currentIndex = clamp(currentIndex, 0, Math.max(0, total - 1));
-
-        // ✅ ĐÚNG: cập nhật pageNow/pageTotal
         setPageInfo(currentIndex + 1, total);
         updateNavButtons(total);
       } catch (err) {
@@ -221,7 +242,6 @@
         return;
       }
 
-      // Trang đầu
       if (currentIndex === 0) {
         btnPrev.classList.add("disabled");
         btnPrev.disabled = true;
@@ -230,7 +250,6 @@
         btnPrev.disabled = false;
       }
 
-      // Trang cuối
       if (currentIndex === total - 1) {
         btnNext.classList.add("disabled");
         btnNext.disabled = true;
@@ -266,10 +285,95 @@
       }
     }
 
+    function prevSection() {
+      if (!sections.length) return;
+
+      if (currentSection > 0) {
+        loadSection(currentSection - 1);
+      }
+    }
+
+    function nextSection() {
+      if (!sections.length) return;
+
+      if (currentSection < sections.length - 1) {
+        loadSection(currentSection + 1);
+      }
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+      const pages = getSectionPages(currentSection);
+      if (!pages.length) return;
+      const pageNumber = pages[currentIndex] || pages[0];
+      renderPage(pageNumber, pages.length);
+    });
+
+    function toggleFullscreen() {
+      const el = document.querySelector(".lesson-window");
+      if (!el) return;
+
+      if (!document.fullscreenElement) {
+        if (el.requestFullscreen) {
+          el.requestFullscreen().catch(err => {
+            console.error("Fullscreen error:", err);
+          });
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch?.(err => {
+            console.error("Exit fullscreen error:", err);
+          });
+        }
+      }
+    }
+
+    document.addEventListener("keydown", e => {
+
+      const tag = document.activeElement?.tagName || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      switch (e.key) {
+
+        case "ArrowLeft":
+          prevPage();
+          break;
+
+        case "ArrowRight":
+          nextPage();
+          break;
+
+        case "ArrowUp":
+          e.preventDefault();
+          prevSection();
+          break;
+
+        case "ArrowDown":
+          e.preventDefault();
+          nextSection();
+          break;
+
+        case "f":
+        case "F":
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+
+        case "Escape":
+          closeSidebar();
+          break;
+      }
+
+    });
+
     // Expose for inline onclick
     window.loadSection = loadSection;
     window.prevPage = prevPage;
     window.nextPage = nextPage;
+    window.toggleFullscreen = toggleFullscreen;
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
+    window.prevSection = prevSection;
+    window.nextSection = nextSection;
 
     window.closeLesson = function () {
       if (window.history.length > 1) window.history.back();
@@ -288,6 +392,12 @@
       }
 
       loadSection(0);
+
+      setTimeout(() => {
+        const pages = getSectionPages(currentSection);
+        if (!pages.length) return;
+        renderPage(pages[currentIndex] || pages[0], pages.length);
+      }, 80);
     } catch (err) {
       console.error("[admin_review] PDF load error:", err);
       setPageInfo(0, 0);

@@ -543,49 +543,92 @@
     });
   </script>
 
-  <!-- Global loading on submit / navigation -->
+  <!-- Global loading manager -->
   <script>
     (function(){
-      const SHOW_DELAY_MS = 450;
+      const SHOW_DELAY_MS = 220;
       let timer = null;
       let locked = false;
+      let fetchCount = 0;
 
-      function showLoading(text){
-        const el = document.getElementById("globalLoading");
+      function getLoader(){
+        return document.getElementById("globalLoading");
+      }
+
+      function setLoadingText(text){
+        const el = getLoader();
         if(!el) return;
         const t = el.querySelector(".global-loading-text");
         if(t) t.textContent = text || "ĐANG XỬ LÝ... VUI LÒNG ĐỢI";
+      }
+
+      function showLoading(text){
+        const el = getLoader();
+        if(!el) return;
+        setLoadingText(text);
         el.classList.add("show");
+        el.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
       }
 
       function scheduleLoading(text){
         if(timer) clearTimeout(timer);
-        timer = setTimeout(() => showLoading(text), SHOW_DELAY_MS);
+        timer = setTimeout(() => {
+          showLoading(text);
+        }, SHOW_DELAY_MS);
       }
 
-      function cancelLoading(){
-        if(timer) clearTimeout(timer);
-        timer = null;
-        const el = document.getElementById("globalLoading");
-        if(el) el.classList.remove("show");
+      function hideLoading(force){
+        if(timer){
+          clearTimeout(timer);
+          timer = null;
+        }
+
+        if(!force && fetchCount > 0) return;
+
+        const el = getLoader();
+        if(el){
+          el.classList.remove("show");
+          el.setAttribute("aria-hidden", "true");
+        }
+
         document.body.style.overflow = "";
         locked = false;
       }
 
-      window.addEventListener("pageshow", cancelLoading);
+      window.showGlobalLoading = function(text){
+        showLoading(text);
+      };
+
+      window.hideGlobalLoading = function(){
+        hideLoading(true);
+      };
+
+      window.__cancelGlobalLoading__ = function(){
+        hideLoading(true);
+      };
+
+      window.addEventListener("load", function(){
+        hideLoading(true);
+      });
+
+      window.addEventListener("pageshow", function(){
+        hideLoading(true);
+      });
 
       document.addEventListener("submit", function(e){
         const form = e.target;
         if(!(form instanceof HTMLFormElement)) return;
+        if(form.classList.contains("no-global-loading")) return;
 
         if(locked){
           e.preventDefault();
           return;
         }
+
         locked = true;
 
-        form.querySelectorAll("button[type='submit'], input[type='submit']").forEach(btn=>{
+        form.querySelectorAll("button[type='submit'], input[type='submit']").forEach(btn => {
           btn.disabled = true;
           btn.style.opacity = "0.7";
           btn.style.cursor = "not-allowed";
@@ -598,21 +641,55 @@
       document.addEventListener("click", function(e){
         const a = e.target.closest("a");
         if(!a) return;
+        if(a.classList.contains("no-global-loading")) return;
 
         const href = a.getAttribute("href") || "";
+
         if(a.target === "_blank") return;
         if(href.startsWith("#")) return;
         if(href.startsWith("javascript:")) return;
         if(href.startsWith("mailto:")) return;
         if(href.trim() === "") return;
+        if(a.hasAttribute("download")) return;
 
         scheduleLoading(a.dataset.loadingText || "ĐANG TẢI TRANG... VUI LÒNG ĐỢI");
       });
 
-      window.__cancelGlobalLoading__ = cancelLoading;
+      // ===== GLOBAL FETCH WRAPPER =====
+      const originalFetch = window.fetch;
+      if (originalFetch) {
+        window.fetch = async function(...args){
+          const input = args[0];
+          const init = args[1] || {};
+
+          const skipLoading =
+            init.skipGlobalLoading === true ||
+            (input && typeof input === "object" && input.skipGlobalLoading === true);
+
+          if(skipLoading){
+            return originalFetch.apply(window, args);
+          }
+
+          fetchCount += 1;
+          scheduleLoading(
+            (init && init.loadingText) || "ĐANG XỬ LÝ... VUI LÒNG ĐỢI"
+          );
+
+          try{
+            const res = await originalFetch.apply(window, args);
+            return res;
+          } finally {
+            fetchCount = Math.max(0, fetchCount - 1);
+            if(fetchCount === 0){
+              hideLoading(true);
+            }
+          }
+        };
+      }
     })();
   </script>
 
+  
   <!-- User membership popup -->
   {% if current_user.is_authenticated and current_user.role == "user" %}
   <script>

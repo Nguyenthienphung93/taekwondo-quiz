@@ -187,7 +187,19 @@
     // time up => auto submit
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
-      quizForm.submit();
+
+      const checkedMulti = quizForm.querySelectorAll("input[name='choice_ids[]']:checked");
+      const checkedSingle = quizForm.querySelector("input[name='choice_id']:checked");
+
+      if (checkedMulti.length > 0 || checkedSingle) {
+        quizForm.submit();
+      } else {
+        nextBtn.classList.add("is-disabled");
+        showToast("⏰ Hết giờ nhưng bạn chưa chọn đáp án!");
+        setTimeout(() => {
+          quizForm.submit();
+        }, 500);
+      }
     }
   }, 1000);
 </script>

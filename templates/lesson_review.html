@@ -32,45 +32,85 @@
   </div>
 
 
-  <!-- ===================================================== -->
-  <!-- BODY -->
-  <!-- ===================================================== -->
-  <div class="lesson-body">
+    <!-- ===================================================== -->
+    <!-- BODY -->
+    <!-- ===================================================== -->
+    <div class="lesson-body">
 
-    <!-- ===== SIDEBAR ===== -->
-    <aside class="lesson-sidebar">
-      {% for s in sections %}
-        <button class="lesson-nav-btn {% if loop.first %}active{% endif %}"
+      <!-- ===== FLOAT MENU BUTTON ===== -->
+      <button id="floatingMenuBtn"
+              class="floating-menu-btn"
+              type="button"
+              onclick="toggleSidebar()"
+              title="Mở mục lục"
+              aria-label="Mở mục lục">
+        ☰
+      </button>
+
+      <!-- ===== SIDEBAR ===== -->
+      <aside id="lessonSidebar" class="lesson-sidebar collapsed">
+        <div class="lesson-sidebar-inner">
+          {% for s in sections %}
+            <button class="lesson-nav-btn {% if loop.first %}active{% endif %}"
+                    type="button"
+                    onclick="loadSection({{ loop.index0 }}); closeSidebar();">
+              {{ s.title }}
+            </button>
+          {% endfor %}
+        </div>
+      </aside>
+
+      <!-- ===== PDF VIEW ===== -->
+      <main class="lesson-content" id="lessonContent">
+        <canvas id="pdfCanvas"></canvas>
+
+        <!-- Nút lùi trang nổi bên trái -->
+        <button id="btnPrev"
                 type="button"
-                onclick="loadSection({{ loop.index0 }})">
-          {{ s.title }}
+                class="pdf-side-nav pdf-side-nav--left"
+                onclick="prevPage()"
+                title="Lùi trang"
+                aria-label="Lùi trang">
+          ◀
         </button>
-      {% endfor %}
-    </aside>
 
+        <!-- Nút qua trang nổi bên phải -->
+        <button id="btnNext"
+                type="button"
+                class="pdf-side-nav pdf-side-nav--right"
+                onclick="nextPage()"
+                title="Qua trang"
+                aria-label="Qua trang">
+          ▶
+        </button>
+      </main>
 
-    <!-- ===== PDF VIEW ===== -->
-    <main class="lesson-content">
-      <canvas id="pdfCanvas"></canvas>
-    </main>
-
-  </div>
-
-
-  <!-- ===================================================== -->
-  <!-- PAGINATION -->
-  <!-- ===================================================== -->
-  <div class="lesson-pager">
-    <button id="btnPrev" type="button" class="pager-btn" onclick="prevPage()" title="Lùi trang">◀</button>
-
-    <div class="pager-pill">
-      <span id="pageNow">1</span>
-      <span class="sep">/</span>
-      <span id="pageTotal">1</span>
     </div>
 
-    <button id="btnNext" type="button" class="pager-btn" onclick="nextPage()" title="Qua trang">▶</button>
+
+    <!-- ===================================================== -->
+    <!-- PAGINATION -->
+    <!-- ===================================================== -->
+    <div class="lesson-pager">
+
+      <div class="pager-pill">
+        <span id="pageNow">1</span>
+        <span class="sep">/</span>
+        <span id="pageTotal">1</span>
+      </div>
+
+      <!-- ✅ Nút fullscreen -->
+      <button type="button"
+              class="ui-icon-btn"
+              onclick="toggleFullscreen()"
+              title="Toàn màn hình"
+              aria-label="Toàn màn hình">
+        ⛶
+      </button>
+    </div>
+
   </div>
+
 
 </div>
 
