@@ -1,0 +1,20 @@
+.edu-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 5000;
+}
+
+.edu-modal-backdrop.show{
+  display: flex;
+}
+
+.edu-modal-box{
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  width: 400px;
+}

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng ký</title>
+
+  <!-- UI core -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css', v=APP_VERSION) }}">
+  <!-- Page CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/register.css', v=APP_VERSION) }}">
+</head>
+
+<body class="login-page">
+
+  <!-- BACKGROUND -->
+  <div class="bg-layer" aria-hidden="true"></div>
+  <div class="bg-overlay" aria-hidden="true"></div>
+
+  <div class="login-wrapper">
+    <main class="login-container" role="main" aria-label="Trang đăng ký">
+
+      <h1 class="app-title">PHẦN MỀM HỌC<br>TAEKWONDO</h1>
+
+      <section class="login-card">
+        <h2 class="login-title">Đăng ký</h2>
+
+        <!-- FLASH -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="ui-flash ui-flash--danger" role="alert">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="login-form" autocomplete="on">
+
+          <label class="ui-label" for="username">Tên đăng nhập</label>
+          <div class="ui-input-wrap">
+            <input id="username" class="ui-input" name="username" required autocomplete="username"
+                   placeholder="Nhập tên đăng nhập">
+          </div>
+
+          <label class="ui-label" for="email">Email</label>
+          <div class="ui-input-wrap">
+            <input id="email" class="ui-input" type="email" name="email" required autocomplete="email"
+                   placeholder="Nhập email">
+          </div>
+
+          <label class="ui-label" for="password">Mật khẩu</label>
+          <div class="ui-input-wrap ui-input-wrap--icon">
+            <input id="password" class="ui-input" type="password" name="password" required
+                   autocomplete="new-password" placeholder="Nhập mật khẩu">
+            <button type="button" class="ui-input-icon" onclick="togglePwd('password', this)"
+                    aria-label="Hiện/Ẩn mật khẩu" aria-pressed="false" title="Hiện/Ẩn mật khẩu">🙂</button>
+          </div>
+
+          <label class="ui-label" for="password2">Nhập lại mật khẩu</label>
+          <div class="ui-input-wrap ui-input-wrap--icon">
+            <input id="password2" class="ui-input" type="password" name="password2" required
+                   autocomplete="new-password" placeholder="Nhập lại mật khẩu">
+            <button type="button" class="ui-input-icon" onclick="togglePwd('password2', this)"
+                    aria-label="Hiện/Ẩn mật khẩu" aria-pressed="false" title="Hiện/Ẩn mật khẩu">🙂</button>
+          </div>
+
+          <div class="login-actions">
+            <button class="ui-btn ui-btn--primary ui-btn--lg ui-btn--block" type="submit">
+              Tạo tài khoản
+            </button>
+
+            <a class="ui-btn ui-btn--outline ui-btn--lg ui-btn--block" href="{{ url_for('login') }}">
+              ← Quay lại đăng nhập
+            </a>
+          </div>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    Chủ sở hữu: <b>Nguyen Thien Phung</b>
+  </footer>
+
+  <script>
+    function togglePwd(id, btn){
+      const i = document.getElementById(id);
+      if (!i) return;
+      const hide = i.type === "password";
+      i.type = hide ? "text" : "password";
+      btn.textContent = hide ? "😑" : "🙂";
+      btn.setAttribute("aria-pressed", hide ? "true" : "false");
+      i.focus();
+    }
+  </script>
+
+</body>
+</html>

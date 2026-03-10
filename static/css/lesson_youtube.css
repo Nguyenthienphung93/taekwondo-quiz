@@ -1,0 +1,123 @@
+/* =====================================================
+   YOUTUBE – FULL WIDTH / FULL HEIGHT OVERRIDE
+   Dán CUỐI lesson_review.css
+===================================================== */
+
+html, body{
+  width: 100%;
+  height: 100%;
+}
+
+/* ✅ Chỉ áp dụng cho trang youtube */
+body.is-youtube{
+  margin: 0;
+  overflow: hidden;              /* tránh scroll lạ */
+}
+
+/* ✅ Khung tổng thể: dãn full cửa sổ (đây là chỗ hay bị min(760px,...) ) */
+body.is-youtube .lesson-window{
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  max-width: none !important;
+
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: #f6f8fc;
+}
+
+/* ✅ Layout 1 cột full */
+body.is-youtube .lesson-body{
+  width: 100% !important;
+  height: calc(100vh - var(--lesson-header-h, 56px)) !important; /* nếu header cao khác, đổi số */
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+/* ✅ Tắt mọi “khung giới hạn” ở content/main */
+body.is-youtube .lesson-content,
+body.is-youtube .lesson-main,
+body.is-youtube .lesson-container,
+body.is-youtube .lesson-layout{
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* ✅ Nếu còn dư padding làm nhìn như bị bó */
+body.is-youtube .lesson-content{
+  padding: 0 !important;
+}
+
+/* ✅ Video/iframe full */
+body.is-youtube .video-wrap,
+body.is-youtube .video-frame{
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1 1 auto !important;
+}
+
+/* iframe (nếu dùng) */
+body.is-youtube iframe{
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  display: block;
+}
+
+/* ✅ Ẩn sidebar/TOC của PDF (giữ lại cái Ken đã có) */
+body.is-youtube .lesson-sidebar,
+body.is-youtube .lesson-left,
+body.is-youtube .lesson-toc,
+body.is-youtube .lesson-nav,
+body.is-youtube .lesson-menu,
+body.is-youtube .lesson-panel-left,
+body.is-youtube .lesson-outline,
+body.is-youtube #lessonSidebar,
+body.is-youtube #lessonToc,
+body.is-youtube #toc,
+body.is-youtube .sidebar{
+  display: none !important;
+}
+
+
+/* =====================================================
+   YOUTUBE FIX – XÓA GRID 2 CỘT + FULL WIDTH
+   Dán CUỐI lesson_review.css
+===================================================== */
+
+body.is-youtube .lesson-window{
+  width: 100vw !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* ✅ Đập layout 2 cột (grid) về 1 cột */
+body.is-youtube .lesson-body{
+  display: flex !important;
+  grid-template-columns: 1fr !important;
+  width: 100% !important;
+}
+
+/* ✅ Content không bị giới hạn / không canh giữa gây “khung trống” */
+body.is-youtube .lesson-content{
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+
+  justify-content: stretch !important; /* quan trọng */
+  padding: 0 !important;               /* nếu muốn giữ padding thì đổi 18px */
+}
+
+/* ✅ Video full theo khung */
+body.is-youtube .video-wrap{
+  width: 100% !important;
+  justify-content: stretch !important;
+}
+
+body.is-youtube .video-frame{
+  width: 100% !important;
+  max-width: none !important;   /* chặn min(1400px,...) */
+}

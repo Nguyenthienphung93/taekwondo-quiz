@@ -1,0 +1,236 @@
+/* =========================
+   MODAL SYSTEM – GLOBAL (FIX)
+========================= */
+
+/* Container overlay */
+.modal{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 20001;
+}
+.modal.show{ display:flex; }
+
+/* Backdrop */
+.modal-backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+}
+
+/* Modal box */
+.modal-box{
+  position: relative;
+  width: 560px;
+  max-width: calc(100vw - 24px);
+  max-height: 85vh;            /* nới nhẹ */
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;             /* 🔥 bắt buộc */
+  z-index: 1;
+}
+
+/* Header/Body/Footer */
+.modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 20px;
+  background:#f9fafb;
+  flex-shrink:0;
+}
+.modal-body{
+  padding:20px;
+  flex:1;                       /* 🔥 */
+  overflow-y:auto;              /* 🔥 */
+  min-height: 0;                /* 🔥 chống lỗi flex scroll */
+}
+.modal-footer{
+  padding:16px 20px;
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  background:#f9fafb;
+  flex-shrink:0;
+}
+
+/* Variants */
+.modal--small .modal-box{ width:420px; }
+.modal--delete .modal-box{ width:560px; }
+
+
+
+/* =========================
+   LESSON MODAL (SCROLL FIX)
+========================= */
+
+.lesson-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 20000;
+  pointer-events: none;
+}
+.lesson-modal-backdrop.show{
+  display: flex;
+  pointer-events: auto;
+}
+
+.lesson-modal{
+  position: relative;
+  width: 560px;
+  max-width: calc(100vw - 24px);
+  max-height: 90vh;             /* 🔥 cho cao hơn để dễ dùng */
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;             /* 🔥 quan trọng để body cuộn */
+}
+
+/* Header */
+.lesson-modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid #eee;
+  flex-shrink:0;
+}
+.lesson-modal-header h3{
+  margin:0;
+  font-size:18px;
+  font-weight:600;
+}
+
+/* Close */
+.lesson-modal-close{
+  background:none;
+  border:none;
+  font-size:18px;
+  font-weight:bold;
+  cursor:pointer;
+  color:#777;
+  transition:.2s;
+}
+.lesson-modal-close:hover{
+  color:#e53935;
+  transform:scale(1.1);
+}
+
+/* Body (SCROLL) */
+.lesson-modal-body{
+  padding: 20px 22px;
+  flex: 1;                      /* 🔥 */
+  overflow-y: auto;             /* 🔥 */
+  min-height: 0;                /* 🔥 chống lỗi flex scroll */
+}
+
+/* Form row */
+.lesson-form-row{
+  margin-bottom:16px;
+  padding-top:6px;
+}
+.lesson-form-row label{
+  display:block;
+  margin-bottom:6px;
+  font-weight:500;
+}
+.lesson-form-row input,
+.lesson-form-row select{
+  width:100%;
+  padding:8px 10px;
+  border-radius:6px;
+  border:1px solid #ddd;
+  font-size:14px;
+}
+
+/* Footer */
+.lesson-modal-footer{
+  padding:16px 22px;
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  border-top:1px solid #eee;
+  flex-shrink:0;
+}
+
+
+/* ===== BOX ĐỔI VỊ TRÍ ===== */
+.lesson-location-box{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-top:8px;
+  margin-bottom:4px;
+}
+.lesson-location-box input{
+  flex:1;
+  min-width:120px;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  background:#f5f5f5;
+  font-size:14px;
+}
+.lesson-location-box .btn-change-location{
+  flex-shrink:0;
+  padding:10px 16px;
+  border-radius:10px;
+  white-space:nowrap;
+}
+.lesson-location-box input:focus{
+  outline:none;
+  border-color:#ff8c00;
+  box-shadow:0 0 0 2px rgba(255,140,0,.2);
+}
+.lesson-form-row.location-row{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid #f1f1f1;
+}
+
+
+
+/* =========================
+   EDU MODAL
+========================= */
+.edu-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,.5);
+  z-index: 100000;
+}
+.edu-modal-backdrop.edu-show{ display:flex; }
+
+.edu-modal-box{
+  background:#fff;
+  width:420px;
+  max-width:90%;
+  max-height: 90vh;
+  border-radius:12px;
+  padding:20px;
+  overflow:auto;
+}
+
+
+
+/* =========================
+   UI MODAL Z-INDEX ONLY
+========================= */
+.ui-modal-box{
+  position: relative;
+  z-index: 30001;
+}

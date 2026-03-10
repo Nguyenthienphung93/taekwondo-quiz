@@ -1,0 +1,704 @@
+/* =====================================================
+   ADMIN_QUESTIONS.CSS – FINAL (MERGED / NO DUP / NO OVERRIDE BUG)
+   - Lock page scroll (desktop)
+   - 2 panels height = viewport
+   - Only question list (right) scroll
+   - Modal no horizontal scroll
+   - FIX: buttons A/B/C/D clickable (no overlay / no input cover)
+===================================================== */
+
+/* ========== 0) LOCK PAGE SCROLL ========== */
+html, body{ height:100%; }
+
+body.page-admin-questions{
+  overflow: hidden; /* desktop: chặn scroll trang */
+}
+
+/* ========== 1) APP CONTENT ========== */
+.page-admin-questions .app-content{
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 6px !important;
+}
+
+.page-admin-questions .admin-page{ flex: 0 0 auto; }
+
+.page-admin-questions .admin-page-title{
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+}
+
+/* ========== 2) MAIN 2-COLUMN AREA ========== */
+.page-admin-questions .page-admin-questions{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-admin-questions .admin-questions-layout{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  padding: 0 24px 24px;
+  align-items: stretch;
+}
+
+/* ========== 3) LEFT PANEL (NO SCROLL) ========== */
+.page-admin-questions .admin-left-panel{
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+
+  background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+  border: 1px solid #fecdd3;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.page-admin-questions .admin-topic-card{
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.page-admin-questions .admin-topic-card h3{
+  text-align: center;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.page-admin-questions .admin-topic-card .rowline{
+  border-bottom: 1px solid rgba(0,0,0,.15);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page-admin-questions .admin-left-panel .rowline .title{
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* form/select full width */
+.page-admin-questions .admin-left-panel .rowline form{
+  width: 100%;
+  max-width: 100% !important;
+}
+
+.page-admin-questions .admin-left-panel select{
+  width: 100%;
+  max-width: 100%;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #f9a8d4;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.08);
+}
+
+/* actions: ⬆⬇ left | ➕✏️🗑 right */
+.page-admin-questions .admin-topic-card .rowline .actions{
+  width: 100%;
+  margin-top: 8px;
+  min-height: 46px;
+
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 10px;
+
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.page-admin-questions .admin-topic-card .rowline .actions-left,
+.page-admin-questions .admin-topic-card .rowline .actions-right,
+.page-admin-questions .admin-topic-card .folder-move{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-admin-questions .admin-topic-card .rowline .actions-right{
+  justify-content: flex-end;
+}
+
+.page-admin-questions .admin-topic-card .rowline .ui-icon-btn{
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+/* ========== 4) RIGHT PANEL (HEADER FIX + LIST SCROLL) ========== */
+.page-admin-questions .admin-right-panel{
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.page-admin-questions .admin-question-header{
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+  border: 1px solid #93c5fd;
+  border-radius: 18px;
+  padding: 16px 20px;
+  box-shadow: 0 6px 20px rgba(59,130,246,.18);
+}
+
+.page-admin-questions .question-header-top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-admin-questions .question-header-top .qh-left{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.page-admin-questions .question-header-top .qh-right{
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.page-admin-questions .question-header-top h2{
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+/* stats */
+.page-admin-questions .answer-stats{
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.page-admin-questions .answer-stats span{
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.page-admin-questions .answer-stats .total{
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* list scroll only */
+.page-admin-questions .admin-question-list{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 12px;
+  padding-right: 8px;
+}
+
+.page-admin-questions .admin-question-list::-webkit-scrollbar{ width: 10px; }
+.page-admin-questions .admin-question-list::-webkit-scrollbar-thumb{
+  background: rgba(0,0,0,.15);
+  border-radius: 12px;
+}
+
+.page-admin-questions .admin-question-item{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+
+  padding: 16px 22px;
+  margin-bottom: 12px;
+
+  border-radius: 14px;
+  background: #ffffffcc;
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.page-admin-questions .admin-question-item:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+}
+
+.page-admin-questions .admin-question-item .question-text{
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: #1f2937;
+}
+
+.page-admin-questions .admin-question-item .question-actions{
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.page-admin-questions .ui-empty{
+  padding: 18px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: 0 8px 22px rgba(0,0,0,.06);
+}
+
+.page-admin-questions .hidden{ display:none !important; }
+
+/* ========== 5) MODAL CORE ========== */
+.ui-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, .55);
+  z-index: 200000;
+}
+.ui-modal-backdrop.show{ display: flex; }
+
+.ui-modal-box{
+  width: min(620px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  overflow-x: hidden; /* no horizontal */
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.25);
+  box-sizing: border-box;
+}
+
+.ui-modal-box *{ box-sizing: border-box; }
+
+.ui-modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+}
+.ui-modal-body{
+  padding: 14px 16px;
+  overflow-x: hidden !important;
+}
+.ui-modal-footer{
+  padding: 12px 16px;
+  border-top: 1px solid rgba(0,0,0,.08);
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+.ui-close{
+  border: none;
+  background: #ef4444;
+  color:#fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* form controls inside modal */
+.ui-modal-box input,
+.ui-modal-box textarea,
+.ui-modal-box select{
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* nếu header row trong modal bị tràn */
+.ui-modal-box .question-header-row{
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ========== 6) ANSWER UI (ADD + EDIT) ========== */
+
+/* hàng đáp án: nút | input */
+.page-admin-questions .ans-row{
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+  position: relative;
+}
+
+/* nút A/B/C/D (EDIT-MCQ) */
+.page-admin-questions .ans-btn{
+  height: 42px;
+  width: 54px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: #f8fafc;
+  font-weight: 900;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 6px 14px rgba(0,0,0,.06);
+  user-select: none;
+}
+.page-admin-questions .ans-btn:hover{ transform: translateY(-1px); }
+
+/* input đáp án */
+.page-admin-questions .ans-input{
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.12);
+  padding: 0 12px;
+  background:#fff;
+}
+
+/* nút pick (ADD-MCQ + ADD-BOOLEAN + EDIT-BOOLEAN) */
+.page-admin-questions .ans-pick{
+  height: 42px;
+  border-radius: 12px;
+  border: 2px solid rgba(0,0,0,.12);
+  background: #f8fafc;
+  font-weight: 900;
+  cursor: pointer;
+  user-select: none;
+}
+
+.page-admin-questions .ans-pick.is-active{
+  border-color: #22c55e;
+  background: #dcfce7;
+}
+
+/* khung picker đúng/sai */
+.page-admin-questions .answer-picker{
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(251, 146, 60, .35);
+  background: rgba(255, 247, 237, .8);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.page-admin-questions .answer-picker .picker-title{
+  font-weight: 900;
+  margin-right: 6px;
+}
+
+/* kiểu pill cho ans-pick nằm trong picker */
+.page-admin-questions .answer-picker .ans-pick{
+  width: 44px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: #fff;
+}
+
+.page-admin-questions .answer-picker .ans-pick:hover{
+  transform: translateY(-1px);
+}
+
+.page-admin-questions .answer-picker .ans-pick.is-active{
+  background: #22c55e;
+  border-color: rgba(34,197,94,.6);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(34,197,94,.25);
+}
+
+/* Ẩn radio (vẫn submit được) */
+.page-admin-questions .answer-picker input[type="radio"]{
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* highlight đáp án đúng trong Edit-MCQ */
+#modalEditQuestion .ans-btn.is-active{
+  background:#22c55e;
+  color:#fff;
+  border-color:#16a34a;
+}
+
+/* ========== 7) CLICK FIX HARD (NO INPUT COVER / NO OVERLAY) ========== */
+/* Mục tiêu: đảm bảo nút luôn ăn click */
+#modalEditQuestion .ans-row,
+#modalAddQuestion  .ans-row{
+  position: relative;
+}
+
+#modalEditQuestion .ans-btn,
+#modalEditQuestion .ans-pick,
+#modalAddQuestion  .ans-pick{
+  position: relative;
+  z-index: 20;
+  pointer-events: auto !important;
+}
+
+/* input nằm dưới nút, không che */
+#modalEditQuestion .ans-input{
+  position: relative;
+  z-index: 5;
+}
+
+/* nếu có pseudo/overlay đè */
+#modalEditQuestion .ans-row::before,
+#modalEditQuestion .ans-row::after,
+#modalAddQuestion  .ans-row::before,
+#modalAddQuestion  .ans-row::after{
+  pointer-events: none !important;
+}
+
+/* ========== 8) RESPONSIVE ========== */
+@media (max-width: 1024px){
+  body.page-admin-questions{ overflow: auto; }
+  .page-admin-questions .app-content{
+    height: auto;
+    overflow: visible;
+  }
+  .page-admin-questions .admin-questions-layout{
+    grid-template-columns: 1fr;
+  }
+  .page-admin-questions .admin-right-panel,
+  .page-admin-questions .admin-left-panel{
+    height: auto;
+    overflow: visible;
+  }
+  .page-admin-questions .admin-question-list{ max-height: 60vh; }
+}
+
+/* =========================================================
+   MODAL UI POLISH (Admin Questions) – FINAL OVERRIDES
+   Dán CUỐI file admin_questions.css
+========================================================= */
+
+/* 1) MODAL BOX: cao hơn + form dãn theo chiều dọc */
+.page-admin-questions .ui-modal-box{
+  width: min(720px, 96vw);         /* rộng hơn chút */
+  max-height: 92vh;               /* cao hơn chút */
+  overflow: hidden;               /* body sẽ scroll */
+}
+
+.page-admin-questions .ui-modal-admin{
+  display: flex;
+  flex-direction: column;
+}
+
+.page-admin-questions .ui-modal-header{
+  flex: 0 0 auto;
+}
+
+.page-admin-questions .ui-modal-body{
+  flex: 1 1 auto;
+  overflow: auto;                 /* chỉ body scroll */
+  padding: 18px 18px;
+}
+
+.page-admin-questions .ui-modal-footer{
+  flex: 0 0 auto;
+}
+
+/* 2) TEXTAREA câu hỏi: dãn cao hơn (phù hợp chiều dọc) */
+.page-admin-questions #modalAddQuestion textarea[name="question_text"],
+.page-admin-questions #modalEditQuestion textarea[name="question_text"]{
+  min-height: 110px;
+  resize: vertical;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.10);
+  padding: 12px 12px;
+  line-height: 1.35;
+}
+
+/* 3) INPUT / SELECT trong modal: đồng bộ “mịn”, không thô */
+.page-admin-questions .ui-modal-box input[type="text"],
+.page-admin-questions .ui-modal-box input[type="number"],
+.page-admin-questions .ui-modal-box textarea,
+.page-admin-questions .ui-modal-box select{
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+  outline: none;
+}
+
+.page-admin-questions .ui-modal-box input:focus,
+.page-admin-questions .ui-modal-box textarea:focus,
+.page-admin-questions .ui-modal-box select:focus{
+  border-color: rgba(59,130,246,.55);
+  box-shadow: 0 0 0 4px rgba(59,130,246,.12);
+}
+
+/* 4) TRẮC NGHIỆM (ADD): hàng đáp án mềm + giống “khung nhập” */
+.page-admin-questions #modalAddQuestion #block-mcq .ans-row{
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.page-admin-questions #modalAddQuestion #block-mcq .ans-row input{
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+}
+
+/* nút A/B/C/D (ADD) nhìn chắc tay hơn */
+.page-admin-questions #modalAddQuestion #block-mcq .ans-pick{
+  height: 44px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+/* 5) TRẮC NGHIỆM (EDIT): giống ADD, đẹp + dễ click */
+.page-admin-questions #modalEditQuestion #edit-block-mcq .ans-row{
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+/* đảm bảo input không thô */
+.page-admin-questions #modalEditQuestion #edit-block-mcq .ans-input{
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+}
+
+/* nút A/B/C/D edit */
+.page-admin-questions #modalEditQuestion #edit-block-mcq .ans-btn{
+  height: 44px;
+  width: 54px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+/* active rõ hơn */
+.page-admin-questions #modalEditQuestion #edit-block-mcq .ans-btn.is-active{
+  box-shadow: 0 10px 22px rgba(34,197,94,.22);
+}
+
+/* 6) ĐÚNG/SAI (ADD): 2 nút bằng nhau + canh giữa */
+.page-admin-questions #modalAddQuestion #block-boolean{
+  padding-top: 6px;
+}
+
+.page-admin-questions #modalAddQuestion #block-boolean .ans-row{
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 14px 0;
+}
+
+/* biến 2 nút ĐÚNG/SAI thành dạng “pill” lớn */
+.page-admin-questions #modalAddQuestion #block-boolean .ans-pick{
+  width: 170px;
+  height: 48px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+/* 7) ĐÚNG/SAI (EDIT): 2 nút canh giữa + to hơn */
+.page-admin-questions #modalEditQuestion #edit-block-boolean .answer-picker{
+  justify-content: center;   /* canh giữa toàn khối */
+  text-align: center;
+}
+
+.page-admin-questions #modalEditQuestion #edit-block-boolean .answer-picker .picker-title{
+  width: 100%;
+  text-align: center;
+  margin: 0 0 6px 0;
+}
+
+/* 2 nút to và bằng nhau */
+.page-admin-questions #modalEditQuestion #edit-block-boolean .ans-pick{
+  width: 180px;
+  height: 52px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+
+/* active nổi bật */
+.page-admin-questions #modalEditQuestion #edit-block-boolean .ans-pick.is-active{
+  box-shadow: 0 12px 26px rgba(34,197,94,.25);
+}
+
+/* 8) Footer button (save) nhìn đồng bộ hơn */
+.page-admin-questions .ui-modal-footer .ui-btn{
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-weight: 800;
+}
+
+/* ===== Lesson modal base ===== */
+.lesson-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,.35);
+  z-index: 9999;
+}
+.lesson-modal-backdrop.show{ display: flex; }
+
+.lesson-modal{
+  width: min(720px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+
+.page-admin-educations .folder-move .ui-icon-btn:disabled{
+  opacity: .35;
+  filter: grayscale(1);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.page-admin-educations .folder-move .ui-icon-btn:disabled:hover{
+  transform: none;
+}

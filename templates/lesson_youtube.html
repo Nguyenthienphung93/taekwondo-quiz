@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ lesson.title }}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson_review.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson_youtube.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css') }}">
+
+  <style>
+    /* ===== CHỐNG SCROLL TOÀN TRANG ===== */
+    html, body{
+      height:100%;
+      margin:0;
+      overflow:hidden; /* ✅ không scroll */
+      background:#f6f7fb;
+    }
+
+    /* ===== KHUNG CHÍNH 100VH ===== */
+    .lesson-window{
+      height:100vh;                 /* ✅ full màn hình */
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    /* ===== HEADER CAM NHẸ ===== */
+    .lesson-modal-header{
+      flex:0 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      background: linear-gradient(90deg, #ffe7d6, #fff3ea);
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .lesson-title-text{
+      margin:0;
+      font-size:26px;
+      font-weight:800;
+      color:#1f2937;
+      letter-spacing:.2px;
+    }
+    .lesson-close{
+      width:38px;
+      height:38px;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      cursor:pointer;
+      font-size:18px;
+      line-height:1;
+    }
+
+    /* ===== BODY GIÃN FULL ===== */
+    .lesson-body{
+      flex:1 1 auto;
+      min-height:0;              /* ✅ quan trọng để không overflow */
+      display:flex;
+      padding:0;
+      overflow:hidden;
+      background:#eef2f7;
+    }
+
+    .lesson-content{
+      flex:1 1 auto;
+      min-height:0;
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+      padding:18px;
+      overflow:hidden;
+    }
+
+    /* ===== KHUNG VIDEO FULL RESPONSIVE ===== */
+    .video-wrap{
+      flex:1 1 auto;
+      min-height:0;
+      width:100%;
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+      overflow:hidden;
+    }
+
+    .video-frame{
+      width: min(1400px, 100%);
+      height: 100%;
+      border-radius:16px;
+      overflow:hidden;
+      background:#000;
+      box-shadow: 0 18px 45px rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    .video-frame iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+    }
+
+    /* ===== FOOTER DÍNH SÁT ĐÁY ===== */
+    .video-footer{
+      flex:0 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      padding:12px 14px;
+      background:#ffffff;
+      border-top: 1px solid rgba(0,0,0,.08);
+    }
+
+    .vbtn{
+      border:0;
+      padding:10px 14px;
+      border-radius: 12px;
+      cursor:pointer;
+      background:#2563eb;
+      color:#fff;
+      font-weight:700;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .vbtn.gray{ background:#64748b; }
+
+    /* ===== MOBILE: giảm padding ===== */
+    @media (max-width: 720px){
+      .lesson-title-text{ font-size:20px; }
+      .lesson-content{ padding:10px; }
+      .video-footer{ padding:10px; }
+      .video-frame{ border-radius:12px; }
+    }
+  </style>
+</head>
+
+<body class="is-youtube">
+  <div class="lesson-window">
+
+    <!-- HEADER -->
+    <div class="lesson-modal-header">
+      <div class="lesson-header-left">
+        <h1 class="lesson-title-text">{{ lesson.title }}</h1>
+      </div>
+      <button class="ui-close" onclick="closeLesson()" title="Thoát">❌</button>
+    </div>
+
+    <!-- BODY -->
+    <div class="lesson-body">
+      <main class="lesson-content">
+        <div class="video-wrap">
+          <div class="video-frame">
+            <iframe
+              id="ytFrame"
+              src="{{ embed_url }}"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="video-footer">
+      <button class="vbtn" onclick="openOnYoutube()">▶ Mở trên YouTube</button>
+      <button class="vbtn gray" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    </div>
+
+  </div>
+
+  <script>
+    const raw = {{ (lesson.source_url or "") | tojson }};
+
+    function closeLesson(){
+      if (window.history.length > 1) window.history.back();
+      else window.close();
+    }
+
+    function openOnYoutube(){
+      if(raw) window.open(raw, "_blank");
+    }
+
+    function toggleFullscreen(){
+      const box = document.querySelector(".video-frame");
+      if(!document.fullscreenElement){
+        box?.requestFullscreen?.();
+      }else{
+        document.exitFullscreen?.();
+      }
+    }
+  </script>
+</body>
+</html>

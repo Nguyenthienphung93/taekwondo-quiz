@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Thêm Chủ Đề{% endblock %}
+{% block body_class %}page-admin-edu-folder{% endblock %}
+
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_edu_folder_add.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="edu-folder-page">
+
+  <div class="edu-folder-card">
+
+    <div class="edu-folder-title">
+      <h2>
+        ➕ Thêm Chủ Đề
+        {% if level == 1 %}Cấp 1{% elif level == 2 %}Cấp 2{% elif level == 3 %}Cấp 3{% endif %}
+      </h2>
+
+      {% if not force_pw %}
+        {% if level == 1 %}
+          <a class="ui-close edu-folder-close" href="{{ url_for('admin_educations') }}" aria-label="Quay lại">❌</a>
+
+        {% elif level == 2 %}
+          {# level 2: parent_id chính là folder1_id #}
+          <a class="ui-close edu-folder-close"
+             href="{{ url_for('admin_educations', folder1_id=parent_id) }}"
+             aria-label="Quay lại">❌</a>
+
+        {% else %}
+          {# level 3: parent_id là folder2_id, còn folder1_id thường nằm trên query string #}
+          <a class="ui-close edu-folder-close"
+             href="{{ url_for('admin_educations',
+                              folder1_id=request.args.get('folder1_id'),
+                              folder2_id=parent_id) }}"
+             aria-label="Quay lại">❌</a>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="edu-folder-form">
+
+      <input type="hidden" name="level" value="{{ level }}">
+      <input type="hidden" name="parent_id" value="{{ parent_id }}">
+
+      <div class="form-row">
+        <label>Tên chủ đề</label>
+        <input type="text" name="name" required>
+      </div>
+
+      <div class="form-row">
+        <label>Ảnh đại diện</label>
+        <input type="file" name="image" accept="image/*">
+        <div class="hint">Chọn ảnh (tuỳ chọn). Nếu bỏ trống sẽ dùng ảnh mặc định.</div>
+      </div>
+
+      <div class="edu-folder-actions">
+        <button type="submit" class="ui-btn ui-btn--success" title="Lưu">💾</button>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+{% endblock %}

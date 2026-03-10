@@ -1,0 +1,190 @@
+/* =====================================================
+   SETS / TOPIC – CLEAN & SAFE (NO CONFLICT)
+   Áp dụng cho: /sets và các trang chủ đề dạng grid
+===================================================== */
+
+/* 🔵 KHUNG NGOÀI – FULL WIDTH */
+.sets-wrap{
+  width: 100%;
+  margin: 32px 0;
+}
+
+/* 🔷 KHUNG NỘI – RỘNG GIỐNG HEADER */
+.sets-inner{
+  width: calc(100% - 96px);
+  margin: 0 auto;
+  padding: 28px 32px;
+
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(59,130,246,.12);
+  box-sizing: border-box;
+}
+
+/* MOBILE */
+@media (max-width: 768px){
+  .sets-inner{
+    width: calc(100% - 32px);
+    padding: 20px 16px;
+  }
+}
+
+/* =====================================================
+   BREADCRUMB
+===================================================== */
+.breadcrumb::before {
+  content: "📂 ";
+  opacity: 0.6;
+}
+.breadcrumb-box{
+  background: #f8fafc;
+  border: 1px solid #e5f0ff;
+  border-radius: 12px;
+  
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.breadcrumb{
+  margin-bottom: 28;            /* ✅ breadcrumb nằm trong box nên bỏ margin dưới */
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+.breadcrumb a{
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.breadcrumb span{
+  margin: 0 6px;
+  color: #64748b;
+}
+
+.breadcrumb .current{
+  font-weight: 800;
+  color: #111;
+}
+
+/* =====================================================
+   TOPIC CONTAINER
+===================================================== */
+
+.topic-inner{
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px){
+  .topic-inner{
+    padding: 16px 18px;
+  }
+}
+
+/* ===== TIÊU ĐỀ KHUNG (Học Taekwondo / Ôn Tập) ===== */
+.topic-title{
+  font-size: 30px;             /* ✅ to hơn 26 */
+  font-weight: 900;
+  color: #0b5ed7;
+
+
+  margin-bottom: 20px;
+  padding-left: 14px;
+  position: relative;
+}
+
+.topic-title::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 6px;
+  height: 80%;
+  background: linear-gradient(180deg, #0d6efd, #60a5fa);
+  border-radius: 4px;
+}
+
+/* ===== KHUNG SECTION (mỗi cụm) ===== */
+.topic-section{
+  width: 100%;
+  max-width: 100%;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(59,130,246,.12);
+
+  box-sizing: border-box;
+}
+
+/* =====================================================
+   GRID + CARD (CHUẨN HOÁ, KHÔNG ĐÈ NHAU)
+===================================================== */
+
+/* GRID CHUẨN: bám trái, không co giãn lung tung */
+.lesson-grid,
+.folder-grid,
+.sets-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 200px);
+  gap: 20px;
+
+  justify-content: flex-start;
+  align-items: start;
+  align-content: flex-start;
+
+  width: 100%;
+  max-width: 100%;
+}
+
+/* =====================================================
+   THUMB / IMAGE
+===================================================== */
+
+.folder-thumb{
+  width: 140px;
+  height: 140px;               /* ✅ fix: trước bị 140 x 120 lệch */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+  background: #f4f6f8;
+
+  overflow: hidden;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.folder-thumb img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.img-placeholder{
+  font-size: 48px;
+  color: #f59e0b;
+}
+
+/* =====================================================
+   CARD TITLE (chữ dưới hình)
+===================================================== */
+
+.card-title{
+  font-size: 17px;              /* ✅ to hơn */
+  font-weight: 700;
+  color: #1d4ed8;
+  text-align: center;
+  line-height: 1.35;
+}

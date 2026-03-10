@@ -1,0 +1,412 @@
+/* ===============================
+   ADMIN TOPIC MANAGER
+================================ */
+.page-admin-topic-manager .admin-topic-page{
+  padding: 10px 20px 20px;
+}
+
+.page-admin-topic-manager .admin-page-title{
+  text-align:center;
+  font-size: 26px;
+  font-weight: 900;
+  margin: 8px 0 18px;
+  line-height: 1.2;
+}
+
+/* ===== GRID ===== */
+.page-admin-topic-manager .topic-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* ===== CARD ===== */
+.page-admin-topic-manager .topic-box{
+  background:#fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  overflow:hidden;
+}
+
+.page-admin-topic-manager .topic-box.learn{ border-top: 6px solid #3b82f6; }
+.page-admin-topic-manager .topic-box.practice{ border-top: 6px solid #f97316; }
+
+.page-admin-topic-manager .topic-box-header{
+  padding: 14px 18px;
+  font-size: 18px;
+  font-weight: 800;
+  background:#f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* ===== TABLE ===== */
+.page-admin-topic-manager .topic-table{
+  width:100%;
+  border-collapse: collapse;
+}
+
+.page-admin-topic-manager .topic-table th{
+  background:#f1f5f9;
+  padding: 10px 12px;
+  text-align:left;
+  font-weight: 800;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.page-admin-topic-manager .topic-table td{
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.page-admin-topic-manager .row-a{ background:#fff; }
+.page-admin-topic-manager .row-b{ background:#f8fafc; }
+.page-admin-topic-manager .topic-table tr:hover{ background:#eef2ff; }
+
+/* ===== COLUMNS ===== */
+.page-admin-topic-manager .col-name{ width: 30%; }
+.page-admin-topic-manager .col-status{ width: 120px; }
+.page-admin-topic-manager .col-action{ width: 120px; }
+
+.page-admin-topic-manager .topic-name{
+  font-weight: 800;
+  color:#0f172a;
+}
+
+.page-admin-topic-manager .breadcrumb{
+  color:#475569;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* cắt gọn nếu dài */
+  max-width: 1px; /* trick để ellipsis hoạt động trong table */
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== STATUS ===== */
+.page-admin-topic-manager .status{
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  display:inline-block;
+  min-width: 86px;
+  text-align:center;
+}
+
+.page-admin-topic-manager .status.on{ background:#dcfce7; color:#166534; }
+.page-admin-topic-manager .status.off{ background:#fee2e2; color:#991b1b; }
+
+.page-admin-topic-manager .col-action{
+  text-align:right;
+  white-space: nowrap;
+}
+
+/* ===== LOCK BUTTON ===== */
+.page-admin-topic-manager .lock-btn{
+  appearance:none;
+  border:none;
+  cursor:pointer;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap: 8px;
+
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 14px;
+
+  transition: transform .12s ease, opacity .12s ease, filter .12s ease;
+}
+
+.page-admin-topic-manager .lock-btn .icon{ font-size: 16px; line-height: 1; }
+.page-admin-topic-manager .lock-btn .txt{ line-height: 1; }
+
+.page-admin-topic-manager .lock-btn.open{
+  background: #e0f2fe;
+  color: #075985;
+}
+.page-admin-topic-manager .lock-btn.lock{
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.page-admin-topic-manager .lock-btn:hover{
+  transform: translateY(-1px);
+  filter: brightness(0.98);
+}
+
+.page-admin-topic-manager .lock-btn:disabled{
+  opacity: .7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading state */
+.page-admin-topic-manager .lock-btn.is-loading{
+  background: #e5e7eb !important;
+  color: #334155 !important;
+}
+
+.page-admin-topic-manager .lock-btn .spinner{
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,.15);
+  border-top-color: rgba(0,0,0,.55);
+  display:inline-block;
+  animation: adminSpin .7s linear infinite;
+}
+
+@keyframes adminSpin{
+  to{ transform: rotate(360deg); }
+}
+
+/* EMPTY */
+.page-admin-topic-manager .empty-state{
+  text-align:center;
+  padding: 28px 12px;
+  color:#64748b;
+  font-style: italic;
+  background:#f8fafc;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 980px){
+  .page-admin-topic-manager .topic-grid{
+    grid-template-columns: 1fr;
+  }
+  .page-admin-topic-manager .col-action{ width: 140px; }
+}
+
+/* ===== KHUNG TRÁI - CỘT MEMBER GỌN HƠN ===== */
+.col-member{
+  width: 170px;
+}
+
+.member-cell{
+  vertical-align: middle;
+}
+
+.member-badges{
+  display:flex;
+  flex-wrap:nowrap;      /* ✅ ép nằm 1 hàng */
+  gap:4px;
+  align-items:center;
+  overflow:hidden;
+}
+
+.member-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:38px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+
+.plan-free{
+  background:#eef2ff;
+  color:#4338ca;
+  border-color:#c7d2fe;
+}
+
+.plan-basic{
+  background:#ecfeff;
+  color:#0f766e;
+  border-color:#a5f3fc;
+}
+
+.plan-pro{
+  background:#fff7ed;
+  color:#c2410c;
+  border-color:#fdba74;
+}
+
+.plan-vip{
+  background:#fff1f2;
+  color:#be123c;
+  border-color:#fda4af;
+}
+
+/* ===== HÀNG FILTER ===== */
+.filter-row th{
+  background:#f8fafc;
+  padding:8px 8px;
+  border-top:1px solid rgba(0,0,0,.05);
+}
+
+.topic-filter-input{
+  width:100%;
+  height:34px;
+  padding:0 10px;
+  border:1px solid #dbe3ef;
+  border-radius:10px;
+  outline:none;
+  font-size:13px;
+  background:#fff;
+  box-sizing:border-box;
+}
+
+.topic-filter-input:focus{
+  border-color:#60a5fa;
+  box-shadow:0 0 0 3px rgba(96,165,250,.16);
+}
+
+.topic-filter-reset{
+  height:34px;
+  padding:0 12px;
+  border:none;
+  border-radius:10px;
+  background:#e2e8f0;
+  color:#334155;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+/* ===== CỘT ĐƯỜNG DẪN GỌN HƠN ===== */
+.breadcrumb{
+  font-size:12px;
+  line-height:1.25;
+  color:#475569;
+}
+
+/* ===== NÚT SETUP GỌN HƠN ĐỂ BẢNG THOÁNG ===== */
+.setup-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:7px 12px;
+  border:none;
+  border-radius:999px;
+  background:#e0f2fe;
+  color:#0369a1;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  white-space:nowrap;
+}
+.setup-btn:hover{
+  transform:translateY(-1px);
+}
+
+.setup-modal[hidden]{
+  display:none !important;
+}
+
+.setup-modal{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+}
+
+.setup-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(15,23,42,.45);
+}
+
+.setup-modal-panel{
+  position:relative;
+  width:min(460px, calc(100vw - 28px));
+  margin:8vh auto 0;
+  background:#fff;
+  border-radius:22px;
+  overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,.25);
+  border:1px solid rgba(0,0,0,.08);
+}
+
+.setup-modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:16px 18px;
+  background:linear-gradient(135deg, #f97316, #ea580c);
+  color:#fff;
+}
+
+.setup-modal-head h3{
+  margin:0;
+  font-size:22px;
+  font-weight:900;
+}
+
+.setup-close{
+  width:38px;
+  height:38px;
+  border:none;
+  border-radius:12px;
+  background:rgba(255,255,255,.18);
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.setup-modal-body{
+  padding:20px 18px 10px;
+  display:grid;
+  gap:12px;
+}
+
+.setup-check{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  background:#f8fafc;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.setup-check input{
+  width:18px;
+  height:18px;
+}
+
+.setup-modal-foot{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  padding:16px 18px 18px;
+}
+
+.setup-cancel,
+.setup-save{
+  min-width:120px;
+  padding:11px 16px;
+  border-radius:14px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.setup-cancel{
+  border:1px solid #d1d5db;
+  background:#fff;
+  color:#374151;
+}
+
+.setup-save{
+  border:none;
+  background:#2563eb;
+  color:#fff;
+  box-shadow:0 10px 24px rgba(37,99,235,.22);
+}
+
+body.modal-open{
+  overflow:hidden;
+}

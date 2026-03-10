@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Cấp quyền truy cập{% endblock %}
+
+{% block content %}
+
+<div class="access-page">
+
+  <h2 class="access-title">🔐 Cấp quyền truy cập</h2>
+
+  <div class="access-card">
+
+    <form method="post">
+
+      <!-- ===== KHUNG 1: CÀI ĐẶT ===== -->
+      <div class="access-setting">
+        <h3>⚙️ Cài đặt</h3>
+
+        <label>
+          <input type="radio" name="mode" value="admin_only"
+            {% if mode == "admin_only" %}checked{% endif %}>
+          Chỉ Admin
+        </label>
+
+        <label>
+          <input type="radio" name="mode" value="all"
+            {% if mode == "all" %}checked{% endif %}>
+          Mọi người
+        </label>
+
+        <label>
+          <input type="radio" name="mode" value="custom"
+            {% if mode == "custom" %}checked{% endif %}>
+          Lựa chọn
+        </label>
+      </div>
+
+      <!-- ===== KHUNG 2: CHỌN NGƯỜI ===== -->
+      <div id="customBox" class="access-select" style="display:none">
+
+        <!-- 2.1 -->
+        <div class="access-col">
+          <h4>👥 Tất cả người dùng</h4>
+          <input type="text" placeholder="🔍 Tìm..."
+            onkeyup="filterList(this,'allUsers')">
+
+          <select id="allUsers" multiple size="10">
+            {% for u in users %}
+              {% if u.role != "admin" and u.id not in allowed_ids %}
+                <option value="{{ u.id }}">
+                  {{ u.username }} ({{ u.email or "None" }})
+                </option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 2.2 -->
+        <div class="access-arrows">
+          <button type="button"
+            onclick="move('allUsers','allowedUsers')">▶</button>
+          <button type="button"
+            onclick="move('allowedUsers','allUsers')">◀</button>
+        </div>
+
+        <!-- 2.3 -->
+        <div class="access-col">
+          <h4>✅ Người được phép</h4>
+          <input type="text" placeholder="🔍 Tìm..."
+            onkeyup="filterList(this,'allowedUsers')">
+
+          <select id="allowedUsers" name="allowed_users" multiple size="10">
+            {% for u in users %}
+              {% if u.id in allowed_ids %}
+                <option value="{{ u.id }}"
+                  {% if u.role == "admin" %}disabled{% endif %}>
+                  {{ u.username }} ({{ u.email or "None" }})
+                  {% if u.role == "admin" %} 🔒 Admin{% endif %}
+                </option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+      </div>
+
+      <!-- ===== FOOTER ===== -->
+      <div class="access-save-bar">
+        <button type="submit" class="btn-save" title="Lưu">
+          💾
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function move(from,to){
+  const f = document.getElementById(from)
+  const t = document.getElementById(to)
+  Array.from(f.selectedOptions).forEach(o=>{
+    if (!o.disabled) t.appendChild(o)
+  })
+}
+
+function filterList(input,id){
+  const kw = input.value.toLowerCase()
+  const sel = document.getElementById(id)
+  Array.from(sel.options).forEach(o=>{
+    o.style.display = o.text.toLowerCase().includes(kw) ? "" : "none"
+  })
+}
+
+function toggleBox(){
+  const mode = document.querySelector("input[name='mode']:checked").value
+  document.getElementById("customBox").style.display =
+    (mode === "custom") ? "grid" : "none"
+}
+
+document.querySelectorAll("input[name='mode']").forEach(r=>{
+  r.addEventListener("change", toggleBox)
+})
+toggleBox()
+</script>
+
+{% endblock %}

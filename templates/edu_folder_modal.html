@@ -1,0 +1,132 @@
+{# =====================================================
+   edu_folder_modal.html  (PARTIAL - include)
+   Modal: Add / Edit / Delete EDU folder
+===================================================== #}
+
+<!-- ============ ADD FOLDER MODAL ============ -->
+<div id="eduAddFolderModal" class="ui-modal-backdrop" aria-hidden="true">
+  <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="eduAddFolderTitle">
+    <div class="ui-modal-header">
+      <div id="eduAddFolderTitle" style="font-weight:800;font-size:18px;">➕ Thêm chủ đề</div>
+      <button type="button" class="ui-close" data-close="eduAddFolderModal" title="Thoát">❌</button>
+    </div>
+
+    <div class="ui-modal-body">
+      <form id="eduAddFolderForm" method="POST" action="{{ url_for('admin_add_edu_folder') }}" enctype="multipart/form-data">
+        <input type="hidden" name="level" id="eduAddLevel" value="">
+        <input type="hidden" name="parent_id" id="eduAddParentId" value="">
+
+        <div class="ui-form-row" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+          <label style="font-weight:700;">Tên chủ đề</label>
+          <input type="text" name="name" id="eduAddName" required
+                 style="width:100%;padding:12px 12px;border-radius:12px;border:1px solid #e5e7eb;">
+        </div>
+
+        <div class="ui-form-row" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+          <label style="font-weight:700;">Ảnh (tuỳ chọn)</label>
+          <input type="file" name="image" accept="image/*" onchange="previewFolderImage(this)">
+          <div style="margin-top:8px;">
+            <img id="folderPreviewImg"
+                 src="{{ url_for('static', filename='logo.jpg') }}"
+                 alt=""
+                 style="width:100%;max-width:260px;border-radius:14px;border:1px solid #eee;">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="ui-btn ui-btn--ghost" data-close="eduAddFolderModal">Huỷ</button>
+          <button type="submit" class="ui-btn ui-btn--primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDIT FOLDER MODAL ============ -->
+<div id="eduEditFolderModal" class="ui-modal-backdrop" aria-hidden="true">
+  <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="eduEditFolderTitle">
+    <div class="ui-modal-header">
+      <div id="eduEditFolderTitle" style="font-weight:800;font-size:18px;">✏️ Sửa chủ đề</div>
+      <button type="button" class="ui-close" data-close="eduEditFolderModal" title="Thoát">❌</button>
+    </div>
+
+    <div class="ui-modal-body">
+      <form id="eduEditFolderForm" method="POST" action="{{ url_for('admin_edit_edu_folder', folder_id=0) }}" enctype="multipart/form-data">
+        {# edu.js sẽ thay action folder_id đúng #}
+        <input type="hidden" id="eduEditFolderId" value="">
+
+        <div class="ui-form-row" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+          <label style="font-weight:700;">Tên chủ đề</label>
+          <input type="text" name="name" id="eduEditName" required
+                 style="width:100%;padding:12px 12px;border-radius:12px;border:1px solid #e5e7eb;">
+        </div>
+
+        <div class="ui-form-row" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+          <label style="font-weight:700;">Ảnh (tuỳ chọn)</label>
+          <input type="file" name="image" accept="image/*">
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="ui-btn ui-btn--ghost" data-close="eduEditFolderModal">Huỷ</button>
+          <button type="submit" class="ui-btn ui-btn--primary">Cập nhật</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DELETE FOLDER MODAL ============ -->
+<div id="eduDeleteFolderModal" class="ui-modal-backdrop" aria-hidden="true">
+  <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="eduDeleteFolderTitle">
+    <div class="ui-modal-header">
+      <div id="eduDeleteFolderTitle" style="font-weight:800;font-size:18px;">🗑 Xoá chủ đề</div>
+      <button type="button" class="ui-close" data-close="eduDeleteFolderModal" title="Thoát">❌</button>
+    </div>
+
+    <div class="ui-modal-body">
+      <p style="margin:0 0 14px 0;line-height:1.5;">
+        Bạn chắc chắn muốn xoá chủ đề này?
+      </p>
+
+      <form id="eduDeleteFolderForm" method="POST" action="{{ url_for('admin_delete_edu_folder', folder_id=0) }}">
+        {# edu.js sẽ thay action folder_id đúng #}
+        <input type="hidden" id="eduDeleteFolderId" value="">
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="ui-btn ui-btn--ghost" data-close="eduDeleteFolderModal">Huỷ</button>
+          <button type="submit" class="ui-btn ui-btn--danger" title="Xóa">Xoá</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+/* đóng modal theo data-close giống hệ thống */
+(function(){
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-close]");
+    if(!btn) return;
+    const id = btn.getAttribute("data-close");
+    const modal = document.getElementById(id);
+    if(modal) {
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+  });
+
+  // click backdrop để đóng
+  ["eduAddFolderModal","eduEditFolderModal","eduDeleteFolderModal"].forEach(id=>{
+    const modal = document.getElementById(id);
+    if(!modal) return;
+    modal.addEventListener("click", (e)=>{
+      if(e.target === modal){
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+      }
+    });
+  });
+})();
+</script>

@@ -1,0 +1,181 @@
+/* =====================================================
+   quiz_prepare.css – FINAL (Ken)
+   Scope: /quiz/prepare/<folder3_id>
+===================================================== */
+
+:root{
+  --qp-orange: #ea580c;
+  --qp-orange-2: #ff6a00;
+  --qp-brown: #9a3412;
+  --qp-bg: rgba(0,0,0,.86);
+  --qp-card: #f8efdf;
+  --qp-border: rgba(0,0,0,.18);
+  --qp-shadow: 0 22px 60px rgba(234,88,12,.35);
+}
+
+/* overlay phủ nền */
+.start-overlay{
+  position: fixed;
+  inset: 0;
+  background: var(--qp-bg);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 120000;
+}
+
+/* hộp start */
+.start-box{
+  width: 520px;
+  max-width: calc(100vw - 48px);
+  background: var(--qp-card);
+  border-radius: 18px;
+  padding: 26px 26px 28px;
+  box-shadow: var(--qp-shadow);
+  position: relative;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,.25);
+}
+
+/* badge nhỏ */
+.start-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(234,88,12,.10);
+  color: var(--qp-brown);
+  font-weight: 900;
+  font-size: 13px;
+}
+
+/* nút X */
+.start-close{
+  position: absolute;
+  top: 12px;
+  right: 12px;                 /* ✅ đặt bên phải cho đúng UX */
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--qp-border);
+  background: #fff;
+  color: #111827;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform .12s ease, background .12s ease;
+}
+.start-close:hover{ transform: scale(1.04); background: #fff7ed; }
+.start-close:active{ transform: scale(.98); }
+
+/* tiêu đề */
+.start-title{
+  margin: 16px 0 18px;
+  font-size: 30px;
+  font-weight: 1000;
+  color: var(--qp-brown);
+  letter-spacing: .2px;
+}
+
+/* hint */
+.start-hint{
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(17,24,39,.75);
+}
+
+/* nút bắt đầu */
+.start-btn{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  border: 2px solid var(--qp-border);
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 18px;
+
+  font-weight: 1000;
+  cursor: pointer;
+  user-select: none;
+
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.start-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(0,0,0,.18);
+  background: #fff7ed;
+}
+.start-btn:active{ transform: translateY(0); }
+
+/* icon play */
+.start-icon{
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+
+  background: #111827;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+/* text */
+.start-text{
+  font-size: 18px;
+  letter-spacing: .6px;
+}
+
+/* =========================
+   COUNTDOWN – 3D STYLE
+========================= */
+.countdown-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.92);
+  display: none;               /* ✅ mặc định ẩn */
+  align-items: center;
+  justify-content: center;
+  z-index: 120001;
+}
+
+.countdown-number{
+  font-size: 150px;
+  font-weight: 1000;
+  letter-spacing: 2px;
+
+  color: var(--qp-orange-2);
+  -webkit-text-stroke: 6px #ffffff;
+
+  text-shadow:
+      0 3px 0 #cc5200,
+      0 6px 0 #b34700,
+      0 10px 25px rgba(255,106,0,.45),
+      0 25px 60px rgba(0,0,0,.75);
+
+  animation: pop .9s ease;
+}
+
+/* nhịp “nảy” */
+@keyframes pop{
+  0%   { transform: scale(.6); opacity: .1; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* mobile */
+@media (max-width: 520px){
+  .start-title{ font-size: 24px; }
+  .start-box{ padding: 22px 18px 24px; }
+  .countdown-number{
+    font-size: 86px;
+    -webkit-text-stroke: 4px #ffffff;
+  }
+}
