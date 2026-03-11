@@ -1,0 +1,11 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Werkzeug
+gunicorn
+requests
+Pillow
+python-slugify
+mammoth
+python-docx
+python-dotenv
