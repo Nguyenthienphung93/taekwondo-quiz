@@ -223,3 +223,412 @@
 #examResult .exam-result-actions{
   margin-top: 28px;
 }
+
+/* =========================================
+   EXAM POPUP REVAMP
+   Dán cuối file CSS đang dùng cho exam/popup
+========================================= */
+
+/* nền mờ phía sau */
+.ui-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9999;
+}
+
+.ui-modal-backdrop[aria-hidden="false"]{
+  display: flex;
+  animation: examBackdropFade .22s ease;
+}
+
+@keyframes examBackdropFade{
+  from{ opacity: 0; }
+  to{ opacity: 1; }
+}
+
+/* khung popup chính */
+.ui-modal-box.exam-modal{
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  position: relative;
+
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf3 100%);
+  border: 1px solid rgba(251, 146, 60, 0.22);
+  border-radius: 28px;
+  box-shadow:
+    0 28px 80px rgba(15, 23, 42, 0.26),
+    0 10px 30px rgba(251, 146, 60, 0.10);
+
+  padding: 28px 28px 24px;
+  animation: examModalPop .24s ease;
+}
+
+@keyframes examModalPop{
+  from{
+    opacity: 0;
+    transform: translateY(14px) scale(.965);
+  }
+  to{
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* hàng đầu */
+.ui-modal-box.exam-modal > div:first-child{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  min-height: 56px;
+}
+
+/* tiêu đề câu hỏi */
+.exam-modal-title{
+  margin: 0;
+  width: calc(100% - 72px);
+  text-align: center;
+
+  padding: 12px 18px;
+  border-radius: 16px;
+
+  background: linear-gradient(135deg, #38bdf8 0%, #60a5fa 100%);
+  color: #0f172a;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 900;
+  letter-spacing: .6px;
+  line-height: 1.1;
+  text-transform: uppercase;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    0 8px 22px rgba(59, 130, 246, 0.18);
+}
+
+/* nút đóng */
+.ui-close.exam-close{
+  position: absolute;
+  right: -6px;
+  top: -8px;
+
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(180deg, #fecaca 0%, #fda4af 100%);
+  color: #dc2626;
+  font-size: 24px;
+  font-weight: 900;
+
+  box-shadow:
+    0 10px 24px rgba(239, 68, 68, 0.20),
+    inset 0 1px 0 rgba(255,255,255,.65);
+
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+.ui-close.exam-close:hover{
+  transform: translateY(-1px) scale(1.04);
+  filter: saturate(1.06);
+  box-shadow:
+    0 14px 28px rgba(239, 68, 68, 0.26),
+    inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+.ui-close.exam-close:active{
+  transform: scale(.97);
+}
+
+/* nội dung câu hỏi */
+.exam-modal-content{
+  margin: 10px 0 18px;
+  padding: 0 6px;
+
+  text-align: center;
+  color: #1e293b;
+  font-size: clamp(24px, 2.2vw, 34px);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* vùng đáp án */
+.exam-modal-choices{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 6px;
+}
+
+/* item đáp án - hỗ trợ cả button/div/label */
+.exam-modal-choices > *,
+.exam-modal-choices .choice-item,
+.exam-modal-choices .exam-choice,
+.exam-modal-choices label,
+.exam-modal-choices button{
+  min-height: 66px;
+  width: 100%;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(148, 163, 184, 0.26);
+
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  color: #1f2937;
+  font-size: clamp(22px, 1.6vw, 28px);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+
+  cursor: pointer;
+  transition:
+    transform .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease,
+    background .16s ease,
+    color .16s ease;
+}
+
+/* hover đáp án */
+.exam-modal-choices > *:hover,
+.exam-modal-choices .choice-item:hover,
+.exam-modal-choices .exam-choice:hover,
+.exam-modal-choices label:hover,
+.exam-modal-choices button:hover{
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.34);
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+  box-shadow: 0 12px 22px rgba(59, 130, 246, 0.12);
+}
+
+/* trạng thái chọn - nếu JS có add class selected/active */
+.exam-modal-choices > *.selected,
+.exam-modal-choices > *.active,
+.exam-modal-choices .choice-item.selected,
+.exam-modal-choices .choice-item.active,
+.exam-modal-choices .exam-choice.selected,
+.exam-modal-choices .exam-choice.active,
+.exam-modal-choices label.selected,
+.exam-modal-choices button.selected{
+  border-color: #2563eb;
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #0f172a;
+  box-shadow:
+    0 14px 26px rgba(37, 99, 235, 0.16),
+    inset 0 0 0 1px rgba(255,255,255,.45);
+}
+
+/* trạng thái đúng / sai nếu JS có add class */
+.exam-modal-choices > *.correct,
+.exam-modal-choices .choice-item.correct,
+.exam-modal-choices .exam-choice.correct,
+.exam-modal-choices label.correct,
+.exam-modal-choices button.correct{
+  border-color: #22c55e;
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #14532d;
+}
+
+.exam-modal-choices > *.wrong,
+.exam-modal-choices .choice-item.wrong,
+.exam-modal-choices .exam-choice.wrong,
+.exam-modal-choices label.wrong,
+.exam-modal-choices button.wrong{
+  border-color: #ef4444;
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  color: #7f1d1d;
+}
+
+/* actions */
+.exam-modal-actions{
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* nút kiểm tra */
+#btnCheck{
+  min-width: 230px;
+  min-height: 60px;
+  padding: 0 26px;
+  border: none;
+  border-radius: 999px;
+
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 55%, #60a5fa 100%);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .2px;
+
+  box-shadow:
+    0 16px 34px rgba(37, 99, 235, 0.28),
+    inset 0 1px 0 rgba(255,255,255,.35);
+
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+#btnCheck:hover{
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+  box-shadow:
+    0 18px 38px rgba(37, 99, 235, 0.34),
+    inset 0 1px 0 rgba(255,255,255,.38);
+}
+
+#btnCheck:active{
+  transform: scale(.98);
+}
+
+/* popup kết quả */
+.ui-modal-box.exam-result{
+  width: min(520px, calc(100vw - 28px));
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf5 100%);
+  border: 1px solid rgba(251, 146, 60, 0.18);
+  border-radius: 28px;
+  padding: 28px 24px 24px;
+  text-align: center;
+  box-shadow:
+    0 28px 80px rgba(15, 23, 42, 0.24),
+    0 10px 26px rgba(251, 146, 60, 0.12);
+  animation: examModalPop .22s ease;
+}
+
+.exam-result-icon{
+  font-size: 58px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.exam-result-msg{
+  font-size: clamp(28px, 2.2vw, 36px);
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.exam-result-sub{
+  margin-top: 10px;
+  color: #475569;
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.exam-result-actions{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.exam-extra-actions{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#examAction{
+  min-width: 180px;
+  min-height: 56px;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+/* mobile */
+@media (max-width: 768px){
+  .ui-modal-backdrop{
+    padding: 14px;
+  }
+
+  .ui-modal-box.exam-modal{
+    width: min(100%, 100vw - 12px);
+    border-radius: 22px;
+    padding: 18px 16px 18px;
+  }
+
+  .ui-modal-box.exam-modal > div:first-child{
+    min-height: 48px;
+    margin-bottom: 14px;
+  }
+
+  .exam-modal-title{
+    width: calc(100% - 52px);
+    font-size: 24px;
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .ui-close.exam-close{
+    width: 42px;
+    height: 42px;
+    right: -2px;
+    top: -4px;
+    font-size: 18px;
+  }
+
+  .exam-modal-content{
+    font-size: 20px;
+    margin-bottom: 14px;
+  }
+
+  .exam-modal-choices{
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .exam-modal-choices > *,
+  .exam-modal-choices .choice-item,
+  .exam-modal-choices .exam-choice,
+  .exam-modal-choices label,
+  .exam-modal-choices button{
+    min-height: 56px;
+    font-size: 18px;
+    border-radius: 14px;
+    padding: 13px 14px;
+  }
+
+  #btnCheck{
+    min-width: 170px;
+    min-height: 52px;
+    font-size: 18px;
+  }
+
+  .ui-modal-box.exam-result{
+    border-radius: 22px;
+    padding: 22px 16px 18px;
+  }
+
+  .exam-result-icon{
+    font-size: 46px;
+  }
+
+  .exam-result-msg{
+    font-size: 24px;
+  }
+
+  .exam-result-sub{
+    font-size: 16px;
+  }
+}

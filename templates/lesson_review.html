@@ -2,17 +2,13 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ lesson.title }}</title>
 
-  <!-- CSS -->
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='css/lesson_review.css') }}">
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='css/lesson.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson_review.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson.css') }}">
 
-  <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="{{ url_for('static', filename='js/admin_review.js') }}"></script>
 </head>
 
 <body>
@@ -27,19 +23,24 @@
       <h1 class="lesson-title-text">{{ lesson.title }}</h1>
     </div>
 
-    <!-- ✅ nút X chuẩn UI -->
-    <button type="button" class="ui-close" onclick="closeLesson()" aria-label="Đóng" title="Thoát">❌</button>
+    <button type="button"
+            class="ui-close"
+            onclick="closeLesson()"
+            aria-label="Đóng"
+            title="Thoát">❌</button>
   </div>
 
+  <!-- ===================================================== -->
+  <!-- BODY -->
+  <!-- ===================================================== -->
+  <div class="lesson-body">
 
-    <!-- ===================================================== -->
-    <!-- BODY -->
-    <!-- ===================================================== -->
-    <div class="lesson-body">
+    <!-- ===== PDF VIEW ===== -->
+    <main class="lesson-content" id="lessonContent">
 
-      <!-- ===== FLOAT MENU BUTTON ===== -->
+      <!-- MENU nổi trong khung PDF -->
       <button id="floatingMenuBtn"
-              class="floating-menu-btn"
+              class="floating-menu-btn pdf-overlay-menu"
               type="button"
               onclick="toggleSidebar()"
               title="Mở mục lục"
@@ -47,7 +48,7 @@
         ☰
       </button>
 
-      <!-- ===== SIDEBAR ===== -->
+      <!-- SIDEBAR PHẢI ĐẶT BÊN TRONG lessonContent -->
       <aside id="lessonSidebar" class="lesson-sidebar collapsed">
         <div class="lesson-sidebar-inner">
           {% for s in sections %}
@@ -60,60 +61,48 @@
         </div>
       </aside>
 
-      <!-- ===== PDF VIEW ===== -->
-      <main class="lesson-content" id="lessonContent">
-        <canvas id="pdfCanvas"></canvas>
+      <canvas id="pdfCanvas"></canvas>
 
-        <!-- Nút lùi trang nổi bên trái -->
-        <button id="btnPrev"
-                type="button"
-                class="pdf-side-nav pdf-side-nav--left"
-                onclick="prevPage()"
-                title="Lùi trang"
-                aria-label="Lùi trang">
-          ◀
-        </button>
+      <!-- Nút lùi trang -->
+      <button id="btnPrev"
+              type="button"
+              class="pdf-side-nav pdf-side-nav--left"
+              onclick="prevPage()"
+              title="Lùi trang"
+              aria-label="Lùi trang">
+        ◀
+      </button>
 
-        <!-- Nút qua trang nổi bên phải -->
-        <button id="btnNext"
-                type="button"
-                class="pdf-side-nav pdf-side-nav--right"
-                onclick="nextPage()"
-                title="Qua trang"
-                aria-label="Qua trang">
-          ▶
-        </button>
-      </main>
+      <!-- Nút qua trang -->
+      <button id="btnNext"
+              type="button"
+              class="pdf-side-nav pdf-side-nav--right"
+              onclick="nextPage()"
+              title="Qua trang"
+              aria-label="Qua trang">
+        ▶
+      </button>
 
-    </div>
-
-
-    <!-- ===================================================== -->
-    <!-- PAGINATION -->
-    <!-- ===================================================== -->
-    <div class="lesson-pager">
-
-      <div class="pager-pill">
+      <!-- Số trang -->
+      <div class="pdf-page-indicator">
         <span id="pageNow">1</span>
         <span class="sep">/</span>
         <span id="pageTotal">1</span>
       </div>
 
-      <!-- ✅ Nút fullscreen -->
+      <!-- Nút fullscreen -->
       <button type="button"
-              class="ui-icon-btn"
+              class="pdf-fullscreen-btn"
               onclick="toggleFullscreen()"
               title="Toàn màn hình"
               aria-label="Toàn màn hình">
         ⛶
       </button>
-    </div>
 
+    </main>
   </div>
 
-
 </div>
-
 
 <!-- ===================================================== -->
 <!-- DATA FROM FLASK -->
@@ -122,18 +111,16 @@
   window.LESSON_DATA = {
     slug: {{ lesson.slug | tojson }},
     title: {{ lesson.title | tojson }},
-    pdf: {{ (lesson.pdf or "Bai_hoc.pdf") | tojson }},
+    pdf: {{ (pdf_url or ('/static/' ~ (lesson.pdf or 'Bai_hoc.pdf'))) | tojson }},
     review_type: {{ (lesson.review_type or "pdf") | tojson }},
     source_url: {{ (lesson.source_url or "") | tojson }},
     sections: {{ (sections or []) | tojson }}
   };
 </script>
 
-
 <!-- ===================================================== -->
 <!-- SCRIPT -->
 <!-- ===================================================== -->
 <script src="{{ url_for('static', filename='js/lesson-review.js') }}"></script>
-
 </body>
 </html>

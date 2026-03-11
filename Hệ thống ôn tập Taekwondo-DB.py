@@ -1208,6 +1208,31 @@ def ensure_folder_member_plans_column():
     conn.commit()
     conn.close()
 
+def ensure_question_member_plans_column():
+    """✅ Add question.member_plans nếu DB cũ chưa có"""
+    db_path = os.path.join(app.instance_path, "quiz.db")
+    if not os.path.exists(db_path):
+        return
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    tables = {r[0] for r in cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+
+    if "question" in tables:
+        cur.execute("PRAGMA table_info(question)")
+        cols = [r[1] for r in cur.fetchall()]
+
+        if "member_plans" not in cols:
+            cur.execute(
+                "ALTER TABLE question ADD COLUMN member_plans VARCHAR(100) DEFAULT 'FREE,BASIC,PRO,VIP'"
+            )
+
+    conn.commit()
+    conn.close()
+
 def ensure_lesson_media_columns():
     """✅ Add lessons.review_type + lessons.source_url nếu DB cũ chưa có"""
     db_path = os.path.join(app.instance_path, "quiz.db")
@@ -1374,6 +1399,7 @@ class Question(db.Model):
     type = db.Column(db.String(20), default="mcq")  # 🔥 THÊM DÒNG NÀY
 
     text = db.Column(db.Text, nullable=False)
+    member_plans = db.Column(db.String(100), default="FREE,BASIC,PRO,VIP")
 
 class Folder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -2003,7 +2029,93 @@ def activate_account(token):
     flash("✅ Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.", "success")
     return redirect(url_for("login"))
 
+from flask import session, jsonify, request, g
+from flask_login import current_user, login_required
 
+ALLOWED_PREVIEW_MEMBERS = {"free", "basic", "pro", "vip"}
+
+def get_effective_member():
+    """
+    Member hiệu lực để render nội dung.
+    - Admin bình thường: dùng member thật của admin nếu có, hoặc vip mặc định
+    - Admin đang preview: dùng gói preview
+    - User thường: dùng member thật của user
+    """
+    if not current_user.is_authenticated:
+        return "free"
+
+    # admin đang giả lập gói user
+    if getattr(current_user, "role", "") == "admin":
+        preview_member = (session.get("admin_preview_member") or "").strip().lower()
+        if preview_member in ALLOWED_PREVIEW_MEMBERS:
+            return preview_member
+
+        # admin không preview -> xem như full quyền
+        return (getattr(current_user, "member", None) or "vip").strip().lower()
+
+    # user thường
+    return (getattr(current_user, "member", None) or "free").strip().lower()
+
+
+def is_admin_preview_mode():
+    if not current_user.is_authenticated:
+        return False
+    if getattr(current_user, "role", "") != "admin":
+        return False
+    preview_member = (session.get("admin_preview_member") or "").strip().lower()
+    return preview_member in ALLOWED_PREVIEW_MEMBERS
+
+
+@app.before_request
+def inject_preview_globals():
+    g.effective_member = get_effective_member()
+    g.is_admin_preview = is_admin_preview_mode()
+    g.admin_preview_member = (session.get("admin_preview_member") or "").strip().lower()
+
+
+@app.context_processor
+def inject_preview_context():
+    return {
+        "effective_member": get_effective_member(),
+        "is_admin_preview": is_admin_preview_mode(),
+        "admin_preview_member": (session.get("admin_preview_member") or "").strip().lower(),
+    }
+
+@app.post("/admin/preview-member/set")
+@login_required
+def admin_set_preview_member():
+    if getattr(current_user, "role", "") != "admin":
+        return jsonify({"ok": False, "message": "Không có quyền"}), 403
+
+    data = request.get_json(silent=True) or {}
+    member = (data.get("member") or "").strip().lower()
+
+    if member not in ALLOWED_PREVIEW_MEMBERS:
+        return jsonify({"ok": False, "message": "Gói không hợp lệ"}), 400
+
+    session["admin_preview_member"] = member
+    session.modified = True
+
+    return jsonify({
+        "ok": True,
+        "message": f"Đã chuyển sang chế độ xem gói {member.upper()}",
+        "member": member
+    })
+
+
+@app.post("/admin/preview-member/clear")
+@login_required
+def admin_clear_preview_member():
+    if getattr(current_user, "role", "") != "admin":
+        return jsonify({"ok": False, "message": "Không có quyền"}), 403
+
+    session.pop("admin_preview_member", None)
+    session.modified = True
+
+    return jsonify({
+        "ok": True,
+        "message": "Đã thoát chế độ xem thử"
+    })
 
 from sqlalchemy import or_, func
 
@@ -2724,7 +2836,7 @@ def view_set(folder1_id, folder2_id):
         is_active_practice=1
     ).order_by(Folder.order_index.asc()).all()
 
-    user_plan = norm_plan(getattr(current_user, "member", "FREE"))
+    user_plan = norm_plan(get_effective_member())
 
     folder3_list = []
     for f3 in all_folder3:
@@ -2732,6 +2844,7 @@ def view_set(folder1_id, folder2_id):
         plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
 
         if not plans:
+            folder3_list.append(f3)
             continue
 
         if user_plan in plans:
@@ -2864,13 +2977,12 @@ def quiz_prepare(folder3_id):
     if not f3.is_active_practice:
         abort(404)
 
-    user_plan = norm_plan(getattr(current_user, "member", "FREE"))
+    user_plan = norm_plan(get_effective_member())
     raw = (f3.member_plans or "").strip()
     plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
 
-    if not plans or user_plan not in plans:
+    if plans and user_plan not in plans:
         abort(404)
-
     return render_template(
         "quiz_prepare.html",
         topic_name=f3.name,
@@ -2936,7 +3048,7 @@ def quiz_start_folder(folder3_id):
     if not f3.is_active_practice:
         abort(404)
 
-    user_plan = norm_plan(getattr(current_user, "member", "FREE"))
+    user_plan = norm_plan(get_effective_member())
     raw = (f3.member_plans or "").strip()
     plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
 
@@ -2948,7 +3060,19 @@ def quiz_start_folder(folder3_id):
     time_per_q = current_user.pref_time_per_q         # None = không tính giờ
 
     # ===== LẤY CÂU HỎI =====
-    qs = Question.query.filter_by(folder_id=folder3_id).all()
+    all_qs = Question.query.filter_by(folder_id=folder3_id).all()
+    user_plan = norm_plan(get_effective_member())
+
+    qs = []
+    for q in all_qs:
+        raw_q = (q.member_plans or "").strip()
+        q_plans = [x.strip().upper() for x in raw_q.split(",") if x.strip()]
+
+        if not q_plans:
+            continue
+
+        if user_plan in q_plans:
+            qs.append(q)
     if not qs:
         flash("Chủ đề này chưa có câu hỏi. Hãy quay lại bài học sau.", "danger")
         folder1_id = None
@@ -4165,7 +4289,8 @@ def admin_questions():
         q = Question(
             text=question_text,
             folder_id=folder_id,
-            type=question_type
+            type=question_type,
+            member_plans="FREE,BASIC,PRO,VIP"
         )
         db.session.add(q)
         db.session.flush()
@@ -4446,8 +4571,9 @@ def duplicate_question():
     # ===== TẠO CÂU HỎI MỚI =====
     new_q = Question(
         text=old_q.text,
-        type=old_q.type,          # ✅ FIX LỖI
-        folder_id=folder3_id
+        type=old_q.type,
+        folder_id=folder3_id,
+        member_plans=old_q.member_plans or "FREE,BASIC,PRO,VIP"
     )
     db.session.add(new_q)
     db.session.commit()          # 🔥 để lấy new_q.id
@@ -5448,119 +5574,6 @@ def drive_stream(file_id):
 
     return Response(stream_with_context(gen()), headers=headers, status=200)
 
-@app.get("/lesson/<slug>")
-def lesson_view(slug):
-    lesson = Lesson.query.filter_by(slug=slug).first_or_404()
-
-    # ✅ luôn có sections để khỏi UnboundLocalError + parse JSON string nếu cần
-    sections = []
-    try:
-        sections = lesson.sections or []
-        if isinstance(sections, str):
-            import json
-            sections = json.loads(sections) if sections.strip() else []
-    except Exception:
-        sections = []
-
-    rtype = (lesson.review_type or "pdf").strip().lower()
-    source_url = (lesson.source_url or "").strip()
-
-    # =====================================================
-    # DRIVE (pdf / video / audio)
-    # =====================================================
-    if rtype == "drive":
-        file_id = extract_drive_file_id(source_url)
-        if not file_id:
-            flash("❌ Link Drive không hợp lệ.", "danger")
-            return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
-        # ✅ ƯU TIÊN drive_kind trong DB (pdf/video/audio)
-        drive_kind = (getattr(lesson, "drive_kind", "") or "").strip().lower()
-        kind = drive_kind or (guess_drive_kind(source_url) or "pdf")
-
-        preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
-        direct_url  = f"https://drive.google.com/uc?export=download&id={file_id}"
-
-        # ✅ Drive PDF -> dùng lesson_review (có tiêu đề + trang)
-        if kind == "pdf":
-            pdf_stream_url = url_for("drive_stream", file_id=file_id)
-            return render_template(
-                "lesson_review.html",
-                lesson=lesson,
-                sections=sections,
-                pdf_url=pdf_stream_url,
-                body_class="is-pdf is-drive-pdf"
-            )
-
-        # ✅ Drive VIDEO -> stream qua backend
-        elif kind == "video":
-            video_url = url_for("drive_stream", file_id=file_id)
-            return render_template(
-                "lesson_drive_video.html",
-                lesson=lesson,
-                drive_direct_url=video_url,
-                preview_url=preview_url,
-                body_class="is-drive-video"
-            )
-
-        # ✅ Drive AUDIO -> stream qua backend
-        elif kind == "audio":
-            audio_url = url_for("drive_stream", file_id=file_id)
-            return render_template(
-                "lesson_drive_audio.html",
-                lesson=lesson,
-                drive_direct_url=audio_url,
-                body_class="is-drive-audio"
-            )
-
-        # fallback (nếu kind lạ)
-        return render_template(
-            "lesson_drive.html",
-            lesson=lesson,
-            sections=sections,
-            kind=kind,
-            preview_url=preview_url,
-            direct_url=direct_url,
-            filename=lesson.title
-        )
-
-    # ===================== PDF (LOCAL) =====================
-    if rtype == "pdf":
-        # ✅ nếu Ken có cột pdf_url trong DB thì dùng, còn không thì fallback từ lesson.pdf
-        pdf_url = ""
-        if hasattr(lesson, "pdf_url") and (lesson.pdf_url or "").strip():
-            pdf_url = lesson.pdf_url.strip()
-        else:
-            pdf_url = "/static/" + (lesson.pdf or "Bai_hoc.pdf")
-
-        return render_template(
-            "lesson_review.html",
-            lesson=lesson,
-            sections=sections,
-            pdf_url=pdf_url,
-            body_class="is-pdf"
-        )
-
-    # ===================== YOUTUBE / WEB =====================
-    if rtype == "youtube":
-        return render_template(
-            "lesson_youtube.html",
-            lesson=lesson,
-            embed_url=getattr(lesson, "embed_url", ""),
-            body_class="is-youtube"
-        )
-
-    if rtype == "web":
-        return render_template(
-            "lesson_web.html",
-            lesson=lesson,
-            url=source_url,
-            body_class="is-web"
-        )
-
-    # fallback
-    return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
 
 @app.route("/admin/lesson/edit", methods=["POST"])
 @login_required
@@ -5619,45 +5632,64 @@ from flask import render_template, abort, flash
 from flask_login import login_required
 import json
 
-@app.route("/lesson/<slug>")
+@app.get("/lesson/<slug>")
 @login_required
-def lesson_review(slug):
+def lesson_view(slug):
     lesson = Lesson.query.filter_by(slug=slug).first_or_404()
 
     sections = []
-    if lesson.sections:
-        try:
-            sections = json.loads(lesson.sections)
-        except:
-            sections = []
+    try:
+        sections = lesson.sections or []
+        if isinstance(sections, str):
+            import json
+            sections = json.loads(sections) if sections.strip() else []
+    except Exception:
+        sections = []
 
-    review_type = (getattr(lesson, "review_type", "pdf") or "pdf").strip().lower()
-    source_url  = (getattr(lesson, "source_url", "") or "").strip()
+    rtype = (lesson.review_type or "pdf").strip().lower()
+    source_url = (lesson.source_url or "").strip()
 
-    # fallback về PDF nếu thiếu dữ liệu
-    if review_type == "pdf" or (review_type in ["youtube", "drive", "web"] and not source_url):
-        return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
-    if review_type == "youtube":
-        vid = extract_youtube_id(source_url)
-        if not vid:
-            flash("❌ Link Youtube không hợp lệ.", "danger")
-            return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
-        embed_url = f"https://www.youtube.com/embed/{vid}?enablejsapi=1&rel=0&modestbranding=1"
-        return render_template("lesson_youtube.html", lesson=lesson, youtube_id=vid, embed_url=embed_url)
-
-    if review_type == "drive":
+    # ===================== DRIVE =====================
+    if rtype == "drive":
         file_id = extract_drive_file_id(source_url)
         if not file_id:
             flash("❌ Link Drive không hợp lệ.", "danger")
             return render_template("lesson_review.html", lesson=lesson, sections=sections)
 
-        kind = guess_drive_kind(source_url)
+        drive_kind = (getattr(lesson, "drive_kind", "") or "").strip().lower()
+        kind = drive_kind or (guess_drive_kind(source_url) or "pdf")
+
         preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
         direct_url  = f"https://drive.google.com/uc?export=download&id={file_id}"
 
-        filename = lesson.title   # hoặc lesson.slug nếu Ken muốn
+        if kind == "pdf":
+            pdf_stream_url = url_for("drive_stream", file_id=file_id)
+            return render_template(
+                "lesson_review.html",
+                lesson=lesson,
+                sections=sections,
+                pdf_url=pdf_stream_url,
+                body_class="is-pdf is-drive-pdf"
+            )
+
+        elif kind == "video":
+            video_url = url_for("drive_stream", file_id=file_id)
+            return render_template(
+                "lesson_drive_video.html",
+                lesson=lesson,
+                drive_direct_url=video_url,
+                preview_url=preview_url,
+                body_class="is-drive-video"
+            )
+
+        elif kind == "audio":
+            audio_url = url_for("drive_stream", file_id=file_id)
+            return render_template(
+                "lesson_drive_audio.html",
+                lesson=lesson,
+                drive_direct_url=audio_url,
+                body_class="is-drive-audio"
+            )
 
         return render_template(
             "lesson_drive.html",
@@ -5666,18 +5698,27 @@ def lesson_review(slug):
             kind=kind,
             preview_url=preview_url,
             direct_url=direct_url,
-            filename=filename      # 🔥 thêm dòng này
+            filename=lesson.title
         )
 
-    if review_type == "web":
-        iframe_url = normalize_web_url(source_url)
-        return render_template("lesson_web.html", lesson=lesson, iframe_url=iframe_url)
+    # ===================== PDF LOCAL =====================
+    if rtype == "pdf":
+        pdf_url = ""
+        if hasattr(lesson, "pdf_url") and (lesson.pdf_url or "").strip():
+            pdf_url = lesson.pdf_url.strip()
+        else:
+            pdf_url = "/static/" + (lesson.pdf or "Bai_hoc.pdf")
 
-    return render_template("lesson_review.html", lesson=lesson, sections=sections)
-    # =========================
-    # YOUTUBE
-    # =========================
-    if review_type == "youtube":
+        return render_template(
+            "lesson_review.html",
+            lesson=lesson,
+            sections=sections,
+            pdf_url=pdf_url,
+            body_class="is-pdf"
+        )
+
+    # ===================== YOUTUBE =====================
+    if rtype == "youtube":
         vid = extract_youtube_id(source_url)
         if not vid:
             flash("❌ Link Youtube không hợp lệ.", "danger")
@@ -5687,57 +5728,22 @@ def lesson_review(slug):
         return render_template(
             "lesson_youtube.html",
             lesson=lesson,
-            sections=sections,
             youtube_id=vid,
-            embed_url=embed_url
+            embed_url=embed_url,
+            body_class="is-youtube"
         )
 
-    # =========================
-    # DRIVE (PDF/VIDEO)
-    # =========================
-    if review_type == "drive":
-        file_id = extract_drive_file_id(source_url)
-        if not file_id:
-            flash("❌ Link Drive không hợp lệ.", "danger")
-            return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
-        kind = guess_drive_kind(source_url)  # "pdf" | "video" (Ken đã có hàm)
-
-        # Preview iframe (ổn định)
-        preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
-
-        # Direct URL (tuỳ trường hợp Drive cho stream)
-        direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-
-        return render_template(
-            "lesson_drive.html",
-            lesson=lesson,
-            sections=sections,
-            drive_file_id=file_id,
-            kind=kind,
-            preview_url=preview_url,
-            direct_url=direct_url
-        )
-
-    # =========================
-    # WEB (iframe scroll)
-    # =========================
-    if review_type == "web":
+    # ===================== WEB =====================
+    if rtype == "web":
         iframe_url = normalize_web_url(source_url)
-        if not iframe_url:
-            flash("❌ Link Web không hợp lệ.", "danger")
-            return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
         return render_template(
             "lesson_web.html",
             lesson=lesson,
-            sections=sections,
-            iframe_url=iframe_url
+            iframe_url=iframe_url,
+            body_class="is-web"
         )
 
-    # 5) Default fallback
     return render_template("lesson_review.html", lesson=lesson, sections=sections)
-
 
 def get_lessons_by_folder(folder3_id):
     lesson_dir = os.path.join(current_app.instance_path, "lessons")
@@ -6464,8 +6470,6 @@ def admin_topic_manager():
 
         raw_plans = (l.member_plans or "").strip()
         plans = [x.strip().upper() for x in raw_plans.split(",") if x.strip()]
-        if not plans:
-            plans = ["FREE", "BASIC", "PRO", "VIP"]
 
         learn_topics.append({
             "id": l.id,
@@ -6506,8 +6510,6 @@ def admin_topic_manager():
 
         raw_plans = (f.member_plans or "").strip()
         plans = [x.strip().upper() for x in raw_plans.split(",") if x.strip()]
-        if not plans:
-            plans = ["FREE", "BASIC", "PRO", "VIP"]
 
         practice_topics.append({
             "id": f.id,
@@ -6623,6 +6625,83 @@ def admin_practice_member_setup():
         "ok": True,
         "member_plans": clean_plans
     })
+
+@app.route("/admin/practice/question-plans/<int:folder_id>")
+@login_required
+def admin_practice_question_plans(folder_id):
+    admin_required()
+
+    folder = db.session.get(Folder, folder_id)
+    if not folder or folder.level != 3:
+        return jsonify({"ok": False, "message": "Không tìm thấy chủ đề ôn tập"}), 404
+
+    folder_plans = [x.strip().upper() for x in (folder.member_plans or "").split(",") if x.strip()]
+
+    questions = (
+        Question.query
+        .filter_by(folder_id=folder_id)
+        .order_by(Question.id.asc())
+        .all()
+    )
+
+    items = []
+    for idx, q in enumerate(questions, start=1):
+        q_plans = [x.strip().upper() for x in (q.member_plans or "").split(",") if x.strip()]
+        items.append({
+            "id": q.id,
+            "number": idx,
+            "text": q.text,
+            "member_plans": q_plans
+        })
+
+    return jsonify({
+        "ok": True,
+        "folder_id": folder.id,
+        "folder_name": folder.name,
+        "folder_plans": folder_plans,
+        "questions": items
+    })
+
+@app.route("/admin/practice/question-plans/save", methods=["POST"])
+@login_required
+def admin_practice_question_plans_save():
+    admin_required()
+
+    data = request.get_json(silent=True) or {}
+    folder_id = data.get("folder_id")
+    items = data.get("items") or []
+
+    folder = db.session.get(Folder, folder_id)
+    if not folder or folder.level != 3:
+        return jsonify({"ok": False, "message": "Không tìm thấy chủ đề ôn tập"}), 404
+
+    folder_plans = [x.strip().upper() for x in (folder.member_plans or "").split(",") if x.strip()]
+    valid = {"FREE", "BASIC", "PRO", "VIP"}
+
+    qids = [int(x.get("id")) for x in items if x.get("id")]
+    questions = Question.query.filter(Question.id.in_(qids), Question.folder_id == folder.id).all()
+    qmap = {q.id: q for q in questions}
+
+    for row in items:
+        try:
+            qid = int(row.get("id"))
+        except:
+            continue
+
+        q = qmap.get(qid)
+        if not q:
+            continue
+
+        clean = []
+        for p in row.get("member_plans") or []:
+            p = str(p).strip().upper()
+            if p in valid and p in folder_plans and p not in clean:
+                clean.append(p)
+
+        q.member_plans = ",".join(clean) if clean else ""
+
+    db.session.commit()
+    return jsonify({"ok": True})
 
 @app.route("/admin/educations/folder/move", methods=["POST"])
 @login_required
@@ -6910,15 +6989,23 @@ def load_lessons_by_folder3(folder3_id):
     if not current_user.is_authenticated:
         return []
 
-    user_plan = norm_plan(getattr(current_user, "member", "FREE"))
+    user_plan = norm_plan(get_effective_member())
+
+    admin_full = (
+        getattr(current_user, "role", "") == "admin"
+        and not is_admin_preview_mode()
+    )
+
+    if admin_full:
+        return lessons
 
     allowed_lessons = []
     for lesson in lessons:
         raw = (lesson.member_plans or "").strip()
         plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
 
+        # ✅ không set gói nào = không hiện
         if not plans:
-            # nếu chưa setup gì thì coi như khóa hết
             continue
 
         if user_plan in plans:
@@ -6939,6 +7026,7 @@ if __name__ == "__main__":
         ensure_lesson_media_columns()
         ensure_lesson_member_plans_column()
         ensure_folder_member_plans_column()
+        ensure_question_member_plans_column()
         migrate_user_table()
         migrate_notification_table()
         seed_admin()

@@ -10,7 +10,7 @@
 {% block content %}
 <div class="admin-topic-page">
 
-  <h2 class="admin-page-title">📁 Quản lý chủ đề</h2>
+  <h2 class="admin-page-title">📁 Quản Lý Chủ Đề Học Tập 📁</h2>
 
   <div class="topic-grid">
 
@@ -190,14 +190,25 @@
                 </td>
 
                 <td class="col-action">
-                  <button type="button"
-                          class="setup-btn practice-setup-btn"
-                          title="Cài đặt"
-                          data-id="{{ t.id }}"
-                          data-name="{{ t.name }}"
-                          data-plans='{{ t.member_plans|tojson|safe }}'>
-                    <span class="icon">⚙️</span>
-                  </button>
+                  <div class="topic-action-group">
+                    <button type="button"
+                            class="setup-btn practice-question-btn"
+                            title="Cài đặt câu hỏi"
+                            data-id="{{ t.id }}"
+                            data-name="{{ t.name }}"
+                            data-plans='{{ t.member_plans|tojson|safe }}'>
+                      <span class="icon">✏️</span>
+                    </button>
+
+                    <button type="button"
+                            class="setup-btn practice-setup-btn"
+                            title="Cài đặt"
+                            data-id="{{ t.id }}"
+                            data-name="{{ t.name }}"
+                            data-plans='{{ t.member_plans|tojson|safe }}'>
+                      <span class="icon">⚙️</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             {% endfor %}
@@ -212,6 +223,8 @@
 
   </div>
 </div>
+
+
 
 <!-- ================= POPUP SETUP BÀI HỌC ================= -->
 <div class="setup-modal" id="lessonSetupModal" hidden>
@@ -292,7 +305,55 @@
     </div>
   </div>
 </div>
+
+<!-- ================= POPUP SETUP CÂU HỎI ================= -->
+<div class="setup-modal" id="practiceQuestionModal" hidden>
+  <div class="setup-modal-backdrop"></div>
+
+  <div class="setup-modal-panel setup-modal-panel--xl">
+    <div class="setup-modal-head">
+      <h3 id="practiceQuestionTitle">❓Cài đặt câu hỏi❓</h3>
+      <button type="button" class="ui-close" id="practiceQuestionCloseBtn" title="Thoát">❌</button>
+    </div>
+
+    <div class="setup-modal-body setup-modal-body--question">
+      <input type="hidden" id="practiceQuestionFolderId">
+
+      <div class="question-filter-bar">
+        <input type="text"
+               id="questionFilterNo"
+               class="topic-filter-input"
+               placeholder="Tìm số câu...">
+
+        <input type="text"
+               id="questionFilterText"
+               class="topic-filter-input"
+               placeholder="Tìm tên / nội dung câu hỏi...">
+
+        <input type="text"
+               id="questionFilterPlan"
+               class="topic-filter-input"
+               placeholder="Ví dụ: Free / Pro / Vip">
+
+        <button type="button"
+                id="questionFilterReset"
+                class="topic-filter-reset"
+                title="Bỏ lọc">🧹</button>
+      </div>
+
+      <div id="practiceQuestionListWrap" class="question-plan-list-wrap">
+        <div id="practiceQuestionList" class="question-plan-list"></div>
+      </div>
+    </div>
+
+    <div class="setup-modal-foot">
+      <button type="button" class="setup-save" id="practiceQuestionSaveBtn" title="Lưu">💾</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
+
+
 
 {% block scripts %}
 <script>
@@ -304,56 +365,46 @@
     return (s || "").toString().trim().toLowerCase();
   }
 
-  // ================= TOGGLE =================
+  /* ================= TOGGLE ================= */
   async function postToggle(btn){
     const url = btn.dataset.url;
     const id  = btn.dataset.id;
 
     if (!url || !id) return;
-    if (btn.dataset.loading === "1") return;
-
-    btn.dataset.loading = "1";
 
     const oldHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.classList.add("is-loading");
-    btn.innerHTML = '<span class="spinner"></span><span class="txt">Đang xử lý</span>';
+    btn.innerHTML = "Đang xử lý...";
 
     try{
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: id })
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({id:id})
       });
 
-      if (!res.ok) {
+      if (!res.ok){
         let msg = "Không đổi được trạng thái";
         try{
           const j = await res.json();
           if (j && (j.message || j.error)) msg = j.message || j.error;
         }catch(_){}
         alert(msg);
-
         btn.disabled = false;
-        btn.classList.remove("is-loading");
         btn.innerHTML = oldHTML;
-        btn.dataset.loading = "0";
         return;
       }
 
       location.reload();
     }catch(err){
       console.error(err);
-      alert("Lỗi mạng / lỗi server");
-
+      alert("Lỗi mạng");
       btn.disabled = false;
-      btn.classList.remove("is-loading");
       btn.innerHTML = oldHTML;
-      btn.dataset.loading = "0";
     }
   }
 
-  // ================= POPUP BÀI HỌC =================
+  /* ================= POPUP BÀI HỌC ================= */
   const lessonModal = document.getElementById("lessonSetupModal");
   const lessonTitleEl = document.getElementById("setupLessonTitle");
   const lessonIdEl = document.getElementById("setupLessonId");
@@ -389,7 +440,7 @@
     document.body.classList.remove("modal-open");
   }
 
-  // ================= POPUP ÔN TẬP =================
+  /* ================= POPUP ÔN TẬP ================= */
   const practiceModal = document.getElementById("practiceSetupModal");
   const practiceTitleEl = document.getElementById("practiceSetupTitle");
   const practiceIdEl = document.getElementById("practiceSetupId");
@@ -398,9 +449,6 @@
   function openPracticeSetup(btn){
     if (!practiceModal) return;
 
-    const id = btn.dataset.id || "";
-    const name = btn.dataset.name || "Setup ôn tập";
-
     let plans = [];
     try{
       plans = JSON.parse(btn.dataset.plans || "[]");
@@ -408,8 +456,8 @@
       plans = [];
     }
 
-    practiceIdEl.value = id;
-    practiceTitleEl.textContent = "Setup ôn tập - " + name;
+    practiceIdEl.value = btn.dataset.id || "";
+    practiceTitleEl.textContent = "Setup ôn tập - " + (btn.dataset.name || "Chủ đề");
 
     practiceModal.querySelectorAll(".practice-setup-plan").forEach(chk => {
       chk.checked = plans.includes(chk.value);
@@ -425,45 +473,181 @@
     document.body.classList.remove("modal-open");
   }
 
-  // ================= CẬP NHẬT BADGE KHÔNG RELOAD =================
+  /* ================= POPUP CÂU HỎI ================= */
+  const practiceQuestionModal = document.getElementById("practiceQuestionModal");
+  const practiceQuestionTitle = document.getElementById("practiceQuestionTitle");
+  const practiceQuestionFolderId = document.getElementById("practiceQuestionFolderId");
+  const practiceQuestionList = document.getElementById("practiceQuestionList");
+  const practiceQuestionSaveBtn = document.getElementById("practiceQuestionSaveBtn");
+  const questionFilterNo = document.getElementById("questionFilterNo");
+  const questionFilterText = document.getElementById("questionFilterText");
+  const questionFilterPlan = document.getElementById("questionFilterPlan");
+  const questionFilterReset = document.getElementById("questionFilterReset");
+
+  function openPracticeQuestionSetup(btn){
+    if (!practiceQuestionModal) return;
+
+    const folderId = btn.dataset.id || "";
+    const name = btn.dataset.name || "Chủ đề";
+
+    practiceQuestionTitle.textContent = "Cài đặt câu hỏi - " + name;
+    practiceQuestionFolderId.value = folderId;
+    practiceQuestionModal.hidden = false;
+    document.body.classList.add("modal-open");
+    practiceQuestionList.innerHTML = '<div class="question-plan-loading">Đang tải...</div>';
+
+    loadPracticeQuestions(folderId);
+  }
+
+  function closePracticeQuestionSetup(){
+    if (!practiceQuestionModal) return;
+    practiceQuestionModal.hidden = true;
+    document.body.classList.remove("modal-open");
+  }
+
+  function renderQuestionPlanButtons(folderPlans, questionPlans, qid){
+    const allPlans = ["FREE","BASIC","PRO","VIP"];
+
+    return allPlans.map(plan => {
+      const enabled = folderPlans.includes(plan);
+      const active = questionPlans.includes(plan);
+
+      return `
+        <button type="button"
+                class="question-plan-btn ${active ? 'is-on' : 'is-off'} ${enabled ? '' : 'is-disabled'}"
+                data-qid="${qid}"
+                data-plan="${plan}"
+                ${enabled ? '' : 'disabled'}>
+          ${plan}
+        </button>
+      `;
+    }).join("");
+  }
+
+  async function loadPracticeQuestions(folderId){
+    try{
+      const res = await fetch(`/admin/practice/question-plans/${folderId}`);
+
+      if (!res.ok){
+        const txt = await res.text();
+        console.error("QUESTION API ERROR =", res.status, txt);
+        practiceQuestionList.innerHTML = `<div class="question-plan-empty">Lỗi server: ${res.status}</div>`;
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.ok){
+        practiceQuestionList.innerHTML = '<div class="question-plan-empty">Không tải được câu hỏi</div>';
+        return;
+      }
+
+      const folderPlans = Array.isArray(data.folder_plans) ? data.folder_plans : [];
+      const questions = Array.isArray(data.questions) ? data.questions : [];
+
+      if (!questions.length){
+        practiceQuestionList.innerHTML = '<div class="question-plan-empty">Chủ đề này chưa có câu hỏi</div>';
+        return;
+      }
+
+      practiceQuestionList.innerHTML = questions.map(q => `
+        <div class="question-plan-row"
+             data-qid="${q.id}"
+             data-no="${String(q.number).toLowerCase()}"
+             data-text="${String(q.text).toLowerCase()}"
+             data-plans="${(q.member_plans || []).join(' ').toLowerCase()}">
+          <div class="question-plan-no">Câu ${q.number}</div>
+          <div class="question-plan-text">${q.text}</div>
+          <div class="question-plan-actions">
+            ${renderQuestionPlanButtons(folderPlans, q.member_plans || [], q.id)}
+          </div>
+        </div>
+      `).join("");
+
+      applyQuestionFilters();
+    }catch(err){
+      console.error("QUESTION POPUP ERROR =", err);
+      practiceQuestionList.innerHTML = '<div class="question-plan-empty">Lỗi mạng / lỗi server</div>';
+    }
+  }
+
+  function applyQuestionFilters(){
+    const noVal = normalizeText(questionFilterNo?.value);
+    const textVal = normalizeText(questionFilterText?.value);
+    const planVal = normalizeText(questionFilterPlan?.value);
+
+    practiceQuestionList.querySelectorAll(".question-plan-row").forEach(row => {
+      const rowNo = normalizeText(row.dataset.no);
+      const rowText = normalizeText(row.dataset.text);
+      const rowPlans = normalizeText(row.dataset.plans);
+
+      const okNo = !noVal || rowNo.includes(noVal);
+      const okText = !textVal || rowText.includes(textVal);
+      const okPlan = !planVal || rowPlans.includes(planVal);
+
+      row.style.display = (okNo && okText && okPlan) ? "" : "none";
+    });
+  }
+
+
+
+  /* ================= CLICK CHO NÚT PLAN TRONG POPUP CÂU HỎI ================= */
+  document.addEventListener("click", function(e){
+    const planBtn = e.target.closest(".question-plan-btn[data-qid][data-plan]");
+    if (!planBtn || planBtn.disabled) return;
+
+    e.preventDefault();
+    planBtn.classList.toggle("is-on");
+    planBtn.classList.toggle("is-off");
+
+    const row = planBtn.closest(".question-plan-row");
+    if (row){
+      const activePlans = [...row.querySelectorAll(".question-plan-btn.is-on[data-plan]")]
+        .map(x => x.dataset.plan.toLowerCase());
+      row.dataset.plans = activePlans.join(" ");
+    }
+
+    applyQuestionFilters();
+  });
+  /* ================= HÀM CẬP NHẬT BADGE NGAY TRÊN BẢNG ================= */
   function renderPlanBadges(plans){
     if (!plans || plans.length === 0){
       return '<span class="member-none">Không mở gói nào</span>';
     }
 
-    const html = plans.map(p =>
-      `<span class="member-badge plan-${String(p).toLowerCase()}">${p}</span>`
-    ).join("");
-
-    return `<div class="member-badges">${html}</div>`;
+    return `
+      <div class="member-badges">
+        ${plans.map(p => `<span class="member-badge plan-${String(p).toLowerCase()}">${p}</span>`).join("")}
+      </div>
+    `;
   }
 
-  function updateRowPlans(id, plans, rowSelector, buttonSelector){
-    const btn = document.querySelector(`${rowSelector} ${buttonSelector}[data-id="${id}"]`);
+  function updateRowPlans(id, plans, rowClass, buttonClass){
+    const btn = document.querySelector(`${rowClass} ${buttonClass}[data-id="${id}"]`);
     if (!btn) return;
 
-    const tr = btn.closest("tr");
-    if (!tr) return;
+    const row = btn.closest("tr");
+    if (!row) return;
 
-    const cell = tr.querySelector(".member-cell");
-    if (!cell) return;
+    const memberCell = row.querySelector(".member-cell");
+    if (!memberCell) return;
 
     const cleanPlans = Array.isArray(plans) ? plans : [];
 
-    cell.innerHTML = renderPlanBadges(cleanPlans);
+    memberCell.innerHTML = renderPlanBadges(cleanPlans);
+    row.dataset.plans = cleanPlans.join(" ").toLowerCase();
 
-    tr.dataset.plans = cleanPlans.join(" ").toLowerCase();
-    btn.dataset.plans = JSON.stringify(cleanPlans);
+    row.querySelectorAll(`${buttonClass}[data-id="${id}"]`).forEach(x => {
+      x.dataset.plans = JSON.stringify(cleanPlans);
+    });
   }
 
-  // ================= LƯU SETUP BÀI HỌC =================
+  /* ================= SAVE LESSON ================= */
   async function saveLessonSetup(){
     const lessonId = lessonIdEl.value;
     if (!lessonId) return;
 
-    const plans = Array.from(
-      lessonModal.querySelectorAll(".setup-plan:checked")
-    ).map(x => x.value);
+    const plans = [...lessonModal.querySelectorAll(".setup-plan:checked")].map(x => x.value);
 
     lessonSaveBtn.disabled = true;
     const oldText = lessonSaveBtn.textContent;
@@ -472,44 +656,34 @@
     try{
       const res = await fetch("/admin/lesson/member-setup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: lessonId,
-          plans: plans
-        })
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({id: lessonId, plans: plans})
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.ok){
-        alert(data.message || "Lưu setup thất bại");
-        lessonSaveBtn.disabled = false;
-        lessonSaveBtn.textContent = oldText;
+        alert(data.message || "Lưu thất bại");
         return;
       }
 
-      const savedPlans = Array.isArray(data.member_plans) ? data.member_plans : plans;
-      updateRowPlans(lessonId, savedPlans, ".learn-row", ".lesson-setup-btn");
+      updateRowPlans(lessonId, data.member_plans || plans, ".learn-row", ".lesson-setup-btn");
       closeLessonSetup();
-
-      lessonSaveBtn.disabled = false;
-      lessonSaveBtn.textContent = oldText;
     }catch(err){
       console.error(err);
-      alert("Lỗi mạng / lỗi server");
+      alert("Lỗi mạng");
+    }finally{
       lessonSaveBtn.disabled = false;
       lessonSaveBtn.textContent = oldText;
     }
   }
 
-  // ================= LƯU SETUP ÔN TẬP =================
+  /* ================= SAVE PRACTICE ================= */
   async function savePracticeSetup(){
-    const folderId = practiceIdEl.value;
-    if (!folderId) return;
+    const id = practiceIdEl.value;
+    if (!id) return;
 
-    const plans = Array.from(
-      practiceModal.querySelectorAll(".practice-setup-plan:checked")
-    ).map(x => x.value);
+    const plans = [...practiceModal.querySelectorAll(".practice-setup-plan:checked")].map(x => x.value);
 
     practiceSaveBtn.disabled = true;
     const oldText = practiceSaveBtn.textContent;
@@ -518,37 +692,72 @@
     try{
       const res = await fetch("/admin/practice/member-setup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({id: id, plans: plans})
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok){
+        alert(data.message || "Lưu thất bại");
+        return;
+      }
+
+      updateRowPlans(id, data.member_plans || plans, ".practice-row", ".practice-setup-btn");
+      closePracticeSetup();
+    }catch(err){
+      console.error(err);
+      alert("Lỗi mạng");
+    }finally{
+      practiceSaveBtn.disabled = false;
+      practiceSaveBtn.textContent = oldText;
+    }
+  }
+
+  /* ================= SAVE QUESTION PLANS ================= */
+  async function savePracticeQuestionSetup(){
+    const folderId = practiceQuestionFolderId.value;
+    if (!folderId) return;
+
+    const rows = [...practiceQuestionList.querySelectorAll(".question-plan-row")];
+    const items = rows.map(r => {
+      const qid = r.dataset.qid;
+      const plans = [...r.querySelectorAll(".question-plan-btn.is-on[data-plan]")].map(x => x.dataset.plan);
+      return { id: qid, member_plans: plans };
+    });
+
+    practiceQuestionSaveBtn.disabled = true;
+    const oldText = practiceQuestionSaveBtn.textContent;
+    practiceQuestionSaveBtn.textContent = "Đang lưu...";
+
+    try{
+      const res = await fetch("/admin/practice/question-plans/save", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
         body: JSON.stringify({
-          id: folderId,
-          plans: plans
+          folder_id: folderId,
+          items: items
         })
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.ok){
-        alert(data.message || "Lưu setup thất bại");
-        practiceSaveBtn.disabled = false;
-        practiceSaveBtn.textContent = oldText;
+        alert(data.message || "Lưu thất bại");
         return;
       }
 
-      const savedPlans = Array.isArray(data.member_plans) ? data.member_plans : plans;
-      updateRowPlans(folderId, savedPlans, ".practice-row", ".practice-setup-btn");
-      closePracticeSetup();
-
-      practiceSaveBtn.disabled = false;
-      practiceSaveBtn.textContent = oldText;
+      closePracticeQuestionSetup();
     }catch(err){
       console.error(err);
-      alert("Lỗi mạng / lỗi server");
-      practiceSaveBtn.disabled = false;
-      practiceSaveBtn.textContent = oldText;
+      alert("Lỗi mạng");
+    }finally{
+      practiceQuestionSaveBtn.disabled = false;
+      practiceQuestionSaveBtn.textContent = oldText;
     }
   }
 
-  // ================= FILTER KHUNG TRÁI =================
+  /* ================= FILTER KHUNG TRÁI ================= */
   const learnFilterName = document.getElementById("learnFilterName");
   const learnFilterPath = document.getElementById("learnFilterPath");
   const learnFilterPlan = document.getElementById("learnFilterPlan");
@@ -585,7 +794,7 @@
     });
   }
 
-  // ================= FILTER KHUNG PHẢI =================
+  /* ================= FILTER KHUNG PHẢI ================= */
   const practiceFilterName = document.getElementById("practiceFilterName");
   const practiceFilterPath = document.getElementById("practiceFilterPath");
   const practiceFilterPlan = document.getElementById("practiceFilterPlan");
@@ -622,35 +831,38 @@
     });
   }
 
-  // ================= SAVE BUTTON =================
-  if (lessonSaveBtn){
-    lessonSaveBtn.addEventListener("click", saveLessonSetup);
-  }
+  /* ================= LISTENER SAVE ================= */
+  if (lessonSaveBtn) lessonSaveBtn.addEventListener("click", saveLessonSetup);
+  if (practiceSaveBtn) practiceSaveBtn.addEventListener("click", savePracticeSetup);
+  if (practiceQuestionSaveBtn) practiceQuestionSaveBtn.addEventListener("click", savePracticeQuestionSetup);
 
-  if (practiceSaveBtn){
-    practiceSaveBtn.addEventListener("click", savePracticeSetup);
-  }
-
-  // ================= CLICK HANDLER CHUNG =================
+  /* ================= CLICK HANDLER CHUNG ================= */
   document.addEventListener("click", (e) => {
+    const lessonBtn = e.target.closest(".lesson-setup-btn");
+    if (lessonBtn){
+      e.preventDefault();
+      openLessonSetup(lessonBtn);
+      return;
+    }
+
+    const practiceBtn = e.target.closest(".practice-setup-btn");
+    if (practiceBtn){
+      e.preventDefault();
+      openPracticeSetup(practiceBtn);
+      return;
+    }
+
+    const questionBtn = e.target.closest(".practice-question-btn");
+    if (questionBtn){
+      e.preventDefault();
+      openPracticeQuestionSetup(questionBtn);
+      return;
+    }
+
     const toggleBtn = e.target.closest(".lock-btn[data-id][data-url]");
     if (toggleBtn){
       e.preventDefault();
       postToggle(toggleBtn);
-      return;
-    }
-
-    const lessonSetupBtn = e.target.closest(".lesson-setup-btn[data-id]");
-    if (lessonSetupBtn){
-      e.preventDefault();
-      openLessonSetup(lessonSetupBtn);
-      return;
-    }
-
-    const practiceSetupBtn = e.target.closest(".practice-setup-btn[data-id]");
-    if (practiceSetupBtn){
-      e.preventDefault();
-      openPracticeSetup(practiceSetupBtn);
       return;
     }
 
@@ -671,11 +883,25 @@
       closePracticeSetup();
       return;
     }
+
+    if (
+      e.target.matches("#practiceQuestionModal .setup-modal-backdrop") ||
+      e.target.closest("#practiceQuestionCloseBtn")
+    ){
+      e.preventDefault();
+      closePracticeQuestionSetup();
+      return;
+    }
   });
 
-  // ================= ESC =================
+  /* ================= ESC ================= */
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+
+    if (practiceQuestionModal && !practiceQuestionModal.hidden){
+      closePracticeQuestionSetup();
+      return;
+    }
 
     if (practiceModal && !practiceModal.hidden){
       closePracticeSetup();
@@ -686,6 +912,20 @@
       closeLessonSetup();
     }
   });
+
+  [questionFilterNo, questionFilterText, questionFilterPlan].forEach(el => {
+    if (el) el.addEventListener("input", applyQuestionFilters);
+  });
+
+  if (questionFilterReset){
+    questionFilterReset.addEventListener("click", () => {
+      if (questionFilterNo) questionFilterNo.value = "";
+      if (questionFilterText) questionFilterText.value = "";
+      if (questionFilterPlan) questionFilterPlan.value = "";
+      applyQuestionFilters();
+    });
+  }
+
 })();
 </script>
 {% endblock %}
