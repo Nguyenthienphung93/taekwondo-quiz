@@ -1989,3 +1989,282 @@ canvas{
     width:100% !important;
   }
 }
+
+/* =====================================================
+   MOBILE FIX – PDF / AUDIO / VIDEO / QUIZ
+   DÁN CUỐI CÙNG mobile.css
+===================================================== */
+
+@media (max-width: 768px){
+
+  /* =========================
+     1) PDF MOBILE: CHO PHÉP VUỐT TAY / SCROLL / PAN
+  ========================= */
+  body.is-pdf .lesson-body,
+  body.is-drive-pdf .lesson-body{
+    display:flex !important;
+    flex-direction:column !important;
+    overflow:hidden !important;
+  }
+
+  body.is-pdf .lesson-content,
+  body.is-drive-pdf .lesson-content{
+    position:relative !important;
+    display:block !important;
+    padding:8px !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-x pan-y pinch-zoom !important;
+    overscroll-behavior:contain !important;
+    background:#0b1020 !important;
+  }
+
+  body.is-pdf #pdfCanvas,
+  body.is-drive-pdf #pdfCanvas{
+    display:block !important;
+    margin:0 auto !important;
+    width:auto !important;
+    max-width:none !important;
+    max-height:none !important;
+    height:auto !important;
+    touch-action:pan-x pan-y pinch-zoom !important;
+    border-radius:12px !important;
+    box-shadow:0 8px 24px rgba(0,0,0,.18) !important;
+    background:#fff !important;
+  }
+
+  /* nếu có wrapper chứa canvas */
+  .pdf-scroll-wrap,
+  .pdf-stage,
+  .pdf-canvas-wrap{
+    width:100% !important;
+    min-height:100% !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-x pan-y pinch-zoom !important;
+  }
+
+  /* ẩn bớt mũi tên trên mobile vì đã vuốt tay */
+  .pdf-side-nav{
+    opacity:.82 !important;
+    width:40px !important;
+    height:52px !important;
+  }
+
+  /* =========================
+     2) FULLSCREEN BUTTON MOBILE
+  ========================= */
+  .lesson-header-actions{
+    display:flex !important;
+    align-items:center !important;
+    gap:6px !important;
+    flex-wrap:nowrap !important;
+  }
+
+  .lesson-fullscreen-btn{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:38px !important;
+    height:38px !important;
+    min-width:38px !important;
+    border:none !important;
+    border-radius:10px !important;
+    background:#fff !important;
+    color:#111827 !important;
+    font-size:18px !important;
+    box-shadow:0 3px 10px rgba(0,0,0,.14) !important;
+    cursor:pointer !important;
+    z-index:20 !important;
+  }
+
+  .lesson-fullscreen-btn:active{
+    transform:scale(.97);
+  }
+
+  body.is-fullscreen-mobile .lesson-window{
+    width:100vw !important;
+    height:100vh !important;
+    border-radius:0 !important;
+    margin:0 !important;
+    max-width:none !important;
+    max-height:none !important;
+  }
+
+  body.is-fullscreen-mobile .lesson-modal-header{
+    border-radius:0 !important;
+  }
+
+  /* =========================
+     3) AUDIO / VIDEO: ƯU TIÊN NATIVE CONTROLS
+  ========================= */
+  body.is-drive-audio .lesson-content,
+  body.is-drive-video .lesson-content,
+  body.is-youtube .lesson-content{
+    padding:8px !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+
+  body.is-drive-audio audio,
+  body.is-drive-video video,
+  #html5Player{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    height:auto !important;
+    border-radius:14px !important;
+    background:#000 !important;
+    pointer-events:auto !important;
+  }
+
+  /* nếu đang có custom footer thì trên mobile cho xuống dưới gọn lại */
+  .lesson-video-footer,
+  .video-footer{
+    display:flex !important;
+    flex-wrap:wrap !important;
+    align-items:center !important;
+    gap:8px !important;
+    padding:10px !important;
+  }
+
+  .lesson-video-footer .vseek,
+  .lesson-video-footer .vslider,
+  .video-footer .vseek,
+  .video-footer .vslider{
+    flex:1 1 100% !important;
+    width:100% !important;
+    min-width:0 !important;
+    order:10 !important;
+    pointer-events:auto !important;
+  }
+
+  .lesson-video-footer .vbtn,
+  .video-footer .vbtn{
+    min-height:40px !important;
+    padding:8px 10px !important;
+    pointer-events:auto !important;
+  }
+
+  /* riêng audio: thanh điều khiển custom thường lỗi trên mobile -> ẩn */
+  body.is-drive-audio .lesson-video-footer,
+  body.is-drive-audio .video-footer,
+  body.is-drive-audio .custom-audio-controls{
+    display:none !important;
+  }
+
+  body.is-drive-audio audio{
+    controls:auto !important;
+  }
+
+  /* =========================
+     4) QUIZ: A/B/C/D NẰM BÊN TRÁI
+  ========================= */
+  .quiz-choices,
+  .quiz-answer-list,
+  .answer-box{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:12px !important;
+  }
+
+  .answer-item,
+  .quiz-choice,
+  .choice-item{
+    width:100% !important;
+    display:grid !important;
+    grid-template-columns:44px minmax(0,1fr) !important;
+    align-items:center !important;
+    gap:10px !important;
+    padding:12px 14px !important;
+    border-radius:16px !important;
+    min-height:64px !important;
+  }
+
+  .answer-item .choice-key,
+  .quiz-choice .choice-key,
+  .choice-item .choice-key,
+  .answer-item .ans-key,
+  .quiz-choice .ans-key,
+  .choice-item .ans-key,
+  .answer-item .option-label,
+  .quiz-choice .option-label,
+  .choice-item .option-label{
+    width:34px !important;
+    height:34px !important;
+    min-width:34px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    border-radius:10px !important;
+    font-size:16px !important;
+    font-weight:800 !important;
+    line-height:1 !important;
+    margin:0 !important;
+  }
+
+  .answer-item .choice-text,
+  .quiz-choice .choice-text,
+  .choice-item .choice-text,
+  .answer-item .ans-text,
+  .quiz-choice .ans-text,
+  .choice-item .ans-text,
+  .answer-item .option-text,
+  .quiz-choice .option-text,
+  .choice-item .option-text{
+    min-width:0 !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    line-height:1.45 !important;
+    text-align:left !important;
+  }
+
+  /* fallback nếu template chưa tách sẵn key/text */
+  .answer-item > b:first-child,
+  .answer-item > strong:first-child,
+  .answer-item > .label:first-child{
+    width:34px !important;
+    height:34px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    border-radius:10px !important;
+  }
+}
+
+@media (max-width: 480px){
+  body.is-pdf .lesson-content,
+  body.is-drive-pdf .lesson-content{
+    padding:6px !important;
+  }
+
+  .answer-item,
+  .quiz-choice,
+  .choice-item{
+    grid-template-columns:40px minmax(0,1fr) !important;
+    gap:8px !important;
+    padding:10px 12px !important;
+  }
+
+  .answer-item .choice-key,
+  .quiz-choice .choice-key,
+  .choice-item .choice-key,
+  .answer-item .ans-key,
+  .quiz-choice .ans-key,
+  .choice-item .ans-key,
+  .answer-item .option-label,
+  .quiz-choice .option-label,
+  .choice-item .option-label{
+    width:30px !important;
+    height:30px !important;
+    min-width:30px !important;
+    font-size:15px !important;
+  }
+}
+
+@media (max-width: 768px){
+  .desktop-only{
+    display:none !important;
+  }
+}
