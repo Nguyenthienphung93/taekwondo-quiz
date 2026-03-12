@@ -237,7 +237,7 @@
   {% endif %}
 
   {# ================= MODAL: CHỌN GÓI ================= #}
-  <div id="planModal" class="ui-modal-backdrop" aria-hidden="true" style="z-index:1000000;">
+  <div id="planModal" class="ui-modal-backdrop" aria-hidden="true" style="z-index:1000000;overflow-y:auto;">
     <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="planTitle" style="width:min(860px,96vw);">
       <div class="ui-modal-header">
         <b id="planTitle">Đăng ký gói thành viên</b>
@@ -299,9 +299,9 @@
 
   {# ================= MODAL: THỜI GIAN ĐĂNG KÝ ================= #}
   <div id="durationModal" class="ui-modal-backdrop" aria-hidden="true"
-       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
-              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
-              padding:18px; z-index:1000001;">
+         style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+                background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+                padding:18px; z-index:1000001; overflow-y:auto;">
     <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="durationTitle"
          style="width:min(620px,96vw);border-radius:22px;overflow:hidden;">
 
@@ -356,9 +356,9 @@
 
   {# ================= MODAL: THANH TOÁN (QR) ================= #}
   <div id="payModal" class="ui-modal-backdrop" aria-hidden="true"
-       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
-              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
-              padding:18px; z-index:1000002;">
+         style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+                background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+                padding:18px; z-index:1000002; overflow-y:auto;">
 
     <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="payTitle"
          style="width:min(860px,96vw);border-radius:22px;overflow:hidden;">
@@ -478,12 +478,6 @@
           </div>
 
         </div>
-
-        <style>
-          @media (max-width: 720px){
-            #payModal .ui-modal-body > div { grid-template-columns: 1fr !important; }
-          }
-        </style>
       </div>
 
       <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:12px;">
