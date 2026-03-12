@@ -288,7 +288,9 @@
         <div class="audio-stage">
           <canvas id="viz" class="audio-canvas"></canvas>
           <div class="audio-hint">🎵 Đang phát: {{ lesson.title }}</div>
-          <audio id="html5Player" preload="metadata"></audio>
+          <audio id="html5Player" controls preload="metadata" playsinline>
+            <source src="{{ drive_direct_url }}" type="audio/mpeg">
+          </audio>
         </div>
       </main>
     </div>

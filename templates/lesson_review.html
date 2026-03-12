@@ -122,5 +122,115 @@
 <!-- SCRIPT -->
 <!-- ===================================================== -->
 <script src="{{ url_for('static', filename='js/lesson-review.js') }}"></script>
+
+
+<script>
+(function(){
+  const lessonWindow = document.querySelector('.lesson-window');
+  const lessonContent = document.querySelector('.lesson-content');
+  const headerActions = document.querySelector('.lesson-header-actions');
+  const pdfCanvas = document.getElementById('pdfCanvas');
+
+  if (!lessonWindow || !lessonContent) return;
+
+  // ===== 1) Tự thêm nút fullscreen nếu chưa có =====
+  let fsBtn = document.querySelector('.lesson-fullscreen-btn');
+  if (!fsBtn && headerActions) {
+    fsBtn = document.createElement('button');
+    fsBtn.type = 'button';
+    fsBtn.className = 'lesson-fullscreen-btn';
+    fsBtn.title = 'Toàn màn hình';
+    fsBtn.setAttribute('aria-label', 'Toàn màn hình');
+    fsBtn.innerHTML = '⛶';
+    headerActions.prepend(fsBtn);
+  }
+
+  async function enterFullscreen(el){
+    try{
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        await el.webkitRequestFullscreen();
+      } else {
+        document.body.classList.toggle('is-fullscreen-mobile');
+      }
+    }catch(err){
+      document.body.classList.toggle('is-fullscreen-mobile');
+      console.log('fullscreen fallback:', err);
+    }
+  }
+
+  async function exitFullscreen(){
+    try{
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      } else {
+        document.body.classList.remove('is-fullscreen-mobile');
+      }
+    }catch(err){
+      document.body.classList.remove('is-fullscreen-mobile');
+      console.log('exit fullscreen fallback:', err);
+    }
+  }
+
+  if (fsBtn) {
+    fsBtn.addEventListener('click', async function(){
+      const active = !!(document.fullscreenElement || document.webkitFullscreenElement || document.body.classList.contains('is-fullscreen-mobile'));
+      if (active) await exitFullscreen();
+      else await enterFullscreen(lessonWindow);
+    });
+  }
+
+  document.addEventListener('fullscreenchange', function(){
+    document.body.classList.toggle('is-fullscreen-mobile', !!document.fullscreenElement);
+  });
+
+  // ===== 2) Mobile: cho phép pan / scroll tự nhiên trên vùng PDF =====
+  lessonContent.style.webkitOverflowScrolling = 'touch';
+  lessonContent.style.overflow = 'auto';
+  lessonContent.style.touchAction = 'pan-x pan-y pinch-zoom';
+
+  if (pdfCanvas) {
+    pdfCanvas.style.touchAction = 'pan-x pan-y pinch-zoom';
+  }
+
+  // ===== 3) Vuốt ngang để đổi trang nhẹ nhàng (không bắt buộc) =====
+  let startX = 0;
+  let startY = 0;
+  let moved = false;
+
+  lessonContent.addEventListener('touchstart', function(e){
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+    startX = t.clientX;
+    startY = t.clientY;
+    moved = false;
+  }, {passive:true});
+
+  lessonContent.addEventListener('touchmove', function(){
+    moved = true;
+  }, {passive:true});
+
+  lessonContent.addEventListener('touchend', function(e){
+    const t = e.changedTouches && e.changedTouches[0];
+    if (!t || !moved) return;
+
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    // chỉ xử lý swipe ngang khi gần như không vuốt dọc
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 40) {
+      const prevBtn = document.querySelector('.pdf-side-nav--left, .pager-btn.prev, [data-page-action="prev"]');
+      const nextBtn = document.querySelector('.pdf-side-nav--right, .pager-btn.next, [data-page-action="next"]');
+
+      if (dx > 0 && prevBtn) prevBtn.click();
+      if (dx < 0 && nextBtn) nextBtn.click();
+    }
+  }, {passive:true});
+})();
+</script>
+
 </body>
 </html>

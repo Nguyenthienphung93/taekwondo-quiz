@@ -170,8 +170,8 @@
           <div class="video-hint">🎬 Đang xem: {{ lesson.title }}</div>
 
           <div class="video-player">
-            <video id="vPlayer" controls playsinline preload="metadata">
-              <source src="{{ drive_direct_url }}" type="video/mp4">
+            <video id="html5Player" controls playsinline preload="metadata">
+              <source src="{{ drive_direct_url }}">
             </video>
           </div>
         </div>
@@ -245,6 +245,20 @@
 
       setIcon();
     })();
+  </script>
+  <script>
+  (function(){
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const player = document.getElementById('html5Player');
+    if (!player) return;
+
+    if (isMobile) {
+      player.setAttribute('controls', 'controls');
+      return; // mobile dùng native controls luôn
+    }
+
+    // desktop mới chạy custom controls phía dưới
+  })();
   </script>
 </body>
 </html>
