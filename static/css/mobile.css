@@ -1762,3 +1762,230 @@ canvas{
     -webkit-overflow-scrolling: touch;
   }
 }
+/* =====================================================
+   RENEW / PAYMENT MODALS - MOBILE FIX
+===================================================== */
+
+@media (max-width: 768px){
+
+  body.modal-open{
+    overflow:hidden;
+  }
+
+  #planModal,
+  #durationModal,
+  #payModal{
+    align-items:flex-start !important;
+    padding:10px !important;
+    overflow-y:auto !important;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  #planModal .ui-modal-box,
+  #durationModal .ui-modal-box,
+  #payModal .ui-modal-box{
+    width:100% !important;
+    max-width:100% !important;
+    max-height:calc(100vh - 20px) !important;
+    margin:0 auto !important;
+    border-radius:16px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    overflow:hidden !important;
+  }
+
+  #planModal .ui-modal-header,
+  #durationModal .ui-modal-header,
+  #payModal .ui-modal-header{
+    flex:0 0 auto;
+    padding:12px 14px !important;
+  }
+
+  #planModal .ui-modal-body,
+  #durationModal .ui-modal-body,
+  #payModal .ui-modal-body{
+    flex:1 1 auto !important;
+    overflow-y:auto !important;
+    -webkit-overflow-scrolling:touch;
+    padding:12px !important;
+  }
+
+  #planModal .ui-modal-footer,
+  #durationModal .ui-modal-footer,
+  #payModal .ui-modal-footer{
+    flex:0 0 auto !important;
+    padding:12px !important;
+    border-top:1px solid #e5e7eb;
+    background:#fff;
+  }
+
+  /* ===== PLAN MODAL ===== */
+  #planModal .ui-modal-body > div{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+  }
+
+  #planModal .ui-modal-body > div > div{
+    padding:12px !important;
+    border-radius:14px !important;
+  }
+
+  /* ===== DURATION MODAL ===== */
+  #durationModal .ui-modal-box{
+    width:100% !important;
+  }
+
+  #durationModal .ui-modal-footer{
+    flex-direction:column-reverse !important;
+  }
+
+  #durationModal .ui-modal-footer .ui-btn{
+    width:100% !important;
+    min-width:0 !important;
+  }
+
+  /* ===== PAY MODAL ===== */
+  #payModal .ui-modal-box{
+    width:100% !important;
+  }
+
+  #payModal .ui-modal-body > div{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+  }
+
+  #payModal .ui-modal-body{
+    padding:12px !important;
+  }
+
+  #payModal .ui-modal-body > div > div{
+    min-width:0 !important;
+  }
+
+  #payModal img#payQrImg{
+    width:min(260px, 100%) !important;
+    max-width:100% !important;
+    height:auto !important;
+    margin:0 auto !important;
+  }
+
+  #payModal .ui-modal-footer{
+    flex-direction:column-reverse !important;
+  }
+
+  #payModal .ui-modal-footer .ui-btn{
+    width:100% !important;
+    min-width:0 !important;
+  }
+
+  /* ===== WAIT RENEW / WAIT ACCEPT POPUPS ===== */
+  #waitRenewPopup,
+  #waitAcceptPopup{
+    align-items:flex-start !important;
+    overflow-y:auto !important;
+    padding:10px !important;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  #waitRenewPopup > div,
+  #waitAcceptPopup > div{
+    width:100% !important;
+    max-width:100% !important;
+    max-height:calc(100vh - 20px) !important;
+    overflow-y:auto !important;
+    border-radius:16px !important;
+    padding:16px !important;
+    margin:0 auto !important;
+  }
+
+  #waitRenewPopup h2,
+  #waitAcceptPopup h2{
+    font-size:16px !important;
+    line-height:1.5 !important;
+    margin:0 0 8px !important;
+  }
+
+  #waitRenewPopup .ui-btn,
+  #waitAcceptPopup .ui-btn{
+    width:100% !important;
+    min-width:0 !important;
+  }
+}
+
+@media (max-width: 480px){
+
+  #planModal,
+  #durationModal,
+  #payModal,
+  #waitRenewPopup,
+  #waitAcceptPopup{
+    padding:8px !important;
+  }
+
+  #planModal .ui-modal-box,
+  #durationModal .ui-modal-box,
+  #payModal .ui-modal-box,
+  #waitRenewPopup > div,
+  #waitAcceptPopup > div{
+    max-height:calc(100vh - 16px) !important;
+    border-radius:14px !important;
+  }
+
+  #payModal .ui-modal-body{
+    padding:10px !important;
+  }
+
+  #payModal img#payQrImg{
+    width:min(220px, 100%) !important;
+  }
+
+  #payModal .ui-modal-body div[style*="grid-template-columns:110px 1fr"]{
+    display:grid !important;
+    grid-template-columns:88px 1fr !important;
+    gap:8px 10px !important;
+    font-size:13px !important;
+  }
+
+  #waitRenewPopup > div,
+  #waitAcceptPopup > div{
+    padding:14px !important;
+  }
+}
+
+
+@media (max-width: 768px){
+  #payModal,
+  #durationModal,
+  #planModal,
+  #waitRenewPopup,
+  #waitAcceptPopup{
+    align-items:flex-start !important;
+    overflow-y:auto !important;
+    padding:10px !important;
+  }
+
+  #payModal .ui-modal-box,
+  #durationModal .ui-modal-box,
+  #planModal .ui-modal-box,
+  #waitRenewPopup > div,
+  #waitAcceptPopup > div{
+    max-height:calc(100vh - 20px) !important;
+    overflow-y:auto !important;
+  }
+
+  #payModal .ui-modal-body > div{
+    grid-template-columns:1fr !important;
+  }
+
+  #payModal .ui-modal-footer,
+  #durationModal .ui-modal-footer{
+    flex-direction:column-reverse !important;
+  }
+
+  #payModal .ui-modal-footer .ui-btn,
+  #durationModal .ui-modal-footer .ui-btn{
+    width:100% !important;
+  }
+}
