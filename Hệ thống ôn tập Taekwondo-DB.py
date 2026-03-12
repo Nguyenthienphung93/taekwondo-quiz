@@ -1601,6 +1601,25 @@ def notification_confirm(noti_id):
 
     db.session.commit()
 
+    # ===== GỬI MAIL XÁC NHẬN CHO USER =====
+    try:
+        if user.email:
+            html_ok = build_user_approved_email(
+                username=user.username,
+                plan_code=plan_code,
+                months=months,
+                trial_start=user.trial_start,
+                trial_end=user.trial_end
+            )
+            send_email(
+                user.email,
+                "Thanh toán đã được duyệt - Taekwondo",
+                html_ok
+            )
+            print("[notification_confirm] approve email sent to:", user.email)
+    except Exception as e:
+        print("[notification_confirm] send_mail failed:", e)
+
     flash(f"Đã xác nhận gia hạn cho user {user.username}.", "success")
     return redirect(url_for("notifications_page", id=n.id))
 
