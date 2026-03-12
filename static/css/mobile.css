@@ -2268,3 +2268,98 @@ canvas{
     display:none !important;
   }
 }
+
+/* =====================================================
+   QUIZ MOBILE - ĐÁP ÁN NẰM NGANG TRÊN ĐIỆN THOẠI
+   Laptop giữ nguyên CSS cũ
+===================================================== */
+@media (max-width: 768px){
+
+  .answers-grid{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+  }
+
+  .answer-box{
+    position:relative !important;
+    display:grid !important;
+    grid-template-columns:42px minmax(0,1fr) !important;
+    align-items:center !important;
+    column-gap:10px !important;
+    row-gap:0 !important;
+
+    min-height:72px !important;
+    padding:12px 14px !important;
+    text-align:left !important;
+  }
+
+  /* radio / checkbox */
+  .answer-box input{
+    position:absolute !important;
+    opacity:0 !important;
+    pointer-events:none !important;
+  }
+
+  /* chữ A/B/C/D lấy từ data-letter */
+  .answer-box::before{
+    content: attr(data-letter) !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+
+    width:32px !important;
+    height:32px !important;
+    min-width:32px !important;
+
+    border:2px solid #efb173 !important;
+    border-radius:10px !important;
+    background:#fff !important;
+    color:#c55a11 !important;
+    font-weight:800 !important;
+    font-size:16px !important;
+    line-height:1 !important;
+
+    grid-column:1 !important;
+    grid-row:1 !important;
+    margin:0 !important;
+  }
+
+  /* nội dung đáp án */
+  .answer-box > span{
+    display:block !important;
+    grid-column:2 !important;
+    grid-row:1 !important;
+
+    width:100% !important;
+    min-width:0 !important;
+    margin:0 !important;
+
+    text-align:left !important;
+    white-space:normal !important;
+    word-break:break-word !important;
+    overflow-wrap:anywhere !important;
+    line-height:1.45 !important;
+    font-size:16px !important;
+  }
+}
+
+@media (max-width: 480px){
+  .answer-box{
+    grid-template-columns:38px minmax(0,1fr) !important;
+    column-gap:8px !important;
+    padding:10px 12px !important;
+  }
+
+  .answer-box::before{
+    width:30px !important;
+    height:30px !important;
+    min-width:30px !important;
+    font-size:15px !important;
+    border-radius:9px !important;
+  }
+
+  .answer-box > span{
+    font-size:15px !important;
+  }
+}
