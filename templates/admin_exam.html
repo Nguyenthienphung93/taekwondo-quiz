@@ -133,7 +133,7 @@
         const label = document.createElement("label");
         label.innerHTML = `
           <input type="radio" name="examChoice" value="${c.id}">
-          <span>${String.fromCharCode(65 + i)}. ${c.text}</span>
+          <span>${c.label || String.fromCharCode(65 + i)}. ${c.text}</span>
         `;
         label.addEventListener("click", () => {
           selectedChoiceId = c.id;
