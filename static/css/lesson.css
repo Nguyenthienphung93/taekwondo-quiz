@@ -501,3 +501,30 @@
   opacity:.45;
   margin: 0 6px;
 }
+
+.lesson-save-notice{
+  display: none;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+
+.lesson-save-notice.show{
+  display: block;
+}
+
+.lesson-save-notice.success{
+  background: #e9fff1;
+  border: 1px solid #97e0b1;
+  color: #117a3f;
+}
+
+.lesson-save-notice.error{
+  background: #fff1f1;
+  border: 1px solid #f0aaaa;
+  color: #c52b2b;
+}

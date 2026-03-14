@@ -453,3 +453,216 @@ body.page-admin-educations{
   display: block !important;   /* ✅ không chia cột */
   margin-top: 14px;
 }
+
+/* =====================================================
+   FIX SCROLL 2 CỘT RIÊNG – KHÔNG SCROLL TOÀN TRANG
+===================================================== */
+
+/* khóa scroll toàn trang */
+html,
+body{
+  height:100%;
+}
+
+body.page-admin-educations{
+  overflow:hidden !important;
+}
+
+/* vùng content chính full màn hình và không tràn */
+.page-admin-educations .app-content{
+  height:100vh;
+  min-height:100vh;
+  overflow:hidden !important;
+  display:flex;
+  flex-direction:column;
+}
+
+/* title nằm cố định phía trên */
+.page-admin-educations .admin-page{
+  flex:0 0 auto;
+}
+
+.page-admin-educations .admin-questions-layout{
+  flex:1 1 auto;
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+
+  display:grid;
+  grid-template-columns:340px 1fr;
+  gap:24px;
+  padding:0 24px 24px;
+  align-items:stretch;
+}
+
+/* ================= CỘT TRÁI ================= */
+.page-admin-educations .admin-left-panel{
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+/* card trái phải co được */
+.page-admin-educations .admin-topic-card{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:6px;
+}
+
+/* scrollbar cột trái */
+.page-admin-educations .admin-topic-card::-webkit-scrollbar{
+  width:10px;
+}
+.page-admin-educations .admin-topic-card::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.16);
+  border-radius:12px;
+}
+.page-admin-educations .admin-topic-card::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+/* ================= CỘT PHẢI ================= */
+.page-admin-educations .admin-right-panel{
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+
+/* khi là khối lesson list */
+.page-admin-educations .admin-lesson-right{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.page-admin-educations #lessonListBox{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+/* lesson page full chiều cao */
+.page-admin-educations #lessonListBox .lesson-page{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  display:flex !important;
+  flex-direction:column;
+}
+
+.page-admin-educations #lessonListBox .lesson-header{
+  flex:0 0 auto;
+}
+
+.page-admin-educations #lessonListBox .lesson-grid{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:8px;
+  padding-bottom:10px;
+}
+
+/* scrollbar lesson grid */
+.page-admin-educations #lessonListBox .lesson-grid::-webkit-scrollbar{
+  width:10px;
+}
+.page-admin-educations #lessonListBox .lesson-grid::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.16);
+  border-radius:12px;
+}
+.page-admin-educations #lessonListBox .lesson-grid::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+/* ================= KHI MỞ LESSON EDITOR ================= */
+.page-admin-educations .admin-right-panel .lesson-editor{
+  flex:1 1 auto;
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+
+.page-admin-educations .admin-right-panel .lesson-editor-header{
+  flex:0 0 auto;
+}
+
+.page-admin-educations .admin-right-panel .lesson-save-notice{
+  flex:0 0 auto;
+}
+
+.page-admin-educations .admin-right-panel .lesson-editor-body{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:8px;
+}
+
+/* scrollbar editor body */
+.page-admin-educations .admin-right-panel .lesson-editor-body::-webkit-scrollbar{
+  width:10px;
+}
+.page-admin-educations .admin-right-panel .lesson-editor-body::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.16);
+  border-radius:12px;
+}
+.page-admin-educations .admin-right-panel .lesson-editor-body::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+/* list title trong editor không phá layout */
+.page-admin-educations .admin-right-panel #lessonTitleList{
+  min-height:0;
+}
+
+/* tránh card bên phải làm bung chiều cao */
+.page-admin-educations .admin-right-panel > .ui-card,
+.page-admin-educations .admin-right-panel > .lesson-editor,
+.page-admin-educations .admin-right-panel > .admin-lesson-right{
+  min-height:0;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 1024px){
+  body.page-admin-educations{
+    overflow:auto !important;
+  }
+
+  .page-admin-educations .app-content{
+    height:auto;
+    min-height:unset;
+    overflow:visible !important;
+  }
+
+  .page-admin-educations .admin-questions-layout{
+    height:auto;
+    grid-template-columns:1fr;
+  }
+
+  .page-admin-educations .admin-left-panel,
+  .page-admin-educations .admin-right-panel{
+    height:auto;
+    overflow:visible;
+  }
+
+  .page-admin-educations .admin-topic-card,
+  .page-admin-educations #lessonListBox .lesson-grid,
+  .page-admin-educations .admin-right-panel .lesson-editor-body{
+    max-height:60vh;
+  }
+}

@@ -632,3 +632,27 @@
     font-size: 16px;
   }
 }
+
+.exam-multi-note{
+  grid-column: 1 / -1;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  text-align: center;
+}
+
+.exam-choice{
+  cursor: pointer;
+}
+
+.exam-choice input{
+  display: none;
+}
+
+.exam-choice.selected{
+  border: 2px solid #3b82f6;
+  background: #eaf2ff;
+}
