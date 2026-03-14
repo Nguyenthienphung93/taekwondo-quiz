@@ -228,7 +228,7 @@ PLAN_PRICES = {
 
 def norm_plan(code: str) -> str:
     c = (code or "").strip().upper()
-    if c in ("FREE", "BASIC", "PRO", "VIP"):
+    if c in ("FREE", "BASIC", "PRO", "VIP", "ADMIN"):
         return c
     return "FREE"
 
@@ -777,7 +777,24 @@ from datetime import timedelta
 
 
 
+def has_accessible_folder3_under_folder2(folder2_id):
+    folder3_list = (
+        Folder.query
+        .filter_by(level=3, parent_id=folder2_id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+    return any(can_access_plans(f3.member_plans) for f3 in folder3_list)
 
+
+def has_accessible_folder3_under_folder1(folder1_id):
+    folder2_list = (
+        Folder.query
+        .filter_by(level=2, parent_id=folder1_id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+    return any(has_accessible_folder3_under_folder2(f2.id) for f2 in folder2_list)
 
 
 @app.route("/Page")
@@ -790,22 +807,27 @@ def page_root():
         EduFolder.query
         .filter(
             EduFolder.level == 1,
-            EduFolder.is_active == 1      # 🔥 CHỐT CHẶN Ở ĐÂY
+            EduFolder.is_active == 1
         )
         .order_by(EduFolder.order.asc(), EduFolder.id.asc())
         .all()
     )
 
-
     # ===============================
-    # ÔN TẬP – FOLDER CŨ
+    # ÔN TẬP – FOLDER CẤP 1
+    # Chỉ hiện nếu bên dưới còn ít nhất 1 folder3 user được quyền thấy
     # ===============================
-    folder1_list = (
+    all_folder1 = (
         Folder.query
         .filter_by(level=1)
         .order_by(Folder.order_index)
         .all()
     )
+
+    folder1_list = [
+        f1 for f1 in all_folder1
+        if has_accessible_folder3_under_folder1(f1.id)
+    ]
 
     items = [{
         "name": f.name,
@@ -820,10 +842,8 @@ def page_root():
         lessons=[],
         items=items,
         breadcrumbs=[{"name": "Trang chủ", "url": None}],
-        mode="home"   # 🔥 DÒNG QUYẾT ĐỊNH
+        mode="home"
     )
-
-
 
 
 
@@ -834,21 +854,33 @@ def page_root():
 @login_required
 def page_level1(slug1):
     f1 = next(
-        (f for f in Folder.query.filter_by(level=1).all()
+        (f for f in Folder.query.filter_by(level=1).order_by(Folder.order_index).all()
          if slugify(f.name) == slug1),
         None
     )
     if not f1:
         abort(404)
 
-    folder2_list = Folder.query.filter_by(
-        level=2, parent_id=f1.id
-    ).order_by(Folder.order_index).all()
+    # Nếu folder1 này không còn nội dung nào user được phép thấy -> 404
+    if not has_accessible_folder3_under_folder1(f1.id):
+        abort(404)
+
+    all_folder2 = (
+        Folder.query
+        .filter_by(level=2, parent_id=f1.id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+
+    folder2_list = [
+        f2 for f2 in all_folder2
+        if has_accessible_folder3_under_folder2(f2.id)
+    ]
 
     items = [{
         "name": f.name,
         "image": url_for("static", filename=f.image) if f.image else None,
-        "url": f"/Page/{slug1}/{slugify(f.name)}"
+        "url": url_for("page_level2", slug1=slug1, slug2=slugify(f.name))
     } for f in folder2_list]
 
     breadcrumbs = [
@@ -857,24 +889,22 @@ def page_level1(slug1):
         {"name": f1.name, "url": None}
     ]
 
-
     return render_template(
         "folder_list.html",
         page_title=f1.name,
         items=items,
         breadcrumbs=breadcrumbs,
-        mode="practice",      # 🔥 BẮT BUỘC
-        edu_folders=[],       # 🔥 KHÔNG DÙNG
-        lessons=[]            # 🔥 KHÔNG DÙNG
+        mode="practice",
+        edu_folders=[],
+        lessons=[]
     )
-
 
 
 @app.route("/Page/<slug1>/<slug2>")
 @login_required
 def page_level2(slug1, slug2):
     f1 = next(
-        (f for f in Folder.query.filter_by(level=1).all()
+        (f for f in Folder.query.filter_by(level=1).order_by(Folder.order_index).all()
          if slugify(f.name) == slug1),
         None
     )
@@ -882,14 +912,28 @@ def page_level2(slug1, slug2):
         abort(404)
 
     f2 = next(
-        (f for f in Folder.query.filter_by(level=2, parent_id=f1.id).all()
+        (f for f in Folder.query.filter_by(level=2, parent_id=f1.id).order_by(Folder.order_index).all()
          if slugify(f.name) == slug2),
         None
     )
     if not f2:
         abort(404)
 
-    folder3_list = Folder.query.filter_by(level=3, parent_id=f2.id).order_by(Folder.order_index).all()
+    # Nếu folder2 này không còn folder3 nào user được phép thấy -> 404
+    if not has_accessible_folder3_under_folder2(f2.id):
+        abort(404)
+
+    all_folder3 = (
+        Folder.query
+        .filter_by(level=3, parent_id=f2.id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+
+    folder3_list = [
+        f3 for f3 in all_folder3
+        if can_access_plans(f3.member_plans)
+    ]
 
     items = [{
         "name": f.name,
@@ -904,14 +948,12 @@ def page_level2(slug1, slug2):
         {"name": f2.name, "url": None}
     ]
 
-
-
     return render_template(
         "folder_list.html",
         page_title=f2.name,
         items=items,
         breadcrumbs=breadcrumbs,
-        mode="practice",      # 🔥 BẮT BUỘC
+        mode="practice",
         edu_folders=[],
         lessons=[]
     )
@@ -2234,25 +2276,52 @@ ALLOWED_PREVIEW_MEMBERS = {"free", "basic", "pro", "vip"}
 def get_effective_member():
     """
     Member hiệu lực để render nội dung.
-    - Admin bình thường: dùng member thật của admin nếu có, hoặc vip mặc định
+    - Admin bình thường: ADMIN
     - Admin đang preview: dùng gói preview
     - User thường: dùng member thật của user
     """
     if not current_user.is_authenticated:
         return "free"
 
-    # admin đang giả lập gói user
     if getattr(current_user, "role", "") == "admin":
         preview_member = (session.get("admin_preview_member") or "").strip().lower()
         if preview_member in ALLOWED_PREVIEW_MEMBERS:
             return preview_member
 
-        # admin không preview -> xem như full quyền
-        return (getattr(current_user, "member", None) or "vip").strip().lower()
+        return "admin"
 
-    # user thường
     return (getattr(current_user, "member", None) or "free").strip().lower()
 
+def parse_member_plans(raw: str):
+    return [x.strip().upper() for x in (raw or "").split(",") if x.strip()]
+
+def can_access_plans(raw_plans: str) -> bool:
+    """
+    Rule:
+    - Không set gói nào => ẩn
+    - Admin full mode => thấy tất cả
+    - Admin preview mode => lọc như user theo gói preview
+    - Nếu plan có ADMIN => chỉ admin full mode mới thấy
+    """
+    plans = parse_member_plans(raw_plans)
+
+    # không set gì => ẩn
+    if not plans:
+        return False
+
+    role = getattr(current_user, "role", "").lower()
+
+    # admin full quyền
+    if role == "admin" and not is_admin_preview_mode():
+        return True
+
+    user_plan = norm_plan(get_effective_member())
+
+    # user/admin preview không được dùng nội dung ADMIN-only
+    if "ADMIN" in plans:
+        return False
+
+    return user_plan in plans
 
 def is_admin_preview_mode():
     if not current_user.is_authenticated:
@@ -2876,14 +2945,11 @@ def sets():
     edu_parent_id = request.args.get("edu_id", type=int)
     if edu_parent_id:
         mode = "edu"
-    else:
-        mode = "home"
-
 
     edu_current = None
     edu_parent = None
     edu_root = None
-    lessons = []   # ✅ THÊM: DANH SÁCH BÀI HỌC
+    lessons = []
 
     if edu_parent_id:
         edu_current = (
@@ -2898,55 +2964,53 @@ def sets():
         if not edu_current:
             abort(404)
 
+        edu_parent = edu_current.parent
+        if edu_parent:
+            edu_root = edu_parent.parent
 
-        if edu_current:
-            edu_parent = edu_current.parent
-            if edu_parent:
-                edu_root = edu_parent.parent
-
-            # ✅ NẾU LÀ CẤP 3 → LOAD BÀI HỌC
-            if edu_current.level == 3:
-                lessons = load_lessons_by_folder3(edu_current.id)
-
+        # Nếu là cấp 3 thì load bài học
+        if edu_current.level == 3:
+            lessons = load_lessons_by_folder3(edu_current.id)
 
     # ===============================
     # LOAD EDU FOLDER (CẤP CON)
     # ===============================
     if edu_parent_id:
-        # 👉 Có cha → load con
         edu_folders = (
             EduFolder.query
             .filter(
                 EduFolder.parent_id == edu_parent_id,
-                EduFolder.is_active == 1      # 🔥 CHẶN ĐÚNG
+                EduFolder.is_active == 1
             )
             .order_by(EduFolder.order.asc(), EduFolder.id.asc())
             .all()
         )
-
     else:
-        # 👉 Không có cha → load cấp 1
         edu_folders = (
             EduFolder.query
             .filter(
                 EduFolder.level == 1,
-                EduFolder.is_active == 1      # 🔥 CHẶN ĐÚNG
+                EduFolder.is_active == 1
             )
             .order_by(EduFolder.order.asc(), EduFolder.id.asc())
             .all()
         )
 
-
-
     # ===============================
-    # ÔN TẬP – FOLDER CŨ
+    # ÔN TẬP – FOLDER CẤP 1
+    # Chỉ hiện folder1 còn ít nhất 1 folder3 hợp lệ
     # ===============================
-    folder1_list = (
+    all_folder1 = (
         Folder.query
         .filter_by(level=1)
         .order_by(Folder.order_index)
         .all()
     )
+
+    folder1_list = [
+        f1 for f1 in all_folder1
+        if has_accessible_folder3_under_folder1(f1.id)
+    ]
 
     items = [{
         "name": f.name,
@@ -2954,60 +3018,71 @@ def sets():
         "url": url_for("view_set", folder1_id=f.id)
     } for f in folder1_list]
 
-    edu_parent_id = request.args.get("edu_id", type=int)
-
+    # ===============================
+    # BREADCRUMB
+    # ===============================
     if edu_parent_id:
-        # ===== HỌC TAEKWONDO =====
-        # (giữ nguyên code load edu_root, edu_parent, edu_current của Ken)
-
         breadcrumbs = build_edu_breadcrumb(
             edu_root=edu_root,
             edu_parent=edu_parent,
             edu_current=edu_current
         )
     else:
-        # ===== TRANG CHỦ =====
         breadcrumbs = build_home_breadcrumb()
-
-
 
     # ===============================
     # RENDER
     # ===============================
     return render_template(
         "folder_list.html",
-        page_title="Trang chủ",
-        edu_folders=edu_folders,   # cây học Taekwondo
-        lessons=lessons,           # ✅ BÀI HỌC JSON
-        items=items,               # ôn tập cũ
+        page_title="Trang chủ" if not edu_current else edu_current.name,
+        edu_folders=edu_folders,
+        lessons=lessons,
+        items=items,
         breadcrumbs=breadcrumbs,
         mode=mode
     )
-
-
 
 
 @app.route("/set/<int:folder1_id>", defaults={"folder2_id": None})
 @app.route("/set/<int:folder1_id>/<int:folder2_id>")
 @login_required
 def view_set(folder1_id, folder2_id):
-
     f1 = Folder.query.get_or_404(folder1_id)
 
-    # ===== FOLDER 2 =====
+    # Nếu folder1 này không còn nội dung hợp lệ thì chặn luôn
+    if not has_accessible_folder3_under_folder1(f1.id):
+        abort(404)
+
+    # ===============================
+    # FOLDER 2
+    # ===============================
     if folder2_id is None:
-        folder2_list = Folder.query.filter_by(
-            level=2, parent_id=folder1_id
-        ).order_by(Folder.order_index).all()
+        all_folder2 = (
+            Folder.query
+            .filter_by(level=2, parent_id=folder1_id)
+            .order_by(Folder.order_index)
+            .all()
+        )
+
+        folder2_list = [
+            f2 for f2 in all_folder2
+            if has_accessible_folder3_under_folder2(f2.id)
+        ]
+
+        if not folder2_list:
+            abort(404)
 
         items = []
         for f in folder2_list:
             items.append({
                 "name": f.name,
                 "image": url_for("static", filename=f.image) if f.image else None,
-                "url": url_for("view_set",
-                               folder1_id=folder1_id,
-                               folder2_id=f.id)
+                "url": url_for(
+                    "view_set",
+                    folder1_id=folder1_id,
+                    folder2_id=f.id
+                )
             })
 
         breadcrumbs = build_practice_breadcrumb(
@@ -3020,43 +3095,49 @@ def view_set(folder1_id, folder2_id):
             page_title=f1.name,
             items=items,
             breadcrumbs=breadcrumbs,
-            mode="practice"   # 🔥 BẮT BUỘC
+            mode="practice",
+            edu_folders=[],
+            lessons=[]
         )
 
+    # ===============================
+    # FOLDER 3
+    # ===============================
+    f2 = Folder.query.filter_by(
+        id=folder2_id,
+        parent_id=f1.id,
+        level=2
+    ).first_or_404()
 
-    # ===== FOLDER 3 =====
-    f2 = Folder.query.get_or_404(folder2_id)
+    if not has_accessible_folder3_under_folder2(f2.id):
+        abort(404)
 
-    all_folder3 = Folder.query.filter_by(
-        level=3,
-        parent_id=f2.id,
-        is_active_practice=1
-    ).order_by(Folder.order_index.asc()).all()
+    all_folder3 = (
+        Folder.query
+        .filter_by(
+            level=3,
+            parent_id=f2.id,
+            is_active_practice=1
+        )
+        .order_by(Folder.order_index.asc())
+        .all()
+    )
 
-    user_plan = norm_plan(get_effective_member())
+    folder3_list = [
+        f3 for f3 in all_folder3
+        if can_access_plans(f3.member_plans)
+    ]
 
-    folder3_list = []
-    for f3 in all_folder3:
-        raw = (f3.member_plans or "").strip()
-        plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
+    if not folder3_list:
+        abort(404)
 
-        if not plans:
-            folder3_list.append(f3)
-            continue
-
-        if user_plan in plans:
-            folder3_list.append(f3)
-
-
-
-    # 🔥 NẾU CHỈ CÓ 1 FOLDER 3 → REDIRECT SANG URL CHỮ
+    # Nếu chỉ có 1 folder3 thì chuyển thẳng
     if len(folder3_list) == 1:
         f3 = folder3_list[0]
         return redirect(
             f"/{slugify(f1.name)}/{slugify(f2.name)}/{slugify(f3.name)}"
         )
 
-    # ❗ NẾU CÓ NHIỀU FOLDER 3 → GIỮ NGUYÊN UI
     items = []
     for f3 in folder3_list:
         items.append({
@@ -3070,15 +3151,35 @@ def view_set(folder1_id, folder2_id):
         folder2=f2
     )
 
-
     return render_template(
         "folder_list.html",
         page_title=f2.name,
         items=items,
         breadcrumbs=breadcrumbs,
-        mode="practice"
+        mode="practice",
+        edu_folders=[],
+        lessons=[]
     )
 
+
+@app.route("/quiz/prepare/<int:folder3_id>")
+@login_required
+def quiz_prepare(folder3_id):
+    f3 = Folder.query.filter_by(id=folder3_id).first()
+    if not f3:
+        return f"Không tìm thấy folder3 id={folder3_id}", 404
+
+    if not f3.is_active_practice:
+        return "Folder này đang tắt ôn tập", 404
+
+    if not can_access_plans(f3.member_plans):
+        return "Tài khoản hiện tại không có quyền", 404
+
+    return render_template(
+        "quiz_prepare.html",
+        topic_name=f3.name,
+        start_url=url_for("quiz_start_folder", folder3_id=f3.id)
+    )
 
 
 
@@ -3113,21 +3214,32 @@ def build_home_breadcrumb():
 def build_edu_breadcrumb(edu_root=None, edu_parent=None, edu_current=None):
     breadcrumbs = [
         {"name": "Trang chủ", "url": url_for("sets")},
-        {"name": "Học Taekwondo", "url": None}
+        {"name": "Học Taekwondo", "url": url_for("sets")}
     ]
 
+    # Nếu đang ở cấp 1
+    if edu_current and edu_current.level == 1:
+        breadcrumbs.append({
+            "name": edu_current.name,
+            "url": None
+        })
+        return breadcrumbs
+
+    # Nếu có root cấp 1
     if edu_root:
         breadcrumbs.append({
             "name": edu_root.name,
             "url": url_for("sets", edu_id=edu_root.id)
         })
 
+    # Nếu có parent cấp 2
     if edu_parent:
         breadcrumbs.append({
             "name": edu_parent.name,
             "url": url_for("sets", edu_id=edu_parent.id)
         })
 
+    # Current cuối cùng
     if edu_current:
         breadcrumbs.append({
             "name": edu_current.name,
@@ -3140,14 +3252,13 @@ def build_edu_breadcrumb(edu_root=None, edu_parent=None, edu_current=None):
 def build_practice_breadcrumb(folder1=None, folder2=None):
     breadcrumbs = [
         {"name": "Trang chủ", "url": url_for("sets")},
-        {"name": "Ôn tập", "url": url_for("view_set", folder1_id=folder1.id)}
-
+        {"name": "Ôn tập", "url": url_for("sets")}
     ]
 
     if folder1:
         breadcrumbs.append({
             "name": folder1.name,
-            "url": url_for("view_set", folder1_id=folder1.id)
+            "url": None if folder2 is None else url_for("view_set", folder1_id=folder1.id)
         })
 
     if folder2:
@@ -3164,27 +3275,6 @@ def build_practice_breadcrumb(folder1=None, folder2=None):
 
 
 
-
-
-@app.route("/quiz/prepare/<int:folder3_id>")
-@login_required
-def quiz_prepare(folder3_id):
-    f3 = Folder.query.get_or_404(folder3_id)
-
-    if not f3.is_active_practice:
-        abort(404)
-
-    user_plan = norm_plan(get_effective_member())
-    raw = (f3.member_plans or "").strip()
-    plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
-
-    if plans and user_plan not in plans:
-        abort(404)
-    return render_template(
-        "quiz_prepare.html",
-        topic_name=f3.name,
-        start_url=url_for("quiz_start_folder", folder3_id=f3.id)
-    )
 
 
 
@@ -3245,56 +3335,37 @@ def quiz_start_folder(folder3_id):
     if not f3.is_active_practice:
         abort(404)
 
-    user_plan = norm_plan(get_effective_member())
-    raw = (f3.member_plans or "").strip()
-    plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
-
-    if not plans or user_plan not in plans:
+    if not can_access_plans(f3.member_plans):
         abort(404)
 
-    # ===== LẤY SETTING USER (KHÔNG ÉP) =====
-    num_questions = current_user.pref_num_questions   # None = làm hết
-    time_per_q = current_user.pref_time_per_q         # None = không tính giờ
+    num_questions = current_user.pref_num_questions
+    time_per_q = current_user.pref_time_per_q
 
-    # ===== LẤY CÂU HỎI =====
     all_qs = Question.query.filter_by(folder_id=folder3_id).all()
-    user_plan = norm_plan(get_effective_member())
+    qs = [q for q in all_qs if can_access_plans(q.member_plans)]
 
-    qs = []
-    for q in all_qs:
-        raw_q = (q.member_plans or "").strip()
-        q_plans = [x.strip().upper() for x in raw_q.split(",") if x.strip()]
-
-        if not q_plans:
-            continue
-
-        if user_plan in q_plans:
-            qs.append(q)
     if not qs:
         flash("Chủ đề này chưa có câu hỏi. Hãy quay lại bài học sau.", "danger")
         folder1_id = None
         if f3.parent and f3.parent.parent:
             folder1_id = f3.parent.parent.id
-
         return redirect(url_for("view_set", folder1_id=folder1_id))
 
     random.shuffle(qs)
 
-    # ===== CHỌN CÂU THEO SETTING =====
     if num_questions is None:
-        chosen_qs = qs                    # ✅ làm hết
+        chosen_qs = qs
         final_count = len(qs)
     else:
         n = int(num_questions)
         if len(qs) >= n:
-            chosen_qs = qs[:n]            # đủ câu
+            chosen_qs = qs[:n]
         else:
             chosen_qs = list(qs)
             need = n - len(qs)
-            chosen_qs.extend(random.choices(qs, k=need))  # cho phép lặp
+            chosen_qs.extend(random.choices(qs, k=need))
         final_count = n
 
-    # ===== TOPIC MẶC ĐỊNH (TRÁNH NULL) =====
     default_topic = Topic.query.first()
     if not default_topic:
         default_set = Set.query.first()
@@ -3307,19 +3378,17 @@ def quiz_start_folder(folder3_id):
         db.session.add(default_topic)
         db.session.commit()
 
-    # ===== TẠO ATTEMPT =====
     attempt = Attempt(
         user_id=current_user.id,
         topic_id=default_topic.id,
         created_at=datetime.now(timezone.utc),
         finished_at=None,
         question_count=final_count,
-        time_per_q=time_per_q      # ✅ None giữ nguyên
+        time_per_q=time_per_q
     )
     db.session.add(attempt)
     db.session.commit()
 
-    # ===== GẮN CÂU HỎI =====
     for q in chosen_qs:
         db.session.add(AttemptAnswer(
             attempt_id=attempt.id,
@@ -5528,25 +5597,26 @@ def admin_lesson_editor(slug):
 @app.route("/admin/lesson/save-sections", methods=["POST"])
 @login_required
 def admin_save_lesson():
+    admin_required()
 
     data = request.get_json() or {}
-    slug = data.get("slug")
-    sections = data.get("sections")
+    slug = (data.get("slug") or "").strip()
+    sections = data.get("sections", [])
 
     if not slug:
-        return jsonify(ok=False, error="Thiếu slug")
+        return jsonify(ok=False, error="❌ Thiếu slug bài học.")
 
     lesson = Lesson.query.filter_by(slug=slug).first()
     if not lesson:
-        return jsonify(ok=False, error="Không tìm thấy lesson")
+        return jsonify(ok=False, error="❌ Không tìm thấy bài học.")
 
     try:
         lesson.sections = json.dumps(sections, ensure_ascii=False)
         db.session.commit()
-        return jsonify(ok=True)
+        return jsonify(ok=True, message="✅ Đã lưu bài học thành công!")
     except Exception as e:
         db.session.rollback()
-        return jsonify(ok=False, error=str(e))
+        return jsonify(ok=False, error=f"❌ Lưu thất bại: {str(e)}")
 
 
 
@@ -6759,7 +6829,7 @@ def admin_lesson_member_setup():
     if not lesson:
         return jsonify({"ok": False, "message": "Không tìm thấy bài học"}), 404
 
-    valid = ["FREE", "BASIC", "PRO", "VIP"]
+    valid = ["FREE", "BASIC", "PRO", "VIP", "ADMIN"]
 
     clean_plans = []
     for p in plans:
@@ -6788,7 +6858,7 @@ def admin_practice_member_setup():
     if not folder:
         return jsonify({"ok": False, "message": "Không tìm thấy chủ đề ôn tập"}), 404
 
-    valid = ["FREE", "BASIC", "PRO", "VIP"]
+    valid = ["FREE", "BASIC", "PRO", "VIP", "ADMIN"]
 
     clean_plans = []
     for p in plans:
@@ -6854,7 +6924,7 @@ def admin_practice_question_plans_save():
         return jsonify({"ok": False, "message": "Không tìm thấy chủ đề ôn tập"}), 404
 
     folder_plans = [x.strip().upper() for x in (folder.member_plans or "").split(",") if x.strip()]
-    valid = {"FREE", "BASIC", "PRO", "VIP"}
+    valid = {"FREE", "BASIC", "PRO", "VIP", "ADMIN"}
 
     qids = [int(x.get("id")) for x in items if x.get("id")]
     questions = Question.query.filter(Question.id.in_(qids), Question.folder_id == folder.id).all()
@@ -7049,14 +7119,39 @@ def admin_move_lesson():
 @app.route("/exam")
 @login_required
 def exam_home():
-    # lấy toàn bộ câu hỏi thuộc folder ôn tập (level 3)
-    questions = (
+
+    # ===============================
+    # Lấy tất cả câu hỏi thuộc folder3
+    # ===============================
+    all_questions = (
         Question.query
         .join(Folder, Question.folder_id == Folder.id)
-        .filter(Folder.level == 3)
+        .filter(
+            Folder.level == 3,
+            Folder.is_active_practice == 1
+        )
         .order_by(Question.id.asc())
         .all()
     )
+
+    # ===============================
+    # Lọc theo gói
+    # ===============================
+    questions = []
+
+    for q in all_questions:
+
+        folder = q.folder
+
+        # folder phải được phép
+        if not can_access_plans(folder.member_plans):
+            continue
+
+        # question phải được phép
+        if not can_access_plans(q.member_plans):
+            continue
+
+        questions.append(q)
 
     return render_template(
         "admin_exam.html",
@@ -7071,16 +7166,26 @@ def exam_get_question(qid):
     if not q:
         return jsonify(ok=False, error="Không tìm thấy câu hỏi")
 
-    # Lấy đáp án từ question.answer_1 ... answer_12
     payload = question_answers_payload(q, shuffle_answers=True)
+    correct_indexes = parse_correct_indexes(q)
+
+    qtype = (q.type or "mcq").strip().lower()
+    if qtype in ("truefalse", "true_false", "tf"):
+        qtype = "boolean"
+    elif qtype in ("multiple", "multiple_choice_multi"):
+        qtype = "multi"
+    else:
+        qtype = "mcq" if qtype not in ("mcq", "boolean", "multi") else qtype
 
     return jsonify(
         ok=True,
         id=q.id,
         text=q.text,
+        type=qtype,
+        correct_count=len(correct_indexes),
         choices=[
             {
-                "id": item["orig_idx"],   # dùng orig_idx làm id gửi về JS
+                "id": item["orig_idx"],
                 "text": item["text"],
                 "label": item["label"]
             }
@@ -7088,28 +7193,77 @@ def exam_get_question(qid):
         ]
     )
 
+
 @app.route("/exam/check", methods=["POST"])
 @login_required
 def exam_check():
-    qid = request.json.get("question_id")
-    choice_id = request.json.get("choice_id")
+    data = request.get_json(silent=True) or {}
 
+    qid = data.get("question_id")
     q = db.session.get(Question, qid)
     if not q:
         return jsonify(ok=False, error="Không tìm thấy câu hỏi")
+
+    qtype = (q.type or "mcq").strip().lower()
+    if qtype in ("truefalse", "true_false", "tf"):
+        qtype = "boolean"
+    elif qtype in ("multiple", "multiple_choice_multi"):
+        qtype = "multi"
+    else:
+        qtype = "mcq" if qtype not in ("mcq", "boolean", "multi") else qtype
+
+    correct_indexes = parse_correct_indexes(q)
+
+    valid_answer_indexes = {
+        i for i, txt in enumerate(question_answer_texts(q), start=1)
+        if (txt or "").strip()
+    }
+
+    if qtype == "multi":
+        raw_ids = data.get("choice_ids", [])
+
+        if not isinstance(raw_ids, list):
+            return jsonify(ok=False, error="Dữ liệu đáp án không hợp lệ")
+
+        chosen_indexes = []
+        for x in raw_ids:
+            s = str(x).strip()
+            if s.isdigit():
+                chosen_indexes.append(int(s))
+
+        chosen_indexes = sorted(set(chosen_indexes))
+
+        if not chosen_indexes:
+            return jsonify(ok=False, error="Vui lòng chọn ít nhất 1 đáp án")
+
+        if any(i not in valid_answer_indexes for i in chosen_indexes):
+            return jsonify(ok=False, error="Có đáp án không hợp lệ")
+
+        return jsonify(
+            ok=True,
+            correct=(set(chosen_indexes) == correct_indexes),
+            type="multi",
+            chosen_indexes=chosen_indexes,
+            correct_indexes=sorted(list(correct_indexes))
+        )
+
+    choice_id = data.get("choice_id")
 
     try:
         choice_id = int(choice_id)
     except (TypeError, ValueError):
         return jsonify(ok=False, error="Đáp án không hợp lệ")
 
-    correct_indexes = parse_correct_indexes(q)
+    if choice_id not in valid_answer_indexes:
+        return jsonify(ok=False, error="Đáp án không hợp lệ")
 
     return jsonify(
         ok=True,
-        correct=(choice_id in correct_indexes)
+        correct=(choice_id in correct_indexes),
+        type=qtype,
+        chosen_index=choice_id,
+        correct_indexes=sorted(list(correct_indexes))
     )
-
 
 class Lesson(db.Model):
     __tablename__ = "lessons"
@@ -7199,14 +7353,15 @@ def load_lessons_by_folder3(folder3_id):
         if user_plan in plans:
             allowed_lessons.append(lesson)
 
-    return allowed_lessons
-
+    return [lesson for lesson in lessons if can_access_plans(lesson.member_plans)]
 
 
 
 
 if __name__ == "__main__":
     with app.app_context():
+        print("APP FILE =", __file__)
+        print("TEST FOLDER 24 =", Folder.query.filter_by(id=24).first())
         db.create_all()
         ensure_schema()
         ensure_user_pref_columns()
