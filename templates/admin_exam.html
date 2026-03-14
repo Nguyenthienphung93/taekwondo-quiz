@@ -78,7 +78,9 @@
   window.__ADMIN_EXAM_INIT__ = true;
 
   let currentQuestionId = null;
+  let currentQuestionType = "mcq";
   let selectedChoiceId = null;
+  let selectedChoiceIds = [];
 
   const $ = (id) => document.getElementById(id);
 
@@ -123,25 +125,63 @@
       }
 
       currentQuestionId = d.id;
+      currentQuestionType = (d.type || "mcq").toLowerCase();
       selectedChoiceId = null;
+      selectedChoiceIds = [];
 
       examTitle.textContent = `CÂU HỎI SỐ ${d.id}`;
       examContent.textContent = d.text || "";
       examChoices.innerHTML = "";
 
+      if(currentQuestionType === "multi"){
+        const note = document.createElement("div");
+        note.className = "exam-multi-note";
+        note.textContent = `Câu này có ${d.correct_count || 0} đáp án đúng`;
+        examChoices.appendChild(note);
+      }
+
       (d.choices || []).forEach((c, i) => {
         const label = document.createElement("label");
-        label.innerHTML = `
-          <input type="radio" name="examChoice" value="${c.id}">
-          <span>${c.label || String.fromCharCode(65 + i)}. ${c.text}</span>
-        `;
-        label.addEventListener("click", () => {
-          selectedChoiceId = c.id;
-          examChoices.querySelectorAll("label").forEach(x => x.classList.remove("selected"));
-          label.classList.add("selected");
-          const radio = label.querySelector("input[type=radio]");
-          if(radio) radio.checked = true;
-        });
+        label.className = "exam-choice";
+
+        if(currentQuestionType === "multi"){
+          label.innerHTML = `
+            <input type="checkbox" name="examChoiceMulti" value="${c.id}">
+            <span>${c.label || String.fromCharCode(65 + i)}. ${c.text}</span>
+          `;
+
+          const input = label.querySelector("input");
+
+          input.addEventListener("change", () => {
+            const value = Number(input.value);
+
+            if(input.checked){
+              if(!selectedChoiceIds.includes(value)){
+                selectedChoiceIds.push(value);
+              }
+              label.classList.add("selected");
+            }else{
+              selectedChoiceIds = selectedChoiceIds.filter(x => x !== value);
+              label.classList.remove("selected");
+            }
+          });
+        }else{
+          label.innerHTML = `
+            <input type="radio" name="examChoice" value="${c.id}">
+            <span>${c.label || String.fromCharCode(65 + i)}. ${c.text}</span>
+          `;
+
+          const input = label.querySelector("input");
+
+          input.addEventListener("change", () => {
+            selectedChoiceId = Number(input.value);
+            selectedChoiceIds = [selectedChoiceId];
+
+            examChoices.querySelectorAll(".exam-choice").forEach(x => x.classList.remove("selected"));
+            label.classList.add("selected");
+          });
+        }
+
         examChoices.appendChild(label);
       });
 
@@ -153,35 +193,49 @@
   }
 
   async function checkAnswer(){
-    if(!selectedChoiceId){
-      alert("Vui lòng chọn đáp án");
-      return;
+    let payload = {
+      question_id: currentQuestionId
+    };
+
+    if(currentQuestionType === "multi"){
+      if(!selectedChoiceIds.length){
+        alert("Vui lòng chọn ít nhất 1 đáp án");
+        return;
+      }
+      payload.choice_ids = selectedChoiceIds;
+    }else{
+      if(!selectedChoiceId){
+        alert("Vui lòng chọn đáp án");
+        return;
+      }
+      payload.choice_id = selectedChoiceId;
     }
 
     try{
       const res = await fetch("/exam/check", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({
-          question_id: currentQuestionId,
-          choice_id: selectedChoiceId
-        })
+        body: JSON.stringify(payload)
       });
 
       const d = await res.json();
+
+      if(!d || !d.ok){
+        alert(d?.error || "Không chấm được đáp án");
+        return;
+      }
 
       closeExam();
       examExtraActions.innerHTML = "";
       examExtraActions.classList.remove("two-btns");
 
-      if(d && d.correct){
+      if(d.correct){
         try{ new Audio("/static/sounds/Correct.mp3").play(); }catch(_){}
         examIcon.textContent = "✔";
         examIcon.className = "exam-result-icon ok";
         examMsg.textContent = "ĐÚNG RỒI!";
         examSub.textContent = "";
 
-        // ✅ đúng: hiện thêm Random
         examExtraActions.classList.add("two-btns");
         const btnR = document.createElement("button");
         btnR.type = "button";
@@ -201,7 +255,9 @@
         examIcon.textContent = "❌";
         examIcon.className = "exam-result-icon fail";
         examMsg.textContent = "SAI RỒI!";
-        examSub.textContent = "";
+        examSub.textContent = currentQuestionType === "multi"
+          ? "Câu nhiều đáp án phải chọn đúng đầy đủ tất cả đáp án đúng."
+          : "";
 
         examAction.className = "ui-btn ui-btn--danger ui-btn--sm";
         examAction.textContent = "Làm lại";

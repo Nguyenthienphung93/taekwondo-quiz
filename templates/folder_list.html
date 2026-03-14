@@ -38,7 +38,11 @@
               <a class="ui-card card-btn lesson-card" href="/lesson/{{ l.slug }}">
                 <div class="folder-thumb">
                   {% if l.image %}
-                    <img src="{{ url_for('static', filename=l.image) }}" alt="">
+                    {% if l.image.startswith('http://') or l.image.startswith('https://') %}
+                      <img src="{{ l.image }}" alt="{{ l.title }}">
+                    {% else %}
+                      <img src="{{ url_for('static', filename=l.image) }}" alt="{{ l.title }}">
+                    {% endif %}
                   {% else %}
                     <div class="img-placeholder">📘</div>
                   {% endif %}
@@ -54,7 +58,11 @@
               <a class="ui-card card-btn folder-card" href="{{ url_for('sets', edu_id=folder.id) }}">
                 <div class="folder-thumb">
                   {% if folder.image %}
-                    <img src="{{ url_for('static', filename=folder.image) }}" alt="">
+                    {% if folder.image.startswith('http://') or folder.image.startswith('https://') %}
+                      <img src="{{ folder.image }}" alt="{{ folder.name }}">
+                    {% else %}
+                      <img src="{{ url_for('static', filename=folder.image) }}" alt="{{ folder.name }}">
+                    {% endif %}
                   {% else %}
                     <div class="img-placeholder">📁</div>
                   {% endif %}
@@ -71,46 +79,45 @@
       {% endif %}
 
       {% if mode in ["home", "practice"] %}
-      <section class="topic-section">
-        <div class="topic-title">📝 - Ôn Tập</div>
+        <section class="topic-section">
+          <div class="topic-title">📝 - Ôn Tập</div>
 
-        <div class="folder-grid">
-          {% for item in items %}
-            {% if item.folder3_id %}
-              <a class="ui-card card-btn folder-card js-open-replay"
-                 href="#"
-                 data-folder3-id="{{ item.folder3_id }}"
-                 data-folder3-name="{{ item.name|e }}">
-                <div class="folder-thumb">
-                  {% if item.image %}
-                    <img src="{{ item.image }}" alt="">
-                  {% else %}
-                    <div class="img-placeholder">📂</div>
-                  {% endif %}
-                </div>
-                <div class="card-title">{{ item.name }}</div>
-              </a>
-            {% else %}
-              <a class="ui-card card-btn folder-card" href="{{ item.url }}">
-                <div class="folder-thumb">
-                  {% if item.image %}
-                    <img src="{{ item.image }}" alt="">
-                  {% else %}
-                    <div class="img-placeholder">📂</div>
-                  {% endif %}
-                </div>
-                <div class="card-title">{{ item.name }}</div>
-              </a>
-            {% endif %}
-          {% endfor %}
-        </div>
-      </section>
+          <div class="folder-grid">
+            {% for item in items %}
+              {% if item.folder3_id %}
+                <a class="ui-card card-btn folder-card js-open-replay"
+                   href="#"
+                   data-folder3-id="{{ item.folder3_id }}"
+                   data-folder3-name="{{ item.name|e }}">
+                  <div class="folder-thumb">
+                    {% if item.image %}
+                      <img src="{{ item.image }}" alt="{{ item.name }}">
+                    {% else %}
+                      <div class="img-placeholder">📂</div>
+                    {% endif %}
+                  </div>
+                  <div class="card-title">{{ item.name }}</div>
+                </a>
+              {% else %}
+                <a class="ui-card card-btn folder-card" href="{{ item.url }}">
+                  <div class="folder-thumb">
+                    {% if item.image %}
+                      <img src="{{ item.image }}" alt="{{ item.name }}">
+                    {% else %}
+                      <div class="img-placeholder">📂</div>
+                    {% endif %}
+                  </div>
+                  <div class="card-title">{{ item.name }}</div>
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
 
     </div><!-- /.sets-scroll -->
   </div>
 </div>
-
 
 <!-- ================= MODAL START QUIZ ================= -->
 <div id="replayModal" class="ui-modal-backdrop" aria-hidden="true">
@@ -141,7 +148,6 @@
 {% block scripts %}
 <script>
 (function(){
-  // ✅ chống init 2 lần
   if (window.__SETS_PAGE_INIT__) return;
   window.__SETS_PAGE_INIT__ = true;
 
@@ -155,7 +161,7 @@
     if (topicNameEl) topicNameEl.textContent = folder3Name || "";
     if (startBtn) startBtn.setAttribute("href", `/quiz/prepare/${folder3Id}`);
 
-    modal.classList.add("show");        // ✅ dùng show như các modal khác
+    modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
   }
@@ -167,7 +173,6 @@
     document.body.style.overflow = "";
   }
 
-  // mở modal bằng delegation
   document.addEventListener("click", (e) => {
     const card = e.target.closest(".js-open-replay");
     if (!card) return;
@@ -180,17 +185,14 @@
     openModal(folder3Id, folder3Name);
   });
 
-  // đóng modal: click backdrop
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
   });
 
-  // đóng modal: ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeModal();
   });
 
-  // hỗ trợ data-close (base.html đã có global handler, nhưng giữ local cũng ok)
   document.addEventListener("click", (e) => {
     const btn = e.target.closest('[data-close="replayModal"]');
     if (!btn) return;
@@ -198,7 +200,6 @@
     closeModal();
   });
 
-  // expose nếu cần debug
   window.__SETS_CLOSE_MODAL__ = closeModal;
 })();
 </script>
