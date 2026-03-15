@@ -243,7 +243,9 @@
           rotation: pageRotation
         });
 
-        const dpr = window.devicePixelRatio || 1;
+        const rawDpr = window.devicePixelRatio || 1;
+        const isMobile = window.innerWidth <= 768;
+        const dpr = isMobile ? 1 : (window.devicePixelRatio || 1);
 
         canvas.width = Math.floor(viewport.width * dpr);
         canvas.height = Math.floor(viewport.height * dpr);

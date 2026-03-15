@@ -249,3 +249,48 @@ body.modal-open{ overflow:hidden; }
   border-color: rgba(37,99,235,0.45);
   color: #fff;
 }
+
+@media (max-width: 768px){
+  #planModal .ui-modal-box,
+  #durationModal .ui-modal-box,
+  #payModal .ui-modal-box{
+    width:min(96vw, 96vw) !important;
+    max-width:96vw !important;
+    border-radius:18px !important;
+  }
+
+  #planModal .ui-modal-body > div{
+    grid-template-columns:1fr !important;
+  }
+
+  #payModal .ui-modal-body > div{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+  }
+
+  #payModal .pay-qr-wrap,
+  #payModal .qr-box{
+    width:100% !important;
+    display:flex !important;
+    justify-content:center !important;
+    align-items:center !important;
+  }
+
+  #payModal img#payQrImg{
+    display:block !important;
+    width:min(220px, 100%) !important;
+    max-width:100% !important;
+    height:auto !important;
+    margin:0 auto !important;
+    object-fit:contain !important;
+  }
+
+  #payModal .ui-modal-footer{
+    flex-direction:column !important;
+  }
+
+  #payModal .ui-modal-footer .ui-btn{
+    width:100% !important;
+  }
+}

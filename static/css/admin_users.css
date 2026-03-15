@@ -553,3 +553,15 @@ body.page-admin-users .member-vip{
   padding: 4px 8px !important;
   font-weight: 800 !important;
 }
+.status-sub.status-pending-plan{
+  margin-top: 6px;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  line-height: 1.2;
+}
