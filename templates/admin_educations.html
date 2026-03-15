@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+{% block title %}Admin – Thêm bài học{% endblock %}
+{% block body_class %}page-admin-educations{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/edu.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/lesson-editor.js') }}?v=20260303_12"></script>
+{% endblock %}
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_exam.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_manager.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_users.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_educations.css') }}?v=20260303_13">
+{% endblock %}
+{% block content %}
+
+<!-- ===== ADMIN PAGE TITLE ===== -->
+<div class="admin-page">
+  <div class="admin-page-title">📖 Thêm bài học 📖</div>
+</div>
+
+<div class="admin-questions-layout">
+
+  <!-- ================= CỘT TRÁI ================= -->
+  <div class="admin-left-panel">
+    <div class="ui-card admin-topic-card">
+      <h3>Chủ đề</h3>
+      <h3>Bài Học Taekwondo</h3>
+
+      <!-- ================================================= -->
+      <!-- =================== CẤP 1 ====================== -->
+      <!-- ================================================= -->
+      <div class="rowline">
+        <div class="title">Chủ đề 1</div>
+
+        <form method="GET" action="{{ url_for('admin_educations') }}">
+          <select name="folder1_id" onchange="this.form.submit()" required>
+            {% for f in folder1_list %}
+              <option value="{{ f.id }}"
+                {% if selected_folder1 and selected_folder1.id == f.id %}selected{% endif %}>
+                {{ f.name }}
+              </option>
+            {% endfor %}
+          </select>
+
+          {% if selected_folder2 %}
+            <input type="hidden" name="folder2_id" value="{{ selected_folder2.id }}">
+          {% endif %}
+          {% if selected_folder3 %}
+            <input type="hidden" name="folder3_id" value="{{ selected_folder3.id }}">
+          {% endif %}
+        </form>
+
+        <div class="actions">
+          {% if selected_folder1 %}
+            {% set ids = folder1_list | map(attribute='id') | list %}
+            {% set idx = ids.index(selected_folder1.id) %}
+            {% set is_first = idx == 0 %}
+            {% set is_last  = idx == (ids|length - 1) %}
+            <div class="actions-left">
+              <div class="folder-move">
+                <button type="button" class="ui-icon-btn ui-icon-btn--success btn-move"
+                        data-id="{{ selected_folder1.id }}"
+                        data-level="1"
+                        data-parent-id=""
+                        title="Di chuyển lên"
+                        {% if is_first %}disabled{% endif %}>⬆</button>
+
+                <button type="button" class="ui-icon-btn ui-icon-btn--danger btn-move"
+                        data-id="{{ selected_folder1.id }}"
+                        data-level="1"
+                        data-parent-id=""
+                        title="Di chuyển xuống"
+                        {% if is_last %}disabled{% endif %}>⬇</button>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="actions-right">
+            <a href="{{ url_for('admin_add_edu_folder', level=1) }}"
+               class="ui-icon-btn ui-icon-btn--success" title="Thêm chủ đề 1">➕</a>
+
+            {% if selected_folder1 %}
+              <a href="{{ url_for('admin_edit_edu_folder', folder_id=selected_folder1.id) }}"
+                 class="ui-icon-btn ui-icon-btn--warn" title="Sửa chủ đề 1">✏️</a>
+
+              <form method="POST"
+                    action="{{ url_for('admin_delete_edu_folder', folder_id=selected_folder1.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Bạn chắc chắn muốn xoá?');">
+                <button type="submit" class="ui-icon-btn ui-icon-btn--danger btn-delete-folder" title="Xóa chủ đề 1">🗑</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================= -->
+      <!-- =================== CẤP 2 ====================== -->
+      <!-- ================================================= -->
+      {% if selected_folder1 %}
+      <div class="rowline">
+        <div class="title">Chủ đề 2</div>
+
+        <form method="GET" action="{{ url_for('admin_educations') }}">
+          <input type="hidden" name="folder1_id" value="{{ selected_folder1.id }}">
+
+          <select name="folder2_id" onchange="this.form.submit()" required>
+            {% for f in folder2_list %}
+              <option value="{{ f.id }}"
+                {% if selected_folder2 and selected_folder2.id == f.id %}selected{% endif %}>
+                {{ f.name }}
+              </option>
+            {% endfor %}
+          </select>
+
+          {% if selected_folder3 %}
+            <input type="hidden" name="folder3_id" value="{{ selected_folder3.id }}">
+          {% endif %}
+        </form>
+
+        <div class="actions">
+          {% if selected_folder2 %}
+            {% set ids = folder2_list | map(attribute='id') | list %}
+            {% set idx = ids.index(selected_folder2.id) %}
+            {% set is_first = idx == 0 %}
+            {% set is_last  = idx == (ids|length - 1) %}
+
+            <div class="actions-left">
+              <div class="folder-move">
+                <button type="button" class="ui-icon-btn ui-icon-btn--success btn-move"
+                        data-id="{{ selected_folder2.id }}"
+                        data-level="2"
+                        title="Di chuyển lên"
+                        data-parent-id="{{ selected_folder1.id }}"
+                        {% if is_first %}disabled{% endif %}>⬆</button>
+
+                <button type="button" class="ui-icon-btn ui-icon-btn--danger btn-move"
+                        data-id="{{ selected_folder2.id }}"
+                        data-level="2"
+                        title="Di chuyển xuống"
+                        data-parent-id="{{ selected_folder1.id }}"
+                        {% if is_last %}disabled{% endif %}>⬇</button>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="actions-right">
+            <a href="{{ url_for('admin_add_edu_folder', level=2, parent_id=selected_folder1.id) }}"
+               class="ui-icon-btn ui-icon-btn--success" title="Thêm chủ đề 2">➕</a>
+
+            {% if selected_folder2 %}
+              <a href="{{ url_for('admin_edit_edu_folder', folder_id=selected_folder2.id) }}"
+                 class="ui-icon-btn ui-icon-btn--warn" title="Sửa chủ đề 2">✏️</a>
+
+              <form method="POST"
+                    action="{{ url_for('admin_delete_edu_folder', folder_id=selected_folder2.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Bạn chắc chắn muốn xoá?');">
+                <button type="submit" class="ui-icon-btn ui-icon-btn--danger btn-delete-folder" title="Xóa chủ đề 2">🗑</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ================================================= -->
+      <!-- =================== CẤP 3 ====================== -->
+      <!-- ================================================= -->
+      {% if selected_folder2 %}
+      <div class="rowline">
+        <div class="title">Chủ đề 3</div>
+
+        <form method="GET" action="{{ url_for('admin_educations') }}">
+          <input type="hidden" name="folder1_id" value="{{ selected_folder1.id }}">
+          <input type="hidden" name="folder2_id" value="{{ selected_folder2.id }}">
+
+          <select name="folder3_id" onchange="this.form.submit()" required>
+            {% for f in folder3_list %}
+              <option value="{{ f.id }}"
+                {% if selected_folder3 and selected_folder3.id == f.id %}selected{% endif %}>
+                {{ f.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+
+        <div class="actions">
+          {% if selected_folder3 %}
+            {% set ids = folder3_list | map(attribute='id') | list %}
+            {% set idx = ids.index(selected_folder3.id) %}
+            {% set is_first = idx == 0 %}
+            {% set is_last  = idx == (ids|length - 1) %}
+
+            <div class="actions-left">
+              <div class="folder-move">
+                <button type="button" class="ui-icon-btn ui-icon-btn--success btn-move"
+                        data-id="{{ selected_folder3.id }}"
+                        data-level="3"
+                        title="Di chuyển lên"
+                        data-parent-id="{{ selected_folder2.id }}"
+                        {% if is_first %}disabled{% endif %}>⬆</button>
+
+                <button type="button" class="ui-icon-btn ui-icon-btn--danger btn-move"
+                        data-id="{{ selected_folder3.id }}"
+                        data-level="3"
+                        title="Di chuyển xuống"
+                        data-parent-id="{{ selected_folder2.id }}"
+                        {% if is_last %}disabled{% endif %}>⬇</button>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="actions-right">
+            <a href="{{ url_for('admin_add_edu_folder', level=3, parent_id=selected_folder2.id) }}"
+               class="ui-icon-btn ui-icon-btn--success" title="Thêm chủ đề 3">➕</a>
+
+            {% if selected_folder3 %}
+              <a href="{{ url_for('admin_edit_edu_folder', folder_id=selected_folder3.id) }}"
+                 class="ui-icon-btn ui-icon-btn--warn" title="Sửa chủ đề 3">✏️</a>
+
+              <form method="POST"
+                    action="{{ url_for('admin_delete_edu_folder', folder_id=selected_folder3.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Bạn chắc chắn muốn xoá?');">
+                <button type="submit" class="ui-icon-btn ui-icon-btn--danger btn-delete-folder" title="Xóa chủ đề 3">🗑</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- ================= CỘT PHẢI ================= -->
+  <div class="admin-right-panel"
+       id="lessonEditorBox"
+       data-folder3-id="{{ selected_folder3.id if selected_folder3 else '' }}">
+
+    {% if not selected_folder1 %}
+      <div class="ui-card ui-empty">
+        <h3>📌 Bước 1</h3>
+        <p>Hãy chọn hoặc tạo <b>Chủ đề cấp 1</b> bên trái</p>
+      </div>
+
+    {% elif selected_folder1 and not selected_folder2 %}
+      <div class="ui-card ui-empty">
+        <h3>📌 Bước 2</h3>
+        <p>Tiếp tục tạo hoặc chọn <b>Chủ đề cấp 2</b></p>
+      </div>
+
+    {% elif selected_folder2 and not selected_folder3 %}
+      <div class="ui-card ui-empty">
+        <h3>📌 Bước 3</h3>
+        <p>Chọn <b>Chủ đề cấp 3</b> để thêm nội dung bài học</p>
+      </div>
+
+    {% else %}
+      <div class="admin-lesson-right">
+        <div id="lessonListBox" class="ui-card">
+          {% include "lesson_list.html" %}
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+const DEFAULT_FOLDER_IMAGE = "{{ url_for('static', filename='logo.jpg') }}";
+
+const FOLDERS = {
+  level1: {{ {
+    "id": selected_folder1.id,
+    "name": selected_folder1.name,
+    "image": selected_folder1.image
+  } | tojson if selected_folder1 else 'null' }},
+
+  level2: {{ {
+    "id": selected_folder2.id,
+    "name": selected_folder2.name,
+    "image": selected_folder2.image
+  } | tojson if selected_folder2 else 'null' }},
+
+  level3: {{ {
+    "id": selected_folder3.id,
+    "name": selected_folder3.name,
+    "image": selected_folder3.image
+  } | tojson if selected_folder3 else 'null' }}
+};
+
+function previewFolderImage(input) {
+  const img = document.getElementById("folderPreviewImg");
+  if (img && input.files && input.files[0]) {
+    img.src = URL.createObjectURL(input.files[0]);
+  }
+}
+</script>
+
+{% if request.args.get("open_lesson") %}
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  const slug = "{{ request.args.get('open_lesson') }}";
+  const card = document.querySelector(`.lesson-card[data-slug="${slug}"]`);
+  if (card) card.click();
+});
+</script>
+{% endif %}
+
+<script>
+/* =====================================================
+   PARSE PAGE INPUT
+===================================================== */
+function parsePageInput(str) {
+  if (!str) return [];
+  str = String(str).trim();
+
+  if (str.includes("-") || str.includes(":")) {
+    const sep = str.includes("-") ? "-" : ":";
+    const parts = str.split(sep);
+    const start = parseInt(parts[0], 10);
+    const end   = parseInt(parts[1], 10);
+    if (isNaN(start) || isNaN(end) || start > end) return [];
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+
+  if (str.includes(",")) {
+    return str.split(",")
+      .map(n => parseInt(n.trim(), 10))
+      .filter(n => !isNaN(n));
+  }
+
+  const n = parseInt(str, 10);
+  return isNaN(n) ? [] : [n];
+}
+</script>
+
+<script>
+/* =====================================================
+   FOLDER MOVE
+===================================================== */
+  document.querySelectorAll(".folder-move .btn-move").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return; // ✅ tắt thật
+
+      const id = btn.dataset.id;
+      const level = btn.dataset.level;
+      const parentId = btn.dataset.parentId || "";
+      const direction = (btn.textContent.includes("⬆")) ? "up" : "down";
+
+      if (!id || !level) {
+        alert("Thiếu dữ liệu");
+        return;
+      }
+
+      fetch("/admin/educations/folder/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, level, parent_id: parentId, direction })
+      })
+      .then(res => res.json())
+      .then(data => data.success ? location.reload() : alert(data.message || "Có lỗi xảy ra"));
+    });
+  });
+</script>
+
+<script>
+/* =====================================================
+   CLOSE EDITOR (reload list)
+===================================================== */
+document.addEventListener("click", function (e) {
+  if (!e.target.classList.contains("btn-close")) return;
+
+  const box = document.getElementById("lessonEditorBox");
+  if (!box) return;
+
+  fetch("/admin/lesson/list?folder3_id={{ selected_folder3.id if selected_folder3 else '' }}")
+    .then(res => res.text())
+    .then(html => {
+      box.innerHTML = html;
+      initLessonTypeUI();
+    })
+    .catch(err => {
+      console.error(err);
+      box.innerHTML = "<p>❌ Không tải được danh sách bài học</p>";
+    });
+});
+</script>
+
+<script>
+/* =====================================================
+   LESSON ACTION HANDLER
+===================================================== */
+document.addEventListener("click", async function (e) {
+
+  const actionEl = e.target.closest("[data-lesson-action]");
+  if (!actionEl) return;
+
+  const action = actionEl.dataset.lessonAction;
+  const slug = actionEl.dataset.slug;
+
+  // ===== MOVE LESSON =====
+  if (action === "move") {
+    e.stopPropagation();
+
+    const folder3_id = actionEl.dataset.folder3;
+    const direction = actionEl.dataset.direction;
+
+    const res = await fetch("/admin/lesson/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, folder3_id, direction })
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      alert("Không thể đổi vị trí");
+      return;
+    }
+
+    const html = await fetch(`/admin/lesson/list?folder3_id=${folder3_id}`).then(r => r.text());
+    document.getElementById("lessonListBox").innerHTML = html;
+    initLessonTypeUI();
+    return;
+  }
+
+  // ===== VIEW LESSON =====
+  if (action === "view") {
+    window.open(`/lesson/${slug}`, "_blank");
+    return;
+  }
+
+  // ===== OPEN EDITOR =====
+  if (action === "open") {
+    e.stopPropagation();
+
+    const box = document.getElementById("lessonEditorBox");
+    const res = await fetch(`/admin/lesson/editor/${slug}`);
+    const html = await res.text();
+
+    box.innerHTML = html;
+
+    const editor = box.querySelector(".lesson-editor");
+    if (editor && window.initLessonEditor) {
+      window.initLessonEditor(editor);   // ✅ quan trọng: KHÔNG dùng lesson:loaded nữa
+    }
+    return;
+  }
+});
+</script>
+
+<script>
+/* =====================================================
+   LESSON TYPE UI (pdf/url)
+===================================================== */
+function initLessonTypeUI(){
+  function toggleAdd(){
+    const type = document.getElementById("addReviewType")?.value || "pdf";
+    const pdfRow = document.getElementById("addPdfRow");
+    const urlRow = document.getElementById("addUrlRow");
+    if(!pdfRow || !urlRow) return;
+
+    if(type === "pdf"){
+      pdfRow.style.display = "";
+      urlRow.style.display = "none";
+    }else{
+      pdfRow.style.display = "none";
+      urlRow.style.display = "";
+    }
+  }
+
+  function toggleEdit(){
+    const type = document.getElementById("editReviewType")?.value || "pdf";
+    const urlRow = document.getElementById("editUrlRow");
+    if(!urlRow) return;
+    urlRow.style.display = (type === "pdf") ? "none" : "";
+  }
+
+  const addType  = document.getElementById("addReviewType");
+  const editType = document.getElementById("editReviewType");
+  const editUrl  = document.getElementById("editSourceUrl");
+  const lessonSelect = document.getElementById("editLessonSelect");
+
+  if(addType){
+    addType.onchange = toggleAdd;
+    toggleAdd();
+  }
+
+  function fillFromOption(){
+    if(!lessonSelect) return;
+    const opt = lessonSelect.options[lessonSelect.selectedIndex];
+    if(!opt) return;
+
+    const t = opt.dataset.reviewType || "pdf";
+    const u = opt.dataset.sourceUrl || "";
+
+    if(editType) editType.value = t;
+    if(editUrl)  editUrl.value = u;
+    toggleEdit();
+  }
+
+  if(lessonSelect) lessonSelect.onchange = fillFromOption;
+  if(editType) editType.onchange = toggleEdit;
+
+  fillFromOption();
+}
+document.addEventListener("DOMContentLoaded", initLessonTypeUI);
+</script>
+
+<script>
+/* =====================================================
+   OPEN CHANGE LESSON FOLDER POPUP
+===================================================== */
+document.getElementById("btnOpenChangeLessonFolder")
+  ?.addEventListener("click", () => {
+    const select = document.getElementById("editLessonSelect");
+    const slug = select?.value;
+    if (!slug) return;
+
+    document.getElementById("changeLessonLoading").style.display = "block";
+    document.getElementById("changeLessonForm").style.display = "none";
+
+    document.getElementById("changeLessonTitle").innerText =
+      "🔁 Bài học: " + select.options[select.selectedIndex].text;
+
+    document.getElementById("changeLessonFolderModal")?.classList.add("show");
+
+    loadLessonFolderInfo(slug);
+});
+</script>
+
+<script>
+async function loadLessonFolderInfo(slug){
+  const res = await fetch(`/admin/lesson/${slug}/folder-info`);
+  const data = await res.json();
+
+  if(!data.ok){
+    alert(data.error || "Không tải được vị trí bài học");
+    return;
+  }
+
+  const sel1 = document.getElementById("changeFolder1");
+  const sel2 = document.getElementById("changeFolder2");
+  const sel3 = document.getElementById("changeFolder3");
+
+  sel1.innerHTML = "";
+  sel2.innerHTML = "";
+  sel3.innerHTML = "";
+
+  data.tree.f1.forEach(f => sel1.add(new Option(f.name, f.id)));
+  sel1.value = data.current.f1;
+
+  data.tree.f2.forEach(f => sel2.add(new Option(f.name, f.id)));
+  sel2.value = data.current.f2;
+
+  data.tree.f3.forEach(f => sel3.add(new Option(f.name, f.id)));
+  sel3.value = data.current.f3;
+
+  document.getElementById("changeLessonLoading").style.display = "none";
+  document.getElementById("changeLessonForm").style.display = "block";
+
+  const v1 = document.getElementById("viewFolder1");
+  const v2 = document.getElementById("viewFolder2");
+  const v3 = document.getElementById("viewFolder3");
+
+  if (v1) v1.value = sel1.options[sel1.selectedIndex]?.text || "";
+  if (v2) v2.value = sel2.options[sel2.selectedIndex]?.text || "";
+  if (v3) v3.value = sel3.options[sel3.selectedIndex]?.text || "";
+}
+</script>
+
+<script>
+async function loadLessonPathOnly(slug){
+  if (!slug) return;
+
+  const res = await fetch(`/admin/lesson/${encodeURIComponent(slug)}/folder-info`);
+  const data = await res.json();
+
+  if(!data.ok){
+    console.error(data.error || "Không tải được vị trí bài học");
+    return;
+  }
+
+  const v1 = document.getElementById("viewFolder1");
+  const v2 = document.getElementById("viewFolder2");
+  const v3 = document.getElementById("viewFolder3");
+
+  if (v1) v1.value = data.current?.f1_name || "";
+  if (v2) v2.value = data.current?.f2_name || "";
+  if (v3) v3.value = data.current?.f3_name || "";
+
+  const btn = document.getElementById("btnOpenChangeLessonFolder");
+  if (btn) btn.disabled = false;
+}
+</script>
+
+<script>
+document.addEventListener("change", function(e){
+  const sel = e.target.closest("#editLessonSelect");
+  if (!sel) return;
+
+  const slug = sel.value;
+  if (!slug) return;
+
+  loadLessonPathOnly(slug);
+});
+</script>
+
+<script>
+document.addEventListener("click", function(e){
+  const btn = e.target.closest('[data-lesson-action="open-edit"]');
+  if (!btn) return;
+
+  setTimeout(() => {
+    const sel = document.getElementById("editLessonSelect");
+    if (sel && sel.value) loadLessonPathOnly(sel.value);
+  }, 50);
+});
+</script>
+
+<script>
+document.getElementById("btnSaveLessonFolder")
+  ?.addEventListener("click", async () => {
+    const select = document.getElementById("editLessonSelect");
+    const slug = select?.value;
+    if (!slug) return;
+
+    const folder3_id = document.getElementById("changeFolder3")?.value;
+    if (!folder3_id) {
+      alert("Vui lòng chọn Chủ đề 3");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("folder3_id", folder3_id);
+
+    const res = await fetch(`/admin/lesson/${slug}/change-folder`, { method: "POST", body: form });
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert(data.error || "Lưu thất bại");
+      return;
+    }
+
+    const sel1 = document.getElementById("changeFolder1");
+    const sel2 = document.getElementById("changeFolder2");
+    const sel3 = document.getElementById("changeFolder3");
+
+    const v1 = document.getElementById("viewFolder1");
+    const v2 = document.getElementById("viewFolder2");
+    const v3 = document.getElementById("viewFolder3");
+
+    if (v1) v1.value = sel1.options[sel1.selectedIndex]?.text || "";
+    if (v2) v2.value = sel2.options[sel2.selectedIndex]?.text || "";
+    if (v3) v3.value = sel3.options[sel3.selectedIndex]?.text || "";
+
+    document.getElementById("changeLessonFolderModal")?.classList.remove("show");
+});
+</script>
+
+<script>
+/* =====================================================
+   DELETE LESSON
+===================================================== */
+document.getElementById("btnConfirmDelete")
+  ?.addEventListener("click", async () => {
+
+    const select = document.getElementById("deleteLessonSelect");
+    const slug = select?.value;
+
+    if (!slug) {
+      alert("Vui lòng chọn bài học cần xoá");
+      return;
+    }
+
+    if (!confirm("Bạn chắc chắn muốn xoá bài học này?")) return;
+
+    try {
+      const res = await fetch("/admin/lesson/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug })
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || "Xoá thất bại");
+        return;
+      }
+
+      document.getElementById("deleteLessonModal")?.classList.remove("show");
+      location.reload();
+
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối khi xoá bài học");
+    }
+});
+</script>
+
+<script>
+document.addEventListener("lesson:editor:close", function(){
+  const box = document.getElementById("lessonEditorBox");
+  if(!box) return;
+
+  fetch("/admin/lesson/list?folder3_id={{ selected_folder3.id if selected_folder3 else '' }}")
+    .then(r => r.text())
+    .then(html => {
+      box.innerHTML = html;
+      if (window.initLessonTypeUI) window.initLessonTypeUI();
+    })
+    .catch(() => box.innerHTML = "<p>❌ Không tải được danh sách bài học</p>");
+});
+</script>
+<script>
+/* =====================================================
+   LESSON MODAL OPEN/CLOSE (FIX)
+===================================================== */
+(function(){
+  function openLessonModal(id){
+    const m = document.getElementById(id);
+    if(!m) return;
+    m.classList.add("show");
+    document.body.style.overflow = "hidden";
+  }
+  function closeLessonModal(modalEl){
+    if(!modalEl) return;
+    modalEl.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  // ✅ MỞ MODAL: add/edit/delete
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest('[data-lesson-action="open-add"],[data-lesson-action="open-edit"],[data-lesson-action="open-delete"]');
+    if(!btn) return;
+
+    const act = btn.dataset.lessonAction;
+    if(act === "open-add")   openLessonModal("addLessonModal");
+    if(act === "open-edit")  openLessonModal("editLessonModal");
+    if(act === "open-delete")openLessonModal("deleteLessonModal");
+  });
+
+  // ✅ ĐÓNG MODAL: nút ❌ hoặc click vào nền backdrop
+  document.addEventListener("click", function(e){
+    // click nút close
+    const closeBtn = e.target.closest("[data-close]");
+    if(closeBtn){
+      const backdrop = closeBtn.closest(".lesson-modal-backdrop");
+      closeLessonModal(backdrop);
+      return;
+    }
+    // click ra ngoài modal
+    const backdrop = e.target.classList.contains("lesson-modal-backdrop") ? e.target : null;
+    if(backdrop){
+      closeLessonModal(backdrop);
+    }
+  });
+
+  // ESC đóng modal
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Escape") return;
+    const opened = document.querySelector(".lesson-modal-backdrop.show");
+    if(opened) closeLessonModal(opened);
+  });
+})();
+</script>
+{% endblock %}
+
+{% block global_modals %}
+  {# {% include "edu_folder_modal.html" %} #}
+{% endblock %}

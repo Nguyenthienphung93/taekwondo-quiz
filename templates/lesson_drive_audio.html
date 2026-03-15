@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ lesson.title }}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson_review.css') }}">
+
+  <style>
+    html, body{
+      height:100%;
+      margin:0;
+      overflow:hidden;
+      background:#f6f7fb;
+    }
+
+    .lesson-window{
+      width:100vw;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    /* header giữ như cũ (nếu Ken đã có trong lesson_review.css thì bỏ style này cũng được) */
+    .lesson-modal-header{
+      flex:0 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      background: #f59e0b; /* cam */
+      color:#fff;
+    }
+    .lesson-title-text{ margin:0; font-size:22px; font-weight:900; }
+    .lesson-close{
+      width:38px;height:38px;border-radius:10px;
+      border:1px solid rgba(0,0,0,.18);
+      background:#fff; cursor:pointer; font-size:18px;
+    }
+
+    .lesson-body{
+      flex:1 1 auto;
+      min-height:0;
+      display:flex;
+      overflow:hidden;
+      background:#eef2f7;
+    }
+
+    .lesson-content{
+      flex:1 1 auto;
+      min-height:0;
+      display:flex;
+      align-items:stretch;
+      justify-content:stretch;
+      padding:12px;
+      overflow:hidden;
+    }
+
+    /* ============ AUDIO VISUALIZER ============ */
+    .audio-stage{
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      position: relative;
+
+      border-radius: 18px;
+      overflow: hidden;
+      background: radial-gradient(1200px 600px at 50% 0%, rgba(59,130,246,.18), transparent 55%),
+                  radial-gradient(900px 500px at 10% 90%, rgba(249,115,22,.14), transparent 60%),
+                  #070b14;
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 18px 45px rgba(0,0,0,.20);
+    }
+
+    .audio-canvas{ width:100%; height:100%; display:block; }
+
+    .lesson-body{ display:flex !important; }
+    .lesson-content{ width:100% !important; max-width:none !important; }
+
+    .audio-hint{
+      position:absolute;
+      left: 12px;
+      top: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.90);
+      font-weight: 900;
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,.10);
+      user-select:none;
+    }
+
+    /* footer controls */
+    .audio-footer{
+      flex:0 0 auto;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 12px 14px;
+      background:#fff;
+      border-top: 1px solid rgba(0,0,0,.08);
+    }
+    /* =========================
+       BUTTON PRESS EFFECT
+    ========================= */
+
+    .abtn{
+      /* giữ form đẹp */
+      border: 0;
+      padding: 10px 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 900;
+      min-width: 56px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+
+      /* chống “nút vuông hệ thống” */
+      appearance: none;
+      -webkit-appearance: none;
+
+      /* hiệu ứng */
+      position: relative;
+      overflow: hidden;
+      transform: translateY(0);
+      box-shadow: 0 10px 18px rgba(0,0,0,.10);
+      transition: transform .10s ease, box-shadow .10s ease, filter .15s ease;
+    }
+
+    /* Khi hover */
+    .abtn:hover{
+      filter: brightness(1.05);
+    }
+
+    .abtn:active{
+      transform: translateY(2px) scale(0.98);
+      box-shadow: 0 6px 12px rgba(0,0,0,.12);
+    }
+
+    /* Ripple nhẹ */
+    .abtn::after{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      transform: translate(-50%,-50%) scale(1);
+      background: rgba(255,255,255,.35);
+      opacity:0;
+      pointer-events:none;
+    }
+
+    .abtn:active::after{
+      opacity:1;
+      transform: translate(-50%,-50%) scale(18);
+      transition: transform .35s ease, opacity .35s ease;
+    }
+
+    /* ⏪ ⏩ – xanh dương nhạt */
+    .abtn.seek{
+      background: #dbeafe;        /* xanh dương nhạt */
+      color: #1d4ed8;
+    }
+    .abtn.seek:hover{
+      background: #bfdbfe;
+    }
+    .abtn.primary{ background:#2563eb; color:#fff; }
+    .abtn.danger{ background:#ef4444; color:#fff; }
+
+    .abtn.seek:active{
+      box-shadow: 0 0 18px rgba(59,130,246,.5);
+    }
+
+    /* ▶ Play – xanh lá */
+    .abtn.play{
+      background: #16a34a;
+      color: #fff;
+    }
+    .abtn.play:hover{
+      background: #15803d;
+    }
+    .abtn.play:active{
+      box-shadow: 0 0 18px rgba(34,197,94,.6);
+    }
+
+    /* 🟡 ⏸ Pause – vàng */
+    .abtn.pause{
+      background: #facc15;
+      color: #111827;
+    }
+    .abtn.pause:hover{
+      background: #eab308;
+    }
+    .abtn.pause:active{
+      box-shadow: 0 0 18px rgba(250,204,21,.6);
+    }
+
+    /* 🟥 Stop giữ */
+    .abtn.stop{
+      background: #ef4444;
+      color: #fff;
+    }
+    .abtn.stop:hover{
+      background: #dc2626;
+    }
+    .abtn.stop:active{
+      box-shadow: 0 0 18px rgba(239,68,68,.6);
+    }
+
+    .atime{
+      font-weight: 900;
+      color:#111827;
+      min-width: 130px;
+      text-align:center;
+    }
+    .aseek{ flex:1 1 auto; accent-color:#2563eb; }
+
+    /* ===== VOLUME UI ===== */
+    .vol-wrap{
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .abtn.vol{
+      background:#e0f2fe;        /* xanh nhạt */
+      color:#075985;
+    }
+    .abtn.vol:hover{ background:#bae6fd; }
+    .abtn.vol:active{ box-shadow: 0 0 18px rgba(14,165,233,.45); }
+
+    .vol-panel{
+      position: absolute;
+      left: 50%;
+      bottom: 56px;               /* nổi lên trên footer */
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.95);
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 40px rgba(0,0,0,.18);
+      backdrop-filter: blur(10px);
+      z-index: 50;
+    }
+
+    .vol-panel input[type="range"]{
+      width: 160px;
+      accent-color:#2563eb;
+    }
+
+    .volPct{
+      min-width: 44px;
+      text-align: right;
+      font-weight: 900;
+      color:#111827;
+    }
+
+    #volPanel[hidden]{ display:none !important; }
+  </style>
+</head>
+
+<body class="is-drive is-drive-audio">
+  <div class="lesson-window">
+
+    <!-- HEADER -->
+    <div class="lesson-modal-header">
+      <div class="lesson-header-left">
+        <h1 class="lesson-title-text">{{ lesson.title }}</h1>
+      </div>
+      <button class="ui-close" onclick="closeLesson()" title="Thoát">❌</button>
+    </div>
+
+    <!-- BODY -->
+    <div class="lesson-body">
+      <main class="lesson-content">
+        <div class="audio-stage">
+          <canvas id="viz" class="audio-canvas"></canvas>
+          <div class="audio-hint">🎵 Đang phát: {{ lesson.title }}</div>
+          <audio id="html5Player" controls preload="metadata" playsinline>
+            <source src="{{ drive_direct_url }}" type="audio/mpeg">
+          </audio>
+        </div>
+      </main>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="audio-footer">
+      <button class="abtn seek" id="btnBack10" title="10s">⏪</button>
+
+      <button class="abtn play" id="btnPlay" title="Bắt đầu">▶</button>
+
+      <button class="abtn stop" id="btnStop" title="Dừng">⏹</button>
+
+      <button class="abtn seek" id="btnFwd10" title="10s">⏩</button>
+      <!-- VOLUME -->
+      <div class="vol-wrap" id="volWrap">
+        <button class="abtn vol" id="btnVol" type="button" title="Âm lượng">🔊</button>
+
+        <div class="vol-panel" id="volPanel" hidden>
+          <input id="volRange" type="range" min="0" max="100" value="80">
+          <div class="volPct"><span id="volPct">80</span>%</div>
+        </div>
+      </div>
+
+      <div class="atime">
+        <span id="tCur">0:00</span> / <span id="tDur">0:00</span>
+      </div>
+
+      <input id="seek" class="aseek" type="range" min="0" max="1000" value="0">
+    </div>
+
+  </div>
+
+  <script>
+    window.DRIVE_DIRECT_URL = {{ drive_direct_url|tojson }};
+
+    function closeLesson(){
+      if (window.history.length > 1) window.history.back();
+      else window.close();
+    }
+
+    (function(){
+      const audio = document.getElementById("html5Player");
+      const canvas = document.getElementById("viz");
+      const ctx = canvas?.getContext("2d");
+
+      const btnPlay = document.getElementById("btnPlay");
+      const btnStop = document.getElementById("btnStop");
+      const btnBack10 = document.getElementById("btnBack10");
+      const btnFwd10 = document.getElementById("btnFwd10");
+      const tCur = document.getElementById("tCur");
+      const tDur = document.getElementById("tDur");
+      const seek = document.getElementById("seek");
+      const btnVol = document.getElementById("btnVol");
+      const volPanel = document.getElementById("volPanel");
+      const volRange = document.getElementById("volRange");
+      const volPct = document.getElementById("volPct");
+
+      let ac = null;
+      let analyser = null;
+      let data = null;
+      let srcNode = null;
+
+      let raf = 0;
+      let seeking = false;
+      let started = false;
+      let volTimer = 0;
+
+      const blocks = [];
+      let lastW = 0, lastH = 0;
+
+      function setVolIcon(){
+        if(!btnVol) return;
+        const v = Number(audio.volume ?? 1);
+        if (audio.muted || v <= 0) btnVol.textContent = "🔇";
+        else if (v < 0.5) btnVol.textContent = "🔉";
+        else btnVol.textContent = "🔊";
+      }
+
+      function setVolUI(percent){
+        const p = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+        if (volRange) volRange.value = String(p);
+        if (volPct) volPct.textContent = String(p);
+        audio.volume = p / 100;
+        audio.muted = (p === 0);
+        setVolIcon();
+      }
+
+      function toggleVolPanel(force){
+        if(!volPanel) return;
+        const wantOpen = (typeof force === "boolean") ? force : volPanel.hasAttribute("hidden");
+        if (wantOpen) volPanel.removeAttribute("hidden");
+        else volPanel.setAttribute("hidden", "");
+      }
+
+      function scheduleVolAutoHide(){
+        clearTimeout(volTimer);
+        volTimer = setTimeout(() => {
+          toggleVolPanel(false);
+        }, 5000);
+      }
+
+      function toggleVolPanel(force){
+        if(!volPanel) return;
+
+        const isOpen = !volPanel.hasAttribute("hidden");
+        const wantOpen = (typeof force === "boolean") ? force : !isOpen;
+
+        if (wantOpen){
+          volPanel.removeAttribute("hidden");
+          scheduleVolAutoHide();
+        } else {
+          volPanel.setAttribute("hidden", "");
+          clearTimeout(volTimer);
+        }
+      }
+
+      function fmt(sec){
+        const n = Number(sec);
+        if (!Number.isFinite(n) || n < 0) return "--:--";
+        const s0 = Math.floor(n);
+        const m  = Math.floor(s0 / 60);
+        const s  = s0 % 60;
+        return `${m}:${String(s).padStart(2,"0")}`;
+      }
+
+      function resize(){
+        if(!canvas) return;
+        const r = canvas.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        canvas.width = Math.floor(r.width * dpr);
+        canvas.height = Math.floor(r.height * dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+
+        if (Math.abs(lastW - r.width) > 40 || Math.abs(lastH - r.height) > 40) {
+          blocks.length = 0;
+        }
+        lastW = r.width; lastH = r.height;
+      }
+
+      async function ensureAudioGraph(){
+        if (started) return;
+        started = true;
+
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = ac.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.85;
+
+        srcNode = ac.createMediaElementSource(audio);
+        srcNode.connect(analyser);
+        analyser.connect(ac.destination);
+
+        data = new Uint8Array(analyser.frequencyBinCount);
+      }
+
+      function setPlayIcon(){
+        if(!btnPlay) return;
+
+        if (audio.paused){
+          btnPlay.textContent = "▶";
+          btnPlay.classList.remove("pause");
+          btnPlay.classList.add("play");
+        } else {
+          btnPlay.textContent = "⏸";
+          btnPlay.classList.remove("play");
+          btnPlay.classList.add("pause");
+        }
+      }
+
+      function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+      function roundRect(c, x, y, w, h, r){
+        r = Math.min(r, w/2, h/2);
+        c.beginPath();
+        c.moveTo(x+r, y);
+        c.arcTo(x+w, y, x+w, y+h, r);
+        c.arcTo(x+w, y+h, x, y+h, r);
+        c.arcTo(x, y+h, x, y, r);
+        c.arcTo(x, y, x+w, y, r);
+        c.closePath();
+      }
+
+      function draw(){
+        if(!ctx || !canvas || !analyser || !data) return;
+
+        analyser.getByteFrequencyData(data);
+
+        const w = canvas.getBoundingClientRect().width;
+        const h = canvas.getBoundingClientRect().height;
+
+        ctx.fillStyle = "rgba(7,11,20,0.22)";
+        ctx.fillRect(0,0,w,h);
+
+        const barCount = 72;
+        const step = Math.floor(data.length / barCount);
+        const gap = 4;
+        const barW = Math.max(6, Math.floor((w - (barCount-1)*gap) / barCount));
+        const maxBarH = h * 0.72;
+        const baseY = h * 0.88;
+
+        if (blocks.length !== barCount) {
+          blocks.length = 0;
+          for (let i=0;i<barCount;i++){
+            blocks.push({
+              x: i*(barW+gap),
+              y: baseY,
+              w: Math.max(6, Math.floor(barW*0.78)),
+              h: 10,
+              vy: 0,
+              hue: (i / barCount) * 360,
+            });
+          }
+        }
+
+        for (let i=0;i<barCount;i++){
+          const v = data[i*step] / 255;
+          const barH = clamp(v * maxBarH, 6, maxBarH);
+
+          const x = i*(barW+gap);
+          const y = baseY - barH;
+
+          const hue = (i / barCount) * 360;
+
+          const g = ctx.createLinearGradient(0, y, 0, baseY);
+          g.addColorStop(0, `hsla(${hue}, 95%, 62%, 0.95)`);
+          g.addColorStop(1, `hsla(${hue}, 95%, 52%, 0.15)`);
+
+          ctx.fillStyle = g;
+          roundRect(ctx, x, y, barW, barH, 10);
+          ctx.fill();
+
+          const b = blocks[i];
+          const targetY = y - 16;
+
+          if (targetY < b.y) {
+            b.y = targetY;
+            b.vy = 0;
+          } else {
+            b.vy = clamp(b.vy + 0.20, 0, 6);
+            b.y = Math.min(baseY - 8, b.y + b.vy);
+          }
+
+          b.x = x + Math.floor((barW - b.w)/2);
+          b.h = 12;
+          b.hue = hue;
+
+          ctx.fillStyle = `hsla(${b.hue}, 95%, 70%, 0.95)`;
+          roundRect(ctx, b.x, b.y, b.w, b.h, 8);
+          ctx.fill();
+
+          ctx.fillStyle = `hsla(${b.hue}, 95%, 70%, 0.18)`;
+          roundRect(ctx, b.x-6, b.y-6, b.w+12, b.h+12, 10);
+          ctx.fill();
+        }
+
+        raf = requestAnimationFrame(draw);
+      }
+
+      function startViz(){
+        cancelAnimationFrame(raf);
+        resize();
+        ctx.fillStyle = "#070b14";
+        ctx.fillRect(0,0,canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
+        raf = requestAnimationFrame(draw);
+      }
+
+      function bindControls(){
+        btnPlay?.addEventListener("click", async () => {
+          await ensureAudioGraph();
+          if (ac && ac.state === "suspended") await ac.resume().catch(()=>{});
+
+          if (audio.paused) {
+            audio.play().catch(()=>{});
+            startViz();
+          } else {
+            audio.pause();
+          }
+          setPlayIcon();
+        });
+
+        btnStop?.addEventListener("click", () => {
+          audio.pause();
+          audio.currentTime = 0;
+          setPlayIcon();
+        });
+
+        btnBack10?.addEventListener("click", () => {
+          audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
+        });
+
+        btnFwd10?.addEventListener("click", () => {
+          const dur = audio.duration || 0;
+          audio.currentTime = dur ? Math.min(dur, (audio.currentTime || 0) + 10) : (audio.currentTime || 0) + 10;
+        });
+
+        audio.addEventListener("loadedmetadata", () => {
+          if (tDur) tDur.textContent = fmt(audio.duration);
+          fixInfinityDuration();
+          setPlayIcon();
+        });
+
+        // init volume mặc định 80%
+        setVolUI(Number(volRange?.value || 80));
+
+        // nút loa: bấm là toggle
+        btnVol?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleVolPanel();
+        });
+
+        // kéo volume -> reset timer
+        volRange?.addEventListener("input", (e) => {
+          setVolUI(e.target.value);
+          scheduleVolAutoHide();
+        });
+
+        // di chuột / chạm vào panel -> reset timer
+        volPanel?.addEventListener("mouseenter", scheduleVolAutoHide);
+        volPanel?.addEventListener("mousemove", scheduleVolAutoHide);
+        volPanel?.addEventListener("touchstart", scheduleVolAutoHide, { passive:true });
+
+        // click ra ngoài thì tắt
+        document.addEventListener("click", (e) => {
+          const wrap = document.getElementById("volWrap");
+          if (!wrap) return;
+          if (volPanel && !volPanel.hasAttribute("hidden") && !wrap.contains(e.target)) {
+            toggleVolPanel(false);
+          }
+        });
+
+        // click ngoài thì đóng panel
+        document.addEventListener("click", (e) => {
+          if (!volPanel || volPanel.hasAttribute("hidden")) return;
+          const wrap = document.getElementById("volWrap");
+          if (wrap && !wrap.contains(e.target)) toggleVolPanel(false);
+        });
+
+        function fixInfinityDuration(){
+          if (audio.duration === Infinity || !Number.isFinite(audio.duration)) {
+            const onTU = () => {
+              audio.removeEventListener("timeupdate", onTU);
+              try { audio.currentTime = 0; } catch(_){}
+              if (tDur) tDur.textContent = fmt(audio.duration);
+            };
+            audio.addEventListener("timeupdate", onTU);
+            try { audio.currentTime = 1e101; } catch(_){}
+          }
+        }
+
+        audio.addEventListener("timeupdate", () => {
+          if (tCur) tCur.textContent = fmt(audio.currentTime);
+
+          const durOk = Number.isFinite(audio.duration) && audio.duration > 0;
+          if (seek && !seeking && durOk) {
+            seek.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
+          }
+        });
+
+        audio.addEventListener("play", () => { setPlayIcon(); startViz(); });
+        audio.addEventListener("pause", () => { setPlayIcon(); });
+        audio.addEventListener("ended", () => { setPlayIcon(); });
+
+        seek?.addEventListener("input", () => { seeking = true; });
+        seek?.addEventListener("change", () => {
+          if (!audio.duration) { seeking = false; return; }
+          const v = Number(seek.value || 0) / 1000;
+          audio.currentTime = v * audio.duration;
+          seeking = false;
+        });
+
+        window.addEventListener("resize", resize);
+      }
+
+      function init(){
+        if(!audio || !canvas || !ctx) return;
+        audio.src = window.DRIVE_DIRECT_URL || "";
+        audio.controls = false;
+
+        resize();
+        bindControls();
+        setPlayIcon();
+        setVolIcon();
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    })();
+  </script>
+</body>
+</html>

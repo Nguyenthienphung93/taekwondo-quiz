@@ -1,0 +1,1312 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Tạo câu hỏi{% endblock %}
+{% block body_class %}page-admin-questions{% endblock %}
+
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_exam.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_manager.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_users.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_questions.css', v=APP_VERSION) }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-admin-questions">
+  <div class="admin-page">
+    <div class="admin-page-title">❓ Quản Lý Câu Hỏi ❓</div>
+  </div>
+
+  <div class="admin-questions-layout">
+
+    <!-- ================= CỘT TRÁI ================= -->
+    <div class="admin-left-panel">
+      <div class="ui-card admin-topic-card">
+        <div class="admin-topic-card-head">
+          <h3>Hãy chọn chủ đề</h3>
+        </div>
+
+        <div class="admin-topic-card-body">
+
+          <!-- ================= CẤP 1 ================= -->
+          <div class="rowline">
+            <div class="title">Chủ đề 1</div>
+
+            <form method="GET" action="/admin/questions">
+              <select name="folder1_id" onchange="this.form.submit()" required>
+                {% for f in folder1_list %}
+                  <option value="{{ f.id }}"
+                    {% if selected_folder1 and selected_folder1.id == f.id %}selected{% endif %}>
+                    {{ f.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </form>
+
+            <div class="actions">
+              {% if selected_folder1 and folder1_list %}
+                {% set ids = folder1_list | map(attribute='id') | list %}
+                {% set idx = ids.index(selected_folder1.id) if selected_folder1.id in ids else 0 %}
+                {% set is_first = idx == 0 %}
+                {% set is_last  = idx == (ids|length - 1) %}
+
+                <div class="actions-left">
+                  <div class="folder-move">
+                    <button class="ui-icon-btn ui-icon-btn--success btn-move"
+                            type="button"
+                            data-id="{{ selected_folder1.id }}"
+                            data-level="1"
+                            data-parent-id=""
+                            data-direction="up"
+                            title="Di chuyển lên"
+                            {% if is_first %}disabled{% endif %}>⬆</button>
+
+                    <button class="ui-icon-btn ui-icon-btn--danger btn-move"
+                            type="button"
+                            data-id="{{ selected_folder1.id }}"
+                            data-level="1"
+                            data-parent-id=""
+                            data-direction="down"
+                            title="Di chuyển xuống"
+                            {% if is_last %}disabled{% endif %}>⬇</button>
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="actions-right">
+                <button class="ui-icon-btn ui-icon-btn--success"
+                        type="button"
+                        data-open="modalFolder"
+                        data-action="add"
+                        data-level="1"
+                        title="Thêm chủ đề 1">➕</button>
+
+                {% if selected_folder1 %}
+                  <button class="ui-icon-btn ui-icon-btn--warn"
+                          type="button"
+                          data-open="modalFolder"
+                          data-action="edit"
+                          data-level="1"
+                          title="Sửa chủ đề 1">✏️</button>
+
+                  <button class="ui-icon-btn ui-icon-btn--danger btn-delete-folder"
+                          type="button"
+                          data-delete="{{ selected_folder1.id }}"
+                          data-level="1"
+                          data-name="{{ selected_folder1.name }}"
+                          title="Xóa chủ đề 1">
+                    🗑️
+                  </button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- ================= CẤP 2 ================= -->
+          {% if selected_folder1 %}
+          <div class="rowline">
+            <div class="title">Chủ đề 2</div>
+
+            <form method="GET" action="/admin/questions">
+              <input type="hidden" name="folder1_id" value="{{ selected_folder1.id }}">
+              <select name="folder2_id" onchange="this.form.submit()" required>
+                {% for f in folder2_list %}
+                  <option value="{{ f.id }}"
+                    {% if selected_folder2 and selected_folder2.id == f.id %}selected{% endif %}>
+                    {{ f.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </form>
+
+            <div class="actions">
+              {% if selected_folder2 and folder2_list %}
+                {% set ids = folder2_list | map(attribute='id') | list %}
+                {% set idx = ids.index(selected_folder2.id) if selected_folder2.id in ids else 0 %}
+                {% set is_first = idx == 0 %}
+                {% set is_last  = idx == (ids|length - 1) %}
+
+                <div class="actions-left">
+                  <div class="folder-move">
+                    <button class="ui-icon-btn ui-icon-btn--success btn-move"
+                            type="button"
+                            data-id="{{ selected_folder2.id }}"
+                            data-level="2"
+                            data-parent-id="{{ selected_folder1.id }}"
+                            data-direction="up"
+                            title="Di chuyển lên"
+                            {% if is_first %}disabled{% endif %}>⬆</button>
+
+                    <button class="ui-icon-btn ui-icon-btn--danger btn-move"
+                            type="button"
+                            data-id="{{ selected_folder2.id }}"
+                            data-level="2"
+                            data-parent-id="{{ selected_folder1.id }}"
+                            data-direction="down"
+                            title="Di chuyển xuống"
+                            {% if is_last %}disabled{% endif %}>⬇</button>
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="actions-right">
+                <button class="ui-icon-btn ui-icon-btn--success"
+                        type="button"
+                        data-open="modalFolder"
+                        data-action="add"
+                        data-level="2"
+                        data-parent-id="{{ selected_folder1.id }}"
+                        title="Thêm chủ đề 2">➕</button>
+
+                {% if selected_folder2 %}
+                  <button class="ui-icon-btn ui-icon-btn--warn"
+                          type="button"
+                          data-open="modalFolder"
+                          data-action="edit"
+                          data-level="2"
+                          title="Sửa chủ đề 2">✏️</button>
+
+                  <button class="ui-icon-btn ui-icon-btn--danger btn-delete-folder"
+                          type="button"
+                          data-delete="{{ selected_folder2.id }}"
+                          data-level="2"
+                          data-name="{{ selected_folder2.name }}"
+                          title="Xóa chủ đề 2">
+                    🗑️
+                  </button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- ================= CẤP 3 ================= -->
+          {% if selected_folder2 %}
+          <div class="rowline">
+            <div class="title">Chủ đề 3</div>
+
+            <form method="GET" action="/admin/questions">
+              <input type="hidden" name="folder1_id" value="{{ selected_folder1.id }}">
+              <input type="hidden" name="folder2_id" value="{{ selected_folder2.id }}">
+              <select name="folder3_id" onchange="this.form.submit()" required>
+                {% for f in folder3_list %}
+                  <option value="{{ f.id }}"
+                    {% if selected_folder3 and selected_folder3.id == f.id %}selected{% endif %}>
+                    {{ f.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </form>
+
+            <div class="actions">
+              {% if selected_folder3 and folder3_list %}
+                {% set ids = folder3_list | map(attribute='id') | list %}
+                {% set idx = ids.index(selected_folder3.id) if selected_folder3.id in ids else 0 %}
+                {% set is_first = idx == 0 %}
+                {% set is_last  = idx == (ids|length - 1) %}
+
+                <div class="actions-left">
+                  <div class="folder-move">
+                    <button class="ui-icon-btn ui-icon-btn--success btn-move"
+                            type="button"
+                            data-id="{{ selected_folder3.id }}"
+                            data-level="3"
+                            data-parent-id="{{ selected_folder2.id }}"
+                            data-direction="up"
+                            title="Di chuyển lên"
+                            {% if is_first %}disabled{% endif %}>⬆</button>
+
+                    <button class="ui-icon-btn ui-icon-btn--danger btn-move"
+                            type="button"
+                            data-id="{{ selected_folder3.id }}"
+                            data-level="3"
+                            data-parent-id="{{ selected_folder2.id }}"
+                            data-direction="down"
+                            title="Di chuyển xuống"
+                            {% if is_last %}disabled{% endif %}>⬇</button>
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="actions-right">
+                <button class="ui-icon-btn ui-icon-btn--success"
+                        type="button"
+                        data-open="modalFolder"
+                        data-action="add"
+                        data-level="3"
+                        data-parent-id="{{ selected_folder2.id }}"
+                        title="Thêm chủ đề 3">➕</button>
+
+                {% if selected_folder3 %}
+                  <button class="ui-icon-btn ui-icon-btn--warn"
+                          type="button"
+                          data-open="modalFolder"
+                          data-action="edit"
+                          data-level="3"
+                          title="Sửa chủ đề 3">✏️</button>
+
+                  <button class="ui-icon-btn ui-icon-btn--danger btn-delete-folder"
+                          type="button"
+                          data-delete="{{ selected_folder3.id }}"
+                          data-level="3"
+                          data-name="{{ selected_folder3.name }}"
+                          title="Xóa chủ đề 3">
+                    🗑️
+                  </button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= CỘT PHẢI ================= -->
+    <div class="admin-right-panel">
+      {% if selected_folder3 %}
+
+      <div class="admin-question-header">
+        <div class="question-header-top">
+          <div class="qh-left">
+            <h2>📌 {{ selected_folder1.name }} — {{ selected_folder2.name }} — {{ selected_folder3.name }}</h2>
+          </div>
+          <div class="qh-right">
+            <button class="ui-btn ui-btn--success ui-btn--sm"
+                    type="button"
+                    data-open="modalAddQuestion">
+              ➕ Thêm câu hỏi
+            </button>
+          </div>
+        </div>
+
+        {% if answer_stats and answer_stats|length > 0 %}
+        <div class="answer-stats">
+          {% for key, value in answer_stats|dictsort %}
+            <span>{{ key }}: {{ value }}</span>
+          {% endfor %}
+          <span class="total">Tổng: {{ total_correct }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="admin-question-list">
+        {% if questions and questions|length > 0 %}
+          {% for q in questions %}
+          <div class="admin-question-item">
+            <div class="question-text">
+              <b>#{{ q.id }}</b> — {{ q.text }}
+            </div>
+
+            <div class="question-actions">
+              <button class="ui-icon-btn ui-icon-btn--warn btn-edit-question"
+                      type="button"
+                      data-id="{{ q.id }}"
+                      title="Sửa câu hỏi">✏️</button>
+
+              <button class="ui-icon-btn ui-icon-btn--primary btn-duplicate"
+                      type="button"
+                      data-qid="{{ q.id }}"
+                      data-qtext="{{ q.text|e }}"
+                      title="Nhân đôi câu hỏi">x2</button>
+
+              <button class="ui-icon-btn ui-icon-btn--danger btn-delete-question"
+                      type="button"
+                      data-qid="{{ q.id }}"
+                      data-qtext="{{ q.text|e }}"
+                      title="Xóa câu hỏi">🗑️</button>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="ui-empty">❓ Chưa có câu hỏi nào</div>
+        {% endif %}
+      </div>
+
+      {% else %}
+        <div class="ui-empty">📌 Hãy chọn đủ Chủ đề 1 → 2 → 3 để xem câu hỏi</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block global_modals %}
+
+<!-- ========================================================= -->
+<!-- =============== MODAL FOLDER (ADD / EDIT) ================ -->
+<!-- ========================================================= -->
+<div class="ui-modal-backdrop" id="modalFolder">
+  <div class="ui-modal-box ui-modal-admin">
+    <div class="ui-modal-header">
+      <div class="modal-title" id="folderModalTitle">📁</div>
+      <button class="ui-close" type="button" data-close="modalFolder" title="Thoát">❌</button>
+    </div>
+
+    <form method="POST" action="/admin/folder/add" id="folderForm" enctype="multipart/form-data">
+      <div class="ui-modal-body">
+        <input type="hidden" name="level" id="folderLevel">
+        <input type="hidden" name="folder_id" id="folderId">
+        <input type="hidden" name="parent_id" id="folderParentId">
+
+        <div class="form-row">
+          <label>Tên chủ đề</label>
+          <input name="name" id="folderName" required>
+        </div>
+
+        <div class="form-row">
+          <label>Ảnh đại diện</label>
+
+          <div class="folder-preview" style="margin-bottom:8px;">
+            <img id="folderPreviewImg"
+                 src="{{ url_for('static', filename='logo.jpg') }}"
+                 style="width:120px;height:120px;object-fit:cover;border-radius:12px;">
+          </div>
+
+          <input type="file" name="image" accept="image/*" onchange="previewFolderImage(this)">
+          <small style="color:#888">Chỉ chọn ảnh nếu muốn thay đổi ảnh hiện tại</small>
+        </div>
+      </div>
+
+      <div class="ui-modal-footer">
+        <button type="submit" class="ui-btn ui-btn--success" title="Lưu">💾</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- ================= MODAL ADD QUESTION ==================== -->
+<!-- ========================================================= -->
+<div class="ui-modal-backdrop" id="modalAddQuestion">
+  <div class="ui-modal-box ui-modal-admin">
+    <div class="ui-modal-header">
+      <div class="modal-title">➕ Thêm câu hỏi</div>
+      <button class="ui-close" type="button" data-close="modalAddQuestion" title="Thoát">❌</button>
+    </div>
+
+    <form id="addQuestionForm" onsubmit="return false;">
+      <div class="ui-modal-body">
+        <input type="hidden" name="folder3_id" value="{{ selected_folder3.id if selected_folder3 else '' }}">
+
+        <div class="question-header-row">
+          <label class="qh-left">Câu hỏi</label>
+          <div class="qh-right">
+            <label>Kiểu câu hỏi</label>
+            <select id="questionType">
+              <option value="mcq" selected>Trắc nghiệm</option>
+              <option value="boolean">Đúng / Sai</option>
+              <option value="multi">Nhiều đáp án đúng</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <textarea name="question_text" required></textarea>
+        </div>
+
+        <!-- ===== MCQ ===== -->
+        <div id="block-mcq" class="question-block">
+          <input type="hidden" id="mcqCorrect" name="correct_answer" value="">
+
+          <div class="ans-row">
+            <button type="button" class="ans-pick" data-correct="A">A</button>
+            <input name="answer_a" placeholder="Nhập đáp án A">
+          </div>
+
+          <div class="ans-row">
+            <button type="button" class="ans-pick" data-correct="B">B</button>
+            <input name="answer_b" placeholder="Nhập đáp án B">
+          </div>
+
+          <div class="ans-row">
+            <button type="button" class="ans-pick" data-correct="C">C</button>
+            <input name="answer_c" placeholder="Nhập đáp án C">
+          </div>
+
+          <div class="ans-row">
+            <button type="button" class="ans-pick" data-correct="D">D</button>
+            <input name="answer_d" placeholder="Nhập đáp án D">
+          </div>
+        </div>
+
+        <!-- ===== BOOLEAN ===== -->
+        <div id="block-boolean" class="question-block hidden">
+          <input type="hidden" id="tfCorrect" name="correct_answer" value="">
+
+          <div class="ans-row">
+            <button type="button" class="ans-pick" data-correct="A">ĐÚNG</button>
+          </div>
+          <div class="ans-row">
+            <button type="button" class="ans-pick" data-correct="B">SAI</button>
+          </div>
+        </div>
+
+        <!-- ===== MULTI ===== -->
+        <div id="block-multi" class="question-block hidden">
+          <div class="multi-head">
+            <div class="multi-title">Danh sách đáp án</div>
+            <div id="multiAnswerLimitMsg" style="display:none; color:#dc2626; font-size:13px; margin-top:6px;">
+              Đã đạt tối đa 12 đáp án.
+            </div>
+            <button type="button" class="ui-btn ui-btn--success ui-btn--sm" id="btnAddMultiRow">
+              ➕ Thêm đáp án
+            </button>
+          </div>
+          <div id="multiChoiceList"></div>
+        </div>
+      </div>
+
+      <div class="ui-modal-footer">
+        <button type="button" class="ui-btn ui-btn--success" id="btnSaveQuestion" title="Lưu">💾</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- ====================== MODAL EDIT QUESTION ============== -->
+<!-- ========================================================= -->
+<div class="ui-modal-backdrop" id="modalEditQuestion">
+  <div class="ui-modal-box ui-modal-admin modal-edit-question">
+    <div class="ui-modal-header">
+      <div class="modal-title">✏️ Sửa câu hỏi</div>
+      <button class="ui-close" type="button" data-close="modalEditQuestion" title="Thoát">❌</button>
+    </div>
+
+    <form method="POST" id="editQuestionForm" onsubmit="return submitEditQuestion(event)">
+      <div class="ui-modal-body">
+        <input type="hidden" name="question_id" id="editQId">
+        <input type="hidden" id="editQuestionType">
+        <input type="hidden" name="correct_answer" id="editCorrect" value="">
+
+        <div class="form-row">
+          <label>Câu hỏi</label>
+          <textarea name="question_text" id="editQText" required></textarea>
+        </div>
+
+        <!-- ===== MCQ (EDIT) ===== -->
+        <div id="edit-block-mcq" class="question-block">
+          <div class="ans-row">
+            <button type="button" class="ans-btn" data-correct="A">A</button>
+            <input id="editA" class="ans-input" name="answer_a" placeholder="Nhập đáp án A">
+          </div>
+
+          <div class="ans-row">
+            <button type="button" class="ans-btn" data-correct="B">B</button>
+            <input id="editB" class="ans-input" name="answer_b" placeholder="Nhập đáp án B">
+          </div>
+
+          <div class="ans-row">
+            <button type="button" class="ans-btn" data-correct="C">C</button>
+            <input id="editC" class="ans-input" name="answer_c" placeholder="Nhập đáp án C">
+          </div>
+
+          <div class="ans-row">
+            <button type="button" class="ans-btn" data-correct="D">D</button>
+            <input id="editD" class="ans-input" name="answer_d" placeholder="Nhập đáp án D">
+          </div>
+        </div>
+
+        <!-- ===== BOOLEAN (EDIT) ===== -->
+        <div id="edit-block-boolean" class="question-block hidden">
+          <input type="hidden" name="answer_a" value="Đúng">
+          <input type="hidden" name="answer_b" value="Sai">
+
+          <input type="radio" name="correct_tf" value="A" style="display:none">
+          <input type="radio" name="correct_tf" value="B" style="display:none">
+
+          <div class="form-row">
+            <label>Đáp án đúng</label>
+            <div class="answer-picker" data-pick-name="correct_tf">
+              <span class="picker-title">Chọn:</span>
+              <button type="button" class="ans-pick" data-correct="A">Đúng</button>
+              <button type="button" class="ans-pick" data-correct="B">Sai</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== MULTI (EDIT) ===== -->
+        <div id="edit-block-multi" class="hidden">
+          <div class="multi-head">
+            <div class="multi-title">Danh sách đáp án</div>
+            <button type="button" class="ui-btn ui-btn--success ui-btn--sm" id="btnAddEditMultiRow">
+              ➕ Thêm đáp án
+            </button>
+          </div>
+          <div id="editMultiList"></div>
+        </div>
+
+      </div>
+
+      <div class="ui-modal-footer">
+        <button class="ui-btn ui-btn--success" type="submit" title="Lưu">💾</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- =============== MODAL DUPLICATE QUESTION ================= -->
+<!-- ========================================================= -->
+<div class="ui-modal-backdrop" id="modalDuplicateQuestion">
+  <div class="ui-modal-box ui-modal-admin">
+    <div class="ui-modal-header">
+      <div class="modal-title">🔁 Nhân câu hỏi</div>
+      <button class="ui-close" type="button" data-close="modalDuplicateQuestion" title="Thoát">❌</button>
+    </div>
+
+    <form method="POST" action="/admin/question/duplicate">
+      <div class="ui-modal-body">
+        <input type="hidden" name="question_id" id="dupQuestionId">
+
+        <div class="form-row">
+          <label>Câu hỏi:</label>
+          <div id="dupQuestionText"
+               style="padding:10px;background:#f9fafb;border-radius:8px;font-weight:600;"></div>
+        </div>
+
+        <hr>
+
+        <div class="form-row">
+          <label>Chủ đề 1</label>
+          <select id="dupFolder1" required>
+            {% for f in folder1_list %}
+              <option value="{{ f.id }}">{{ f.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Chủ đề 2</label>
+          <select id="dupFolder2" required></select>
+        </div>
+
+        <div class="form-row">
+          <label>Chủ đề 3</label>
+          <select name="folder3_id" id="dupFolder3" required></select>
+        </div>
+      </div>
+
+      <div class="ui-modal-footer">
+        <button type="submit" class="ui-btn ui-btn--success" title="Lưu">💾</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ========================= Helpers ========================= */
+const $id = (id) => document.getElementById(id);
+const MAX_MULTI_ANSWERS = 12;
+
+function openModal(modalId){
+  const m = $id(modalId);
+  if(!m) return;
+  m.classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+function closeModal(modalId){
+  const m = $id(modalId);
+  if(!m) return;
+  m.classList.remove("show");
+  document.body.style.overflow = "";
+}
+function normType(t){
+  t = String(t || "mcq").trim().toLowerCase();
+  if(t === "tf" || t === "truefalse" || t === "true_false" || t === "boolean") return "boolean";
+  if(t === "multi" || t === "multiple" || t === "multiple_choice_multi") return "multi";
+  return "mcq";
+}
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+function resolveImageSrc(path){
+  const p = String(path || "").trim();
+  if(!p) return DEFAULT_FOLDER_IMAGE;
+  if(p.startsWith("http://") || p.startsWith("https://")) return p;
+  return "{{ url_for('static', filename='') }}" + p.replace(/^\/+/, "");
+}
+
+/* ========================= Folder data for edit modal ========================= */
+const DEFAULT_FOLDER_IMAGE = "{{ url_for('static', filename='logo.jpg') }}";
+const FOLDERS = {
+  level1: {{ { "id": selected_folder1.id, "name": selected_folder1.name, "image": selected_folder1.image } | tojson if selected_folder1 else 'null' }},
+  level2: {{ { "id": selected_folder2.id, "name": selected_folder2.name, "image": selected_folder2.image } | tojson if selected_folder2 else 'null' }},
+  level3: {{ { "id": selected_folder3.id, "name": selected_folder3.name, "image": selected_folder3.image } | tojson if selected_folder3 else 'null' }}
+};
+
+/* ========================= Preview folder image ========================= */
+function previewFolderImage(input){
+  const img = $id("folderPreviewImg");
+  if(!img || !input || !input.files || !input.files[0]) return;
+  img.src = URL.createObjectURL(input.files[0]);
+}
+
+/* =========================================================
+   RESET PICK STATE (ADD/EDIT)
+========================================================= */
+function resetPickButtons(root){
+  if(!root) return;
+  root.querySelectorAll(".ans-pick.is-active").forEach(b => b.classList.remove("is-active"));
+  root.querySelectorAll(".ans-btn.is-active").forEach(b => b.classList.remove("is-active"));
+  root.querySelectorAll(".question-block input[name='correct_answer']").forEach(h => h.value = "");
+  const ec = root.querySelector("#editCorrect");
+  if(ec) ec.value = "";
+}
+
+/* =========================================================
+   MULTI LIMIT HELPERS
+========================================================= */
+function getAddMultiRows(){
+  return Array.from(document.querySelectorAll("#multiChoiceList .multi-choice-row"));
+}
+function getEditMultiRows(){
+  return Array.from(document.querySelectorAll("#editMultiList .multi-choice-row"));
+}
+
+function ensureLimitMsg(targetId, btnEl){
+  let msg = $id(targetId);
+  if(msg) return msg;
+  if(!btnEl || !btnEl.parentNode) return null;
+
+  msg = document.createElement("div");
+  msg.id = targetId;
+  msg.style.display = "none";
+  msg.style.color = "#dc2626";
+  msg.style.fontSize = "13px";
+  msg.style.marginTop = "6px";
+  msg.textContent = "Đã đạt tối đa 12 đáp án.";
+  btnEl.parentNode.appendChild(msg);
+  return msg;
+}
+
+function updateAddMultiState(){
+  const btn = $id("btnAddMultiRow");
+  if(!btn) return;
+  const msg = ensureLimitMsg("multiAnswerLimitMsg", btn);
+  const count = getAddMultiRows().length;
+  const reached = count >= MAX_MULTI_ANSWERS;
+
+  btn.disabled = reached;
+  btn.style.opacity = reached ? "0.6" : "1";
+  btn.style.cursor = reached ? "not-allowed" : "pointer";
+  if(msg) msg.style.display = reached ? "block" : "none";
+}
+
+function updateEditMultiState(){
+  const btn = $id("btnAddEditMultiRow");
+  if(!btn) return;
+  const msg = ensureLimitMsg("editMultiAnswerLimitMsg", btn);
+  const count = getEditMultiRows().length;
+  const reached = count >= MAX_MULTI_ANSWERS;
+
+  btn.disabled = reached;
+  btn.style.opacity = reached ? "0.6" : "1";
+  btn.style.cursor = reached ? "not-allowed" : "pointer";
+  if(msg) msg.style.display = reached ? "block" : "none";
+}
+
+function reindexAddMultiRows(){
+  getAddMultiRows().forEach((row, i) => {
+    const input = row.querySelector(".mc-input");
+    if(input) input.placeholder = `Nhập đáp án ${i + 1}`;
+  });
+  updateAddMultiState();
+}
+
+function reindexEditMultiRows(){
+  getEditMultiRows().forEach((row, i) => {
+    const input = row.querySelector(".mc-input");
+    if(input) input.placeholder = `Nhập đáp án ${i + 1}`;
+  });
+  updateEditMultiState();
+}
+
+/* =========================================================
+   ADD: PICK CORRECT (MCQ + BOOLEAN)
+========================================================= */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("#modalAddQuestion .question-block .ans-pick");
+  if(!btn) return;
+
+  const block = btn.closest(".question-block");
+  if(!block) return;
+
+  const val = (btn.dataset.correct || "").trim().toUpperCase();
+  const hidden = block.querySelector("input[name='correct_answer']");
+  if(hidden) hidden.value = val;
+
+  block.querySelectorAll(".ans-pick").forEach(b => b.classList.remove("is-active"));
+  btn.classList.add("is-active");
+});
+
+/* ========================= Open modal by [data-open] ========================= */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-open]");
+  if(!btn) return;
+
+  e.preventDefault();
+  const modalId = btn.dataset.open;
+
+  if(modalId === "modalAddQuestion" || modalId === "modalEditQuestion"){
+    resetPickButtons($id(modalId));
+  }
+
+  if(modalId === "modalFolder"){
+    const level = btn.dataset.level;
+    const action = btn.dataset.action;
+    const parentId = btn.dataset.parentId || "";
+
+    $id("folderLevel").value = level;
+    $id("folderParentId").value = parentId;
+
+    if(action === "add"){
+      $id("folderModalTitle").innerText = "➕ Thêm Chủ đề cấp " + level;
+      $id("folderForm").action = "/admin/folder/add";
+      $id("folderId").value = "";
+      $id("folderName").value = "";
+      $id("folderPreviewImg").src = DEFAULT_FOLDER_IMAGE;
+    }
+
+    if(action === "edit"){
+      const cur = (level == 1) ? FOLDERS.level1 : (level == 2) ? FOLDERS.level2 : FOLDERS.level3;
+      if(!cur) return;
+
+      $id("folderModalTitle").innerText = "✏️ Sửa Chủ đề cấp " + level;
+      $id("folderForm").action = `/admin/folder/${cur.id}/edit`;
+      $id("folderId").value = cur.id;
+      $id("folderName").value = cur.name;
+      $id("folderPreviewImg").src = resolveImageSrc(cur.image);
+    }
+  }
+
+  openModal(modalId);
+});
+
+/* ========================= Close modal ========================= */
+document.addEventListener("click", (e) => {
+  const closeBtn = e.target.closest("[data-close]");
+  if(closeBtn){
+    e.preventDefault();
+    const mid = closeBtn.dataset.close;
+    if(mid === "modalAddQuestion" || mid === "modalEditQuestion"){
+      resetPickButtons($id(mid));
+    }
+    closeModal(mid);
+    return;
+  }
+
+  const backdrop = e.target.classList?.contains("ui-modal-backdrop") ? e.target : null;
+  if(backdrop && backdrop.id){
+    if(backdrop.id === "modalAddQuestion" || backdrop.id === "modalEditQuestion"){
+      resetPickButtons($id(backdrop.id));
+    }
+    closeModal(backdrop.id);
+  }
+});
+
+/* ========================= Change question type (Add) ========================= */
+const questionTypeEl = $id("questionType");
+if(questionTypeEl){
+  questionTypeEl.addEventListener("change", () => {
+    const type = questionTypeEl.value;
+
+    ["block-mcq","block-boolean","block-multi"].forEach(id => $id(id)?.classList.add("hidden"));
+    resetPickButtons($id("modalAddQuestion"));
+
+    if(type === "mcq") $id("block-mcq")?.classList.remove("hidden");
+    if(type === "boolean") $id("block-boolean")?.classList.remove("hidden");
+    if(type === "multi"){
+      $id("block-multi")?.classList.remove("hidden");
+      const list = $id("multiChoiceList");
+      if(list && list.children.length === 0){
+        addMultiChoiceRow();
+        addMultiChoiceRow();
+      } else {
+        reindexAddMultiRows();
+      }
+    }
+  });
+}
+
+/* ========================= Multi rows ========================= */
+function buildMultiRow(text = "", checked = false){
+  const row = document.createElement("div");
+  row.className = "multi-choice-row";
+  row.innerHTML = `
+    <input type="checkbox" class="mc-check" ${checked ? "checked" : ""}>
+    <input type="text" class="mc-input" placeholder="Nhập đáp án" value="${escapeHtml(text)}">
+    <button type="button" class="ui-icon-btn ui-icon-btn--danger mc-del">🗑</button>
+  `;
+
+  row.querySelector(".mc-del").addEventListener("click", () => {
+    row.remove();
+
+    const addList = row.closest("#multiChoiceList");
+    const editList = row.closest("#editMultiList");
+
+    if(addList) reindexAddMultiRows();
+    if(editList) reindexEditMultiRows();
+  });
+
+  return row;
+}
+
+function addMultiChoiceRow(text = "", checked = false){
+  const list = $id("multiChoiceList");
+  if(!list) return;
+
+  if(getAddMultiRows().length >= MAX_MULTI_ANSWERS){
+    updateAddMultiState();
+    return;
+  }
+
+  list.appendChild(buildMultiRow(text, checked));
+  reindexAddMultiRows();
+}
+
+function addEditMultiChoiceRow(text = "", checked = false){
+  const list = $id("editMultiList");
+  if(!list) return;
+
+  if(getEditMultiRows().length >= MAX_MULTI_ANSWERS){
+    updateEditMultiState();
+    return;
+  }
+
+  list.appendChild(buildMultiRow(text, checked));
+  reindexEditMultiRows();
+}
+
+$id("btnAddMultiRow")?.addEventListener("click", () => addMultiChoiceRow("", false));
+$id("btnAddEditMultiRow")?.addEventListener("click", () => addEditMultiChoiceRow("", false));
+
+/* ========================= ADD QUESTION (fetch) ========================= */
+$id("btnSaveQuestion")?.addEventListener("click", async () => {
+  const form = $id("addQuestionForm");
+  if(!form) return;
+
+  const type = ($id("questionType")?.value || "mcq").toLowerCase();
+  const data = new FormData(form);
+  data.append("question_type", type);
+
+  if(type === "mcq"){
+    let c = ($id("mcqCorrect")?.value || "").trim().toUpperCase();
+    if(!c){
+      const picked = document.querySelector('#modalAddQuestion #block-mcq .ans-pick.is-active');
+      c = (picked?.dataset?.correct || "").trim().toUpperCase();
+    }
+    if(!c){ alert("Chưa chọn đáp án đúng"); return; }
+    data.set("correct_answer", c);
+  }
+
+  if(type === "boolean"){
+    let c = ($id("tfCorrect")?.value || "").trim().toUpperCase();
+    if(!c){
+      const picked = document.querySelector('#modalAddQuestion #block-boolean .ans-pick.is-active');
+      c = (picked?.dataset?.correct || "").trim().toUpperCase();
+    }
+    if(c !== "A" && c !== "B"){ alert("Vui lòng chọn đáp án đúng (Đúng/Sai)"); return; }
+
+    data.set("answer_a", "Đúng");
+    data.set("answer_b", "Sai");
+    data.set("correct_tf", c);
+    data.set("correct_answer", c);
+  }
+
+  if(type === "multi"){
+    const rows = $id("multiChoiceList")?.querySelectorAll(".multi-choice-row") || [];
+    if(rows.length < 2) return alert("Multi cần ít nhất 2 đáp án");
+    if(rows.length > MAX_MULTI_ANSWERS) return alert("Multi chỉ được tối đa 12 đáp án");
+
+    data.delete("multi_text[]");
+    data.delete("multi_correct[]");
+
+    let validCount = 0;
+    rows.forEach(row => {
+      const text = row.querySelector(".mc-input")?.value?.trim() || "";
+      const checked = row.querySelector(".mc-check")?.checked || false;
+      if(!text) return;
+      validCount++;
+      data.append("multi_text[]", text);
+      data.append("multi_correct[]", checked ? "1" : "0");
+    });
+
+    if(validCount < 2) return alert("Vui lòng nhập ít nhất 2 đáp án hợp lệ");
+    if(validCount > MAX_MULTI_ANSWERS) return alert("Multi chỉ được tối đa 12 đáp án");
+  }
+
+  const res = await fetch("/admin/questions", { method: "POST", body: data });
+  let j = {};
+  try { j = await res.json(); } catch(_){}
+
+  if(!res.ok) return alert(j.error || "Lỗi khi thêm câu hỏi");
+  location.reload();
+});
+
+/* ========================= EDIT QUESTION (open + load detail) ========================= */
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-edit-question");
+  if(!btn) return;
+
+  e.preventDefault();
+  const qid = btn.dataset.id;
+
+  const res = await fetch(`/api/question/${qid}`);
+  const data = await res.json().catch(() => ({}));
+
+  if(!res.ok || !data.ok){
+    alert(data.error || "Không load được câu hỏi");
+    return;
+  }
+
+  $id("editQId").value = data.id;
+  $id("editQText").value = data.text || "";
+  $id("editQuestionType").value = normType(data.type || "mcq");
+
+  resetPickButtons($id("modalEditQuestion"));
+  ["edit-block-mcq","edit-block-boolean","edit-block-multi"].forEach(id => $id(id)?.classList.add("hidden"));
+
+  const t = normType(data.type);
+
+  if(t === "mcq"){
+    $id("edit-block-mcq")?.classList.remove("hidden");
+
+    const answers = Array.isArray(data.answers) ? data.answers : [];
+    $id("editA").value = answers[0]?.text || "";
+    $id("editB").value = answers[1]?.text || "";
+    $id("editC").value = answers[2]?.text || "";
+    $id("editD").value = answers[3]?.text || "";
+
+    let correct = "";
+    const found = answers.find(x => x.is_correct);
+    if(found){
+      correct = String(found.label || "").trim().toUpperCase();
+    }
+    setEditCorrect(correct);
+  }
+
+  if(t === "boolean"){
+    $id("edit-block-boolean")?.classList.remove("hidden");
+
+    let correct = "";
+    const answers = Array.isArray(data.answers) ? data.answers : [];
+    const found = answers.find(x => x.is_correct);
+    if(found){
+      correct = String(found.label || "").trim().toUpperCase();
+    }
+
+    if(correct !== "A" && correct !== "B"){
+      const txt = String(data.correct_answers_text || "").trim().toLowerCase();
+      correct = (txt === "đúng" || txt === "true") ? "A" : "B";
+    }
+
+    setEditBoolCorrect(correct);
+  }
+
+  if(t === "multi"){
+    $id("edit-block-multi")?.classList.remove("hidden");
+    $id("editMultiList").innerHTML = "";
+
+    const answers = Array.isArray(data.answers) ? data.answers : [];
+    answers.forEach(c => addEditMultiChoiceRow(c.text || "", !!c.is_correct));
+
+    if(answers.length === 0){
+      addEditMultiChoiceRow("", false);
+      addEditMultiChoiceRow("", false);
+    }
+
+    reindexEditMultiRows();
+  }
+
+  openModal("modalEditQuestion");
+});
+
+/* ========================= EDIT: set correct (MCQ) ========================= */
+function setEditCorrect(val){
+  const v = (val || "").trim().toUpperCase();
+  const modal = $id("modalEditQuestion");
+  if(!modal) return;
+
+  const hid = $id("editCorrect");
+  if(hid) hid.value = v;
+
+  modal.querySelectorAll("#edit-block-mcq .ans-btn").forEach(b => {
+    b.classList.remove("is-active");
+    b.dataset.selected = "0";
+  });
+
+  const btn = modal.querySelector(`#edit-block-mcq .ans-btn[data-correct="${v}"]`);
+  if(btn){
+    btn.classList.add("is-active");
+    btn.dataset.selected = "1";
+  }
+}
+
+/* ========================= EDIT: set correct (BOOLEAN) ========================= */
+function setEditBoolCorrect(val){
+  const v = (val || "").trim().toUpperCase();
+  const modal = document.getElementById("modalEditQuestion");
+  if(!modal) return;
+
+  const hid = document.getElementById("editCorrect");
+  if(hid) hid.value = v;
+
+  const radio = modal.querySelector(`input[type="radio"][name="correct_tf"][value="${v}"]`);
+  if(radio) radio.checked = true;
+
+  modal.querySelectorAll("#edit-block-boolean .ans-pick").forEach(b => {
+    b.classList.toggle("is-active", (b.dataset.correct === v));
+  });
+}
+
+/* ========================= CLICK PICK EDIT ========================= */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("#modalEditQuestion #edit-block-boolean .ans-pick[data-correct]");
+  if(!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  setEditBoolCorrect(btn.dataset.correct);
+}, true);
+
+(function bindEditMcqPick(){
+  if(window.__EDIT_MCQ_PICK_BOUND__) return;
+  window.__EDIT_MCQ_PICK_BOUND__ = true;
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("#modalEditQuestion #edit-block-mcq .ans-btn[data-correct]");
+    if(!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const v = String(btn.dataset.correct || "").trim().toUpperCase();
+    const hid = document.getElementById("editCorrect");
+    if(hid) hid.value = v;
+
+    document.querySelectorAll("#modalEditQuestion #edit-block-mcq .ans-btn")
+      .forEach(b => b.classList.toggle("is-active", b === btn));
+  }, true);
+})();
+
+/* ========================= SUBMIT EDIT ========================= */
+async function submitEditQuestion(e){
+  e.preventDefault();
+
+  const qid = $id("editQId").value;
+  const type = normType($id("editQuestionType").value || "mcq");
+  const formEl = $id("editQuestionForm");
+  const data = new FormData(formEl);
+
+  if(type === "mcq"){
+    let c = ($id("editCorrect")?.value || "").trim().toUpperCase();
+    if(!c){
+      const picked = document.querySelector('#modalEditQuestion #edit-block-mcq .ans-btn.is-active');
+      c = (picked?.dataset?.correct || "").trim().toUpperCase();
+    }
+    if(!c){ alert("Chưa chọn đáp án đúng"); return false; }
+    data.set("correct_answer", c);
+  }
+
+  if(type === "boolean"){
+    let c = ($id("editCorrect")?.value || "").trim().toUpperCase();
+    if(!c){
+      const active = document.querySelector('#modalEditQuestion #edit-block-boolean .ans-pick.is-active');
+      c = (active?.dataset?.correct || "").trim().toUpperCase();
+    }
+
+    if(c !== "A" && c !== "B"){
+      alert("Chưa chọn đáp án đúng");
+      return false;
+    }
+
+    data.set("answer_a", "Đúng");
+    data.set("answer_b", "Sai");
+    data.set("correct_answer", c);
+  }
+
+  if(type === "multi"){
+    const rows = $id("editMultiList")?.querySelectorAll(".multi-choice-row") || [];
+    if(rows.length < 2){ alert("Multi cần ít nhất 2 đáp án"); return false; }
+    if(rows.length > MAX_MULTI_ANSWERS){ alert("Multi chỉ được tối đa 12 đáp án"); return false; }
+
+    data.delete("multi_text[]");
+    data.delete("multi_correct[]");
+
+    let validCount = 0;
+    rows.forEach(row => {
+      const text = row.querySelector(".mc-input")?.value?.trim() || "";
+      const checked = row.querySelector(".mc-check")?.checked || false;
+      if(!text) return;
+      validCount++;
+      data.append("multi_text[]", text);
+      data.append("multi_correct[]", checked ? "1" : "0");
+    });
+
+    if(validCount < 2){ alert("Vui lòng nhập ít nhất 2 đáp án hợp lệ"); return false; }
+    if(validCount > MAX_MULTI_ANSWERS){ alert("Multi chỉ được tối đa 12 đáp án"); return false; }
+  }
+
+  const res = await fetch(`/admin/question/${qid}/edit`, { method: "POST", body: data });
+  let j = {};
+  try { j = await res.json(); } catch(_){}
+
+  if(!res.ok){ alert(j.error || "Lỗi khi lưu"); return false; }
+
+  location.reload();
+  return false;
+}
+
+/* ========================= DELETE QUESTION (fetch) ========================= */
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-delete-question");
+  if(!btn) return;
+
+  e.preventDefault();
+  const qid = btn.dataset.qid;
+  const text = btn.dataset.qtext || "";
+
+  if(!confirm(`❌ Bạn chắc chắn muốn xoá câu hỏi:\n#${qid}\n"${text}"`)) return;
+
+  const res = await fetch(`/admin/questions/${qid}/delete`, { method: "POST" });
+  let j = {};
+  try { j = await res.json(); } catch(_){}
+
+  if(!res.ok){
+    alert(j.error || "Lỗi khi xoá");
+    return;
+  }
+  location.reload();
+});
+
+/* ========================= DUPLICATE QUESTION (x2) ========================= */
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-duplicate");
+  if(!btn) return;
+
+  e.preventDefault();
+  const qid = btn.dataset.qid;
+  const qtext = btn.dataset.qtext || "";
+
+  $id("dupQuestionId").value = qid;
+  $id("dupQuestionText").innerText = `#${qid} — ${qtext}`;
+
+  const res = await fetch(`/api/question/${qid}/path`);
+  const j = await res.json().catch(() => ({}));
+  if(!res.ok || !j.ok){
+    alert(j.error || "Không load được đường dẫn câu hỏi");
+    return;
+  }
+
+  $id("dupFolder1").value = j.folder1_id;
+  await loadFolder2(j.folder1_id, j.folder2_id);
+  await loadFolder3(j.folder2_id, j.folder3_id);
+
+  openModal("modalDuplicateQuestion");
+});
+
+async function loadFolder2(folder1_id, selected=null){
+  const res = await fetch(`/api/folder2/${folder1_id}`);
+  if(!res.ok) return;
+
+  const list = await res.json().catch(() => []);
+  const sel = $id("dupFolder2");
+  sel.innerHTML = "";
+
+  list.forEach(f => {
+    const opt = document.createElement("option");
+    opt.value = f.id;
+    opt.textContent = f.name;
+    if(selected && f.id === selected) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  sel.onchange = () => loadFolder3(sel.value, null);
+}
+
+async function loadFolder3(folder2_id, selected=null){
+  const res = await fetch(`/api/folder3/${folder2_id}`);
+  if(!res.ok) return;
+
+  const list = await res.json().catch(() => []);
+  const sel = $id("dupFolder3");
+  sel.innerHTML = "";
+
+  list.forEach(f => {
+    const opt = document.createElement("option");
+    opt.value = f.id;
+    opt.textContent = f.name;
+    if(selected && f.id === selected) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+$id("dupFolder1")?.addEventListener("change", (e) => loadFolder2(e.target.value, null));
+
+/* ========================= DELETE FOLDER (submit form) ========================= */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".btn-delete-folder[data-delete]");
+  if(!btn) return;
+
+  e.preventDefault();
+  const folderId = btn.dataset.delete;
+  const level = btn.dataset.level;
+  const name = btn.dataset.name || "";
+
+  const msg = `❌ Bạn chắc chắn muốn xoá chủ đề:\n\nCấp: ${level}\nTên: ${name}`;
+  if(!confirm(msg)) return;
+
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = `/admin/folder/${folderId}/delete`;
+  document.body.appendChild(form);
+  form.submit();
+});
+
+/* ========================= MOVE FOLDER (AJAX) ========================= */
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-move");
+  if(!btn) return;
+
+  e.preventDefault();
+  const payload = {
+    id: btn.dataset.id,
+    level: btn.dataset.level,
+    parent_id: btn.dataset.parentId || null,
+    direction: btn.dataset.direction
+  };
+
+  const res = await fetch("/admin/practice/folder/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const j = await res.json().catch(() => ({}));
+  if(!j.success){
+    alert(j.message || "Không đổi được vị trí");
+    return;
+  }
+  location.reload();
+});
+
+/* ========================= INIT ========================= */
+document.addEventListener("DOMContentLoaded", () => {
+  updateAddMultiState();
+  updateEditMultiState();
+});
+</script>
+{% endblock %}
