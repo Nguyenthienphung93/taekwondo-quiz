@@ -51,19 +51,18 @@
       <!-- answers -->
       <form method="POST" id="quiz-form" autocomplete="off">
         <div class="answers-grid">
-          {% for c in question.choices %}
-            {% set letter = LETTERS[loop.index0] %}
-            <label class="answer-box" data-letter="{{ letter }}">
+          {% for c in answers_payload %}
+            <label class="answer-box" data-letter="{{ c.label }}">
               {% if question.type == "multi" %}
                 <input type="checkbox"
                        name="choice_ids[]"
-                       value="{{ c.id }}"
-                       data-label="{{ letter }}">
+                       value="{{ c.orig_idx }}"
+                       data-label="{{ c.label }}">
               {% else %}
                 <input type="radio"
                        name="choice_id"
-                       value="{{ c.id }}"
-                       data-label="{{ letter }}">
+                       value="{{ c.orig_idx }}"
+                       data-label="{{ c.label }}">
               {% endif %}
               <span>{{ c.text }}</span>
             </label>

@@ -1,0 +1,1 @@
+web: gunicorn "Hệ thống ôn tập Taekwondo-DB:app"

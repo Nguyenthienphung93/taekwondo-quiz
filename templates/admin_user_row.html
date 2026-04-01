@@ -4,7 +4,8 @@
     data-email="{{ (u.email or '')|e }}"
     data-remain="{% if u.role=='user' %}{{ u._remain_label }}{% else %}-{% endif %}"
     data-status="{% if u.status=='LOCK' %}Khoá{% elif u.role=='user' and not u.email_verified %}Chờ kích hoạt{% elif u.role=='user' and u._remain_seconds is not none and u._remain_seconds <= 0 %}Chờ gia hạn{% else %}Hoạt động{% endif %}"
-    data-member="{{ (u.member or 'basic')|lower }}">
+    data-member="{{ (u.member or 'free')|lower }}"
+    data-pending-plan="{% if u.pending_approve_token %}1{% else %}0{% endif %}">
 
   <td>{{ u.username }}</td>
   <td>{{ u.email }}</td>
@@ -51,14 +52,21 @@
     {% else %}
       <span style="color:#16a34a;font-weight:900;">Hoạt động</span>
     {% endif %}
+
+    {% if u.role == "user" and u.pending_approve_token %}
+      <div class="status-sub status-pending-plan">
+        Chờ duyệt gói mới
+      </div>
+    {% endif %}
   </td>
 
   <!-- MEMBER PLAN -->
   {% if u.role == "user" %}
-    <!-- MEMBER PLAN (chỉ User) -->
     <td style="text-align:center; font-weight:900;">
-      {% set m = (u.member or 'Basic')|lower %}
-      {% if m == 'basic' %}
+      {% set m = (u.member or 'free')|lower %}
+      {% if m == 'free' %}
+        <span style="color:#64748b;">Free</span>
+      {% elif m == 'basic' %}
         <span style="color:#2563eb;">Cơ bản</span>
       {% elif m == 'pro' %}
         <span style="color:#7c3aed;">Nâng cao</span>
@@ -69,8 +77,6 @@
       {% endif %}
     </td>
   {% endif %}
-
-
 
   <!-- ACTIONS -->
   <td class="user-actions">
@@ -83,7 +89,6 @@
             data-username="{{ u.username|e }}"
             data-email="{{ (u.email or '')|e }}"
             title="Gia hạn">
-
       ⏳
     </button>
     {% endif %}
@@ -101,7 +106,6 @@
       </button>
     </form>
 
-    <!-- ✏️ EDIT -->
     {% if u.role == "admin" %}
     <button type="button"
             id="btnBulkEdit"

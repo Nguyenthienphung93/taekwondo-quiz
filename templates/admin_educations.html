@@ -18,7 +18,7 @@
 
 <!-- ===== ADMIN PAGE TITLE ===== -->
 <div class="admin-page">
-  <div class="admin-page-title">📖 Thêm bài học</div>
+  <div class="admin-page-title">📖 Thêm bài học 📖</div>
 </div>
 
 <div class="admin-questions-layout">
@@ -238,7 +238,9 @@
   </div>
 
   <!-- ================= CỘT PHẢI ================= -->
-  <div class="admin-right-panel" id="lessonEditorBox">
+  <div class="admin-right-panel"
+       id="lessonEditorBox"
+       data-folder3-id="{{ selected_folder3.id if selected_folder3 else '' }}">
 
     {% if not selected_folder1 %}
       <div class="ui-card ui-empty">

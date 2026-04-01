@@ -9,3 +9,4 @@ python-slugify
 mammoth
 python-docx
 python-dotenv
+resend

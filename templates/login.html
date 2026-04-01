@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css', v=APP_VERSION) }}">
   <!-- Page CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css', v=APP_VERSION) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css', v=APP_VERSION) }}">
 </head>
 
 <body class="login-page">
@@ -39,7 +40,7 @@
           {% endif %}
         {% endwith %}
 
-        <form method="post" class="login-form" autocomplete="on">
+        <form id="loginForm" method="post" class="login-form" autocomplete="on">
           <label class="ui-label" for="username">Username</label>
           <div class="ui-input-wrap">
             <input
@@ -237,7 +238,7 @@
   {% endif %}
 
   {# ================= MODAL: CHỌN GÓI ================= #}
-  <div id="planModal" class="ui-modal-backdrop" aria-hidden="true" style="z-index:1000000;">
+  <div id="planModal" class="ui-modal-backdrop" aria-hidden="true" style="z-index:1000000;overflow-y:auto;">
     <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="planTitle" style="width:min(860px,96vw);">
       <div class="ui-modal-header">
         <b id="planTitle">Đăng ký gói thành viên</b>
@@ -246,52 +247,47 @@
 
       <div class="ui-modal-body" style="padding-top:14px;">
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+          {% for p in member_plan_cards %}
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">{{ p.name }}</div>
 
-          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff7ed,#ffffff);">
-            <div style="font-weight:900;font-size:16px;">Taekwondo Cơ Bản</div>
-            <div style="margin-top:6px;font-weight:900;color:#2563eb;">300.000 VNĐ / tháng</div>
+            {% if p.promo %}
+              <div style="margin-top:6px;font-weight:700;color:#94a3b8;text-decoration:line-through;">
+                {{ "{:,.0f}".format(p.price_monthly).replace(",", ".") }} VNĐ / tháng
+              </div>
+              <div style="margin-top:4px;font-weight:900;color:#2563eb;">
+                {{ "{:,.0f}".format(p.final_price).replace(",", ".") }} VNĐ / tháng
+              </div>
+            {% else %}
+              <div style="margin-top:6px;font-weight:900;color:#2563eb;">
+                {{ "{:,.0f}".format(p.price_monthly).replace(",", ".") }} VNĐ / tháng
+              </div>
+            {% endif %}
+
             <div style="margin-top:10px;color:#374151;line-height:1.55;">
               Nội dung:
-              <br>+ Kỹ thuật cơ bản
+              {% for ft in p.features %}
+                <br>{{ ft }}
+              {% endfor %}
             </div>
+
+            {% if p.promo %}
+            <div class="promo-countdown"
+                 data-end="{{ p.promo.end_at.isoformat() }}"
+                 style="margin-top:10px;font-size:12px;font-weight:800;color:#dc2626;">
+              --
+            </div>
+            {% endif %}
+
             <div style="margin-top:12px;">
-              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
-                      onclick="selectPlan('BASIC', 300000)">Đăng ký</button>
+              <button type="button"
+                      class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('{{ p.code }}', {{ p.final_price }}, {{ p.price_monthly }})">
+                Đăng ký
+              </button>
             </div>
           </div>
-
-          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#eff6ff,#ffffff);">
-            <div style="font-weight:900;font-size:16px;">Taekwondo Nâng cao</div>
-            <div style="margin-top:6px;font-weight:900;color:#2563eb;">500.000 VNĐ / tháng</div>
-            <div style="margin-top:10px;color:#374151;line-height:1.55;">
-              Nội dung:
-              <br>+ Kỹ thuật cơ bản
-              <br>+ Kỹ thuật nâng cao
-              <br>+ Nội dung thi đẳng
-            </div>
-            <div style="margin-top:12px;">
-              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
-                      onclick="selectPlan('PRO', 500000)">Đăng ký</button>
-            </div>
-          </div>
-
-          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fdf2f8,#ffffff);">
-            <div style="font-weight:900;font-size:16px;">Taekwondo Cao Cấp</div>
-            <div style="margin-top:6px;font-weight:900;color:#2563eb;">800.000 VNĐ / tháng</div>
-            <div style="margin-top:10px;color:#374151;line-height:1.55;">
-              Nội dung:
-              <br>+ Kỹ thuật cơ bản
-              <br>+ Kỹ thuật nâng cao
-              <br>+ Nội dung thi đẳng
-              <br>+ Kỹ thuật cao cấp
-              <br>+ Võ nhạc
-            </div>
-            <div style="margin-top:12px;">
-              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
-                      onclick="selectPlan('VIP', 800000)">Đăng ký</button>
-            </div>
-          </div>
-
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -299,9 +295,9 @@
 
   {# ================= MODAL: THỜI GIAN ĐĂNG KÝ ================= #}
   <div id="durationModal" class="ui-modal-backdrop" aria-hidden="true"
-       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
-              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
-              padding:18px; z-index:1000001;">
+         style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+                background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+                padding:18px; z-index:1000001; overflow-y:auto;">
     <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="durationTitle"
          style="width:min(620px,96vw);border-radius:22px;overflow:hidden;">
 
@@ -330,13 +326,30 @@
         </div>
 
         <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#f8fafc;">
+
+          <div style="margin-bottom:12px;">
+            <label class="ui-label" style="margin-bottom:6px;">Mã khuyến mãi</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="promoCodeInput" class="ui-input" placeholder="Nhập mã khuyến mãi" style="flex:1;">
+              <button type="button" class="ui-btn ui-btn--primary" id="btnApplyPromo">Áp dụng</button>
+            </div>
+            <div id="promoMessage" style="margin-top:6px;font-size:13px;font-weight:700;color:#dc2626;"></div>
+          </div>
+
           <div style="display:flex;justify-content:space-between;gap:10px;">
             <span>Số tiền</span><b id="rawTotal">0</b>
           </div>
+
           <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
             <span>Giảm giá</span><b id="discount">0</b>
           </div>
+
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+            <span>Khuyến mãi</span><b id="promoDiscount">0</b>
+          </div>
+
           <div style="height:1px;background:#e5e7eb;margin:10px 0;"></div>
+
           <div style="display:flex;justify-content:space-between;gap:10px;">
             <span style="font-weight:900;">Thành tiền</span><b id="finalTotal" style="font-size:18px;">0</b>
           </div>
@@ -356,9 +369,9 @@
 
   {# ================= MODAL: THANH TOÁN (QR) ================= #}
   <div id="payModal" class="ui-modal-backdrop" aria-hidden="true"
-       style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
-              background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
-              padding:18px; z-index:1000002;">
+         style="position:fixed; inset:0;display:none; align-items:center; justify-content:center;
+                background:rgba(0,0,0,.58); backdrop-filter:blur(6px);
+                padding:18px; z-index:1000002; overflow-y:auto;">
 
     <div class="ui-modal-box" role="dialog" aria-modal="true" aria-labelledby="payTitle"
          style="width:min(860px,96vw);border-radius:22px;overflow:hidden;">
@@ -439,17 +452,17 @@
             </div>
 
             <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
-              <div style="color:#6b7280;font-weight:900;">Tên</div>
-              <div><b>Nguyễn Thiên Phụng</b></div>
+              <div style="color:#6b7280;font-weight:900;">Họ Tên Người Nhận</div>
+              <div><b>{{ payment_bank_setting.account_name if payment_bank_setting else '-' }}</b></div>
 
               <div style="color:#6b7280;font-weight:900;">STK</div>
-              <div><b>682657</b></div>
+              <div><b>{{ payment_bank_setting.account_no if payment_bank_setting else '-' }}</b></div>
 
               <div style="color:#6b7280;font-weight:900;">Ngân hàng</div>
-              <div><b>ACB</b></div>
+              <div><b>{{ payment_bank_setting.bank_name if payment_bank_setting else '-' }}</b></div>
 
               <div style="color:#6b7280;font-weight:900;">Ghi chú:</div>
-              <div><b>Theo ghi chú phần thông tin đơn hàng bên trên</b></div>
+              <div><b>{{ payment_bank_setting.note_default if payment_bank_setting else 'Theo ghi chú phần thông tin đơn hàng bên trên' }}</b></div>
             </div>
 
           </div>
@@ -462,8 +475,8 @@
               <div style="font-weight:900;font-size:16px;">Quét QR để chuyển khoản</div>
             </div>
 
-            <div style="padding:0 14px 14px;">
-              <div style="border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;
+            <div class="pay-qr-wrap" style="padding:0 14px 14px;">
+              <div class="qr-box" style="border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;
                           padding:12px;display:flex;align-items:center;justify-content:center;">
                 <img id="payQrImg" src="" alt="QR chuyển khoản"
                      style="width:min(390px,72vw);height:auto;display:block;border-radius:12px;background:#fff;">
@@ -478,12 +491,6 @@
           </div>
 
         </div>
-
-        <style>
-          @media (max-width: 720px){
-            #payModal .ui-modal-body > div { grid-template-columns: 1fr !important; }
-          }
-        </style>
       </div>
 
       <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:12px;">
@@ -492,9 +499,8 @@
           ← Quay lại
         </button>
 
-        <button class="ui-btn ui-btn--primary ui-btn--lg" type="button" id="btnPaid"
-                style="min-width:210px;border-radius:14px;font-weight:900;">
-          Tôi đã thanh toán
+        <button type="button" class="pay-btn-confirm" id="btnPaidConfirm" disabled>
+          Tôi đã thanh toán (30s)
         </button>
       </div>
 
@@ -514,20 +520,17 @@
         <div class="ui-modal__head">
           <div class="ui-modal__icon">📩</div>
           <div>
-            <div id="verifyTitle" class="ui-modal__title">Tài khoản chưa kích hoạt</div>
-            <div class="ui-modal__sub">Bạn cần kích hoạt email trước khi đăng nhập.</div>
+            <div id="verifyTitle" class="ui-modal__title">Tài khoản đã được đăng ký</div>
+            <div class="ui-modal__sub">Bạn cần vào email và bấm kích hoạt trước khi đăng nhập.</div>
           </div>
         </div>
 
         <div class="ui-modal__body">
-          <div class="ui-alert ui-alert--warn">
-            {{ warn_msgs[0] }}
-          </div>
-
           {% if act_hint %}
             <div class="ui-modal__hint" style="margin-top:10px;">
-              ✅ Hệ thống đã ghi nhớ tài khoản. Bạn có thể bấm <b>Gửi lại email kích hoạt</b> ngay.<br>
-              Nếu không thấy email, vui lòng kiểm tra <b>Spam/Quảng cáo</b>.
+              ✅ Hệ thống đã nhận được tài khoản đăng ký của bạn.<br>
+              Nếu không thấy email, vui lòng kiểm tra mục <b>Thùng rác/Spam/Quảng cáo</b>.<br>
+              Bạn có thể bấm <b>Gửi email</b> nếu chưa nhận.<br>
             </div>
           {% else %}
             <div class="ui-modal__hint" style="margin-top:10px;">
@@ -540,17 +543,77 @@
         <div class="ui-modal__foot">
 
           <button type="button" class="ui-btn ui-btn--primary" id="btnResendActivation">
-            Gửi lại email kích hoạt
+            Gửi email
           </button>
         </div>
       </div>
     </div>
   {% endif %}
 
+  <script>
+  window.ACTIVE_PROMOTIONS = [
+    {% for p in member_plan_cards %}
+      {% if p.promo %}
+      {
+        code: {{ (p.promo.code or '')|tojson }},
+        title: {{ (p.promo.title or '')|tojson }},
+        plan_codes: {{ (p.promo.plan_codes or 'ALL')|tojson }},
+        discount_type: {{ (p.promo.discount_type or 'fixed')|tojson }},
+        discount_value: {{ p.promo.discount_value or 0 }}
+      },
+      {% endif %}
+    {% endfor %}
+  ];
+  </script>
+
   <!-- =================== JS (ONLY ONCE, NO DUPLICATES) =================== -->
   <script>
   (function(){
     const $ = (id) => document.getElementById(id);
+
+    let payCountdownTimer = null;
+
+    function resetPaidButton(){
+      const btn = $("btnPaidConfirm");
+      if(!btn) return;
+
+      if(payCountdownTimer){
+        clearInterval(payCountdownTimer);
+        payCountdownTimer = null;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Tôi đã thanh toán (30s)";
+    }
+
+    function startPaidButtonCountdown(){
+      const btn = $("btnPaidConfirm");
+      if(!btn) return;
+
+      let seconds = 30;
+
+      if(payCountdownTimer){
+        clearInterval(payCountdownTimer);
+        payCountdownTimer = null;
+      }
+
+      btn.disabled = true;
+      btn.textContent = `Tôi đã thanh toán (${seconds}s)`;
+
+      payCountdownTimer = setInterval(() => {
+        seconds--;
+
+        if(seconds <= 0){
+          clearInterval(payCountdownTimer);
+          payCountdownTimer = null;
+          btn.disabled = false;
+          btn.textContent = "Tôi đã thanh toán";
+          return;
+        }
+
+        btn.textContent = `Tôi đã thanh toán (${seconds}s)`;
+      }, 1000);
+    }
 
     function openBackdrop(id){
       const m = $(id);
@@ -652,11 +715,60 @@
     }
 
     // =============== Membership flow (PLAN → DURATION → PAY) ===============
-    window.__pickedPlan = { name:"", price:0, months:1, discountRate:0, raw:0, off:0, final:0 };
+    window.__pickedPlan = {
+      name: "",
+      price: 0,
+      originalPrice: 0,
+      months: 1,
+      discountRate: 0,
+      raw: 0,
+      off: 0,
+      promoOff: 0,
+      final: 0,
+      promoCode: "",
+      promoTitle: ""
+    };
 
     function formatVND(x){
       x = Math.max(0, Math.round(x||0));
       return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " VNĐ";
+    }
+
+    function normalizePromoCode(v){
+      return String(v || "").trim().toUpperCase();
+    }
+
+    function findPromotionByCode(code){
+      const list = window.ACTIVE_PROMOTIONS || [];
+      const promoCode = normalizePromoCode(code);
+      return list.find(p => normalizePromoCode(p.code) === promoCode) || null;
+    }
+
+    function calcPromoDiscount(baseAfterMonthDiscount, promo){
+      if(!promo) return 0;
+
+      const val = Number(promo.discount_value || 0);
+      if(String(promo.discount_type || "").toLowerCase() === "percent"){
+        return Math.round(baseAfterMonthDiscount * val / 100);
+      }
+      return Math.round(val);
+    }
+
+    function resetPromoState(clearInput=false){
+      const s = window.__pickedPlan;
+      s.promoOff = 0;
+      s.promoCode = "";
+      s.promoTitle = "";
+
+      const msg = $("promoMessage");
+      if(msg){
+        msg.textContent = "";
+        msg.style.color = "#dc2626";
+      }
+
+      if(clearInput && $("promoCodeInput")){
+        $("promoCodeInput").value = "";
+      }
     }
 
     function calc(){
@@ -672,20 +784,38 @@
       s.discountRate = rate;
       s.raw = s.price * months;
       s.off = Math.round(s.raw * rate);
-      s.final = s.raw - s.off;
+
+      const afterMonthDiscount = s.raw - s.off;
+
+      let promoOff = 0;
+      if(s.promoCode){
+        const promo = findPromotionByCode(s.promoCode);
+        if(promo){
+          promoOff = calcPromoDiscount(afterMonthDiscount, promo);
+        }
+      }
+
+      s.promoOff = promoOff;
+      s.final = Math.max(afterMonthDiscount - promoOff, 0);
 
       if($("rawTotal")) $("rawTotal").textContent = formatVND(s.raw);
       if($("discount")) $("discount").textContent = "-" + formatVND(s.off);
+      if($("promoDiscount")) $("promoDiscount").textContent = "-" + formatVND(s.promoOff);
       if($("finalTotal")) $("finalTotal").textContent = formatVND(s.final);
     }
 
-    window.selectPlan = function(planName, planPrice){
-      window.__pickedPlan.name = planName;
-      window.__pickedPlan.price = planPrice;
+    window.selectPlan = function(planCode, finalPrice, originalPrice){
+      window.__pickedPlan.name = planCode;
+      window.__pickedPlan.price = finalPrice;
+      window.__pickedPlan.originalPrice = originalPrice || finalPrice;
 
-      if($("pickedPlanName")) $("pickedPlanName").textContent = planName;
-      if($("pickedPlanPrice")) $("pickedPlanPrice").textContent =
-        planPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      resetPromoState(true);
+
+      if($("pickedPlanName")) $("pickedPlanName").textContent = planCode;
+      if($("pickedPlanPrice")) {
+        $("pickedPlanPrice").textContent =
+          Math.round(finalPrice).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      }
 
       closeBackdrop("planModal");
       openBackdrop("durationModal");
@@ -701,10 +831,16 @@
     }
 
     const btnClosePlan = $("btnClosePlan");
-    if(btnClosePlan) btnClosePlan.addEventListener("click", ()=> closeBackdrop("planModal"));
+    if(btnClosePlan) btnClosePlan.addEventListener("click", ()=>{
+      closeBackdrop("planModal");
+      resetPaidButton();
+    });
 
     const btnCloseDuration = $("btnCloseDuration");
-    if(btnCloseDuration) btnCloseDuration.addEventListener("click", ()=> closeBackdrop("durationModal"));
+    if(btnCloseDuration) btnCloseDuration.addEventListener("click", ()=>{
+      closeBackdrop("durationModal");
+      resetPaidButton();
+    });
 
     const btnBackPlans = $("btnBackPlans");
     if(btnBackPlans){
@@ -715,55 +851,139 @@
     }
 
     const monthsSelect = $("monthsSelect");
-    if(monthsSelect) monthsSelect.addEventListener("change", calc);
+    if(monthsSelect){
+      monthsSelect.addEventListener("change", calc);
+    }
+
+    const btnApplyPromo = $("btnApplyPromo");
+    if(btnApplyPromo){
+      btnApplyPromo.addEventListener("click", ()=>{
+        const s = window.__pickedPlan;
+        const input = $("promoCodeInput");
+        const msg = $("promoMessage");
+
+        const code = normalizePromoCode(input ? input.value : "");
+        if(!code){
+          resetPromoState(false);
+          if(msg){
+            msg.textContent = "Vui lòng nhập mã khuyến mãi.";
+            msg.style.color = "#dc2626";
+          }
+          calc();
+          return;
+        }
+
+        const promo = findPromotionByCode(code);
+
+        if(!promo){
+          resetPromoState(false);
+          if(msg){
+            msg.textContent = "Mã khuyến mãi không hợp lệ hoặc không dành cho gói này.";
+            msg.style.color = "#dc2626";
+          }
+          calc();
+          return;
+        }
+
+        const allowed = String(promo.plan_codes || "ALL").toUpperCase();
+        if(allowed !== "ALL" && allowed !== String(s.name || "").toUpperCase()){
+          resetPromoState(false);
+          if(msg){
+            msg.textContent = "Khuyến mãi không dành cho gói này.";
+            msg.style.color = "#dc2626";
+          }
+          calc();
+          return;
+        }
+
+        s.promoCode = code;
+        s.promoTitle = promo.title || "";
+
+        if(msg){
+          msg.textContent = `Đã áp dụng khuyến mãi: ${code}`;
+          msg.style.color = "#16a34a";
+        }
+
+        calc();
+      });
+    }
+
+    function buildVietQrUrl(bankCode, accountNo, amount, addInfo, accountName){
+      bankCode = String(bankCode || "").trim();
+      accountNo = String(accountNo || "").trim();
+      accountName = String(accountName || "").trim();
+      addInfo = String(addInfo || "").trim();
+
+      if(!bankCode || !accountNo || !amount) return "";
+      return `https://img.vietqr.io/image/${bankCode}-${accountNo}-compact2.png?amount=${encodeURIComponent(Math.round(amount))}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(accountName)}`;
+    }
 
     const btnGoPay = $("btnGoPay");
     if(btnGoPay){
       btnGoPay.addEventListener("click", ()=>{
-        const s = window.__pickedPlan;
-
+        const s = window.__pickedPlan || {};
+        const username = "{{ expired_username or '' }}";
+        const email = "{{ expired_email or '' }}";
+        const months = parseInt(s.months || 1, 10);
         const plan = s.name || "-";
-        const months = s.months || 1;
-        const final = s.final || 0;
+        const finalAmount = Math.max(0, Math.round(s.final || 0));
+        const note = `${username} - ${plan} - ${months}m`;
 
-        const u = "{{ expired_username or '' }}";
-        const note = `${u} - ${plan} - ${months}m`;
+        if(!plan || plan === "-"){
+          alert("Vui lòng chọn gói thành viên.");
+          return;
+        }
 
-        const setText = (id, val)=>{ const el=$(id); if(el) el.textContent = val; };
-        setText("payPlan", plan);
-        setText("payMonths", String(months));
-        setText("payFinal", (final||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " VNĐ");
-        setText("payNote", note);
+        if($("payUser")) $("payUser").textContent = username || "-";
+        if($("payEmailText")) $("payEmailText").textContent = email || "Chưa có email";
+        if($("payPlan")) $("payPlan").textContent = plan;
+        if($("payMonths")) $("payMonths").textContent = `${months} tháng`;
+        if($("payFinal")) $("payFinal").textContent = formatVND(finalAmount);
+        if($("payNote")) $("payNote").textContent = note;
 
-        const amount = Math.max(0, Math.round(final||0));
-        const accountName = "Nguyen Thien Phung";
+        const bankCode = "{{ payment_bank_setting.bank_code if payment_bank_setting else '' }}";
+        const accountNo = "{{ payment_bank_setting.account_no if payment_bank_setting else '' }}";
+        const accountName = "{{ payment_bank_setting.account_name if payment_bank_setting else '' }}";
 
-        const qrUrl =
-          "https://img.vietqr.io/image/ACB-682657-compact2.png"
-          + "?amount=" + encodeURIComponent(String(amount))
-          + "&addInfo=" + encodeURIComponent(note)
-          + "&accountName=" + encodeURIComponent(accountName);
+        const qrUrl = buildVietQrUrl(
+          bankCode,
+          accountNo,
+          finalAmount,
+          note,
+          accountName
+        );
 
-        const img = $("payQrImg");
-        if(img) img.src = qrUrl;
+        if($("payQrImg")){
+          $("payQrImg").src = qrUrl || "";
+          $("payQrImg").style.display = qrUrl ? "block" : "none";
+        }
 
         closeBackdrop("durationModal");
         openBackdrop("payModal");
+        resetPaidButton();
+        startPaidButtonCountdown();
       });
     }
 
     const btnClosePay = $("btnClosePay");
-    if(btnClosePay) btnClosePay.addEventListener("click", (e)=>{ e.preventDefault(); closeBackdrop("payModal"); });
+    if(btnClosePay){
+      btnClosePay.addEventListener("click", (e)=>{
+        e.preventDefault();
+        closeBackdrop("payModal");
+        resetPaidButton();
+      });
+    }
 
     const btnBackDuration = $("btnBackDuration");
     if(btnBackDuration){
       btnBackDuration.addEventListener("click", ()=>{
         closeBackdrop("payModal");
+        resetPaidButton();
         openBackdrop("durationModal");
       });
     }
 
-    const btnPaid = $("btnPaid");
+    const btnPaid = $("btnPaidConfirm");
     if(btnPaid){
       btnPaid.addEventListener("click", async ()=>{
         const s = window.__pickedPlan || {};
@@ -793,6 +1013,8 @@
               months: months,
               raw_total: raw_total,
               discount: discount,
+              promo_code: s.promoCode || "",
+              promo_discount: s.promoOff || 0,
               final_total: final_total,
               note: note
             })
@@ -801,15 +1023,16 @@
           const js = await res.json().catch(()=>null);
           if(!res.ok || !js || !js.ok){
             alert((js && js.message) ? js.message : "Có lỗi khi xác nhận thanh toán. Ken gửi log cho Sam nhé.");
+            btnPaid.disabled = false;
+            btnPaid.textContent = "Tôi đã thanh toán";
             return;
           }
 
           window.location.href = "/login?wait_accept=1";
         }catch(e){
           alert("Có lỗi khi xác nhận thanh toán. Ken gửi log cho Sam nhé.");
-        }finally{
           btnPaid.disabled = false;
-          btnPaid.textContent = oldText;
+          btnPaid.textContent = "Tôi đã thanh toán";
         }
       });
     }
@@ -818,7 +1041,12 @@
     ["planModal","durationModal","payModal"].forEach(mid=>{
       const m = $(mid);
       if(!m) return;
-      m.addEventListener("click", (e)=>{ if(e.target === m) closeBackdrop(mid); });
+      m.addEventListener("click", (e)=>{
+        if(e.target === m){
+          closeBackdrop(mid);
+          if(mid === "payModal") resetPaidButton();
+        }
+      });
     });
 
     // ESC to close: pay > duration > plan
@@ -827,11 +1055,145 @@
       const pay = $("payModal");
       const dur = $("durationModal");
       const plan = $("planModal");
-      if(pay && pay.style.display === "flex") return closeBackdrop("payModal");
+      if(pay && pay.style.display === "flex"){
+        closeBackdrop("payModal");
+        resetPaidButton();
+        return;
+      }
       if(dur && dur.style.display === "flex") return closeBackdrop("durationModal");
       if(plan && plan.style.display === "flex") return closeBackdrop("planModal");
     });
 
+  })();
+  </script>
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".promo-countdown").forEach(el => {
+      const endStr = el.dataset.end;
+      if (!endStr) return;
+
+      const end = new Date(endStr);
+
+      function tick() {
+        const now = new Date();
+        const diff = end - now;
+
+        if (diff <= 0) {
+          el.textContent = "Hết khuyến mãi";
+          return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const mins = Math.floor((diff / (1000 * 60)) % 60);
+        const secs = Math.floor((diff / 1000) % 60);
+
+        el.textContent = `Khuyến mãi còn ${days} ngày ${hours} giờ ${mins} phút ${secs} giây`;
+      }
+
+      tick();
+      setInterval(tick, 1000);
+    });
+  });
+  </script>
+  <div id="introOverlay" class="intro-overlay" style="display:none;" aria-hidden="true">
+    <video
+      id="introVideo"
+      class="intro-video"
+      playsinline
+      webkit-playsinline
+      preload="auto"
+    >
+      <source src="{{ url_for('static', filename='Intro.mp4') }}" type="video/mp4">
+    </video>
+
+    <button type="button" class="intro-skip" id="skipIntro">Bỏ qua</button>
+  </div>
+
+  <script>
+  (function () {
+    const form = document.getElementById("loginForm");
+    const overlay = document.getElementById("introOverlay");
+    const video = document.getElementById("introVideo");
+    const skipBtn = document.getElementById("skipIntro");
+
+    if (!form || !overlay || !video) return;
+
+    let moved = false;
+
+    function goNext() {
+      if (moved) return;
+      moved = true;
+      window.location.href = "{{ url_for('sets') }}";
+    }
+
+    if (skipBtn) {
+      skipBtn.addEventListener("click", goNext);
+    }
+
+    video.addEventListener("ended", goNext);
+    video.addEventListener("error", goNext);
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch("{{ url_for('login') }}", {
+          method: "POST",
+          body: formData,
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          if (data.redirect_url) {
+            window.location.href = data.redirect_url;
+            return;
+          }
+
+          if (data.status === "WAIT_ACCEPT") {
+            window.location.href = "{{ url_for('login') }}?wait_accept=1";
+            return;
+          }
+
+          if (data.status === "WAIT_RENEW") {
+            alert(data.message || "Tài khoản đã hết hạn, vui lòng gia hạn gói.");
+            window.location.reload();
+            return;
+          }
+
+          if (data.status === "LOCK") {
+            alert(data.message || "Tài khoản đã bị khóa.");
+            window.location.reload();
+            return;
+          }
+
+          alert(data.message || "Đăng nhập thất bại");
+          return;
+        }
+
+        overlay.style.display = "flex";
+        overlay.setAttribute("aria-hidden", "false");
+
+        try {
+          video.currentTime = 0;
+          video.muted = false;
+          video.volume = 1;
+          await video.play();
+        } catch (err) {
+          console.error("Không autoplay được video có tiếng:", err);
+          goNext();
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Có lỗi khi đăng nhập");
+      }
+    });
   })();
   </script>
 </body>

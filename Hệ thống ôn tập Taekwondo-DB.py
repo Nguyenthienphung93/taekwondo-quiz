@@ -1,46 +1,63 @@
-import random
-import sqlite3
-import os, json
-import secrets
-import smtplib
+import os
 import re
-import unicodedata
-import uuid
+import io
+import hmac
 import json
-import re
+import time
+import uuid
+import queue
+import random
+import base64
+import sqlite3
+import secrets
+import hashlib
+import calendar
 import requests
+import smtplib
+import unicodedata
 import datetime as dt
-from flask import Response, stream_with_context
+
+from uuid import uuid4
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone, timedelta
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask import Flask, request, redirect, url_for, flash, render_template, session, abort, current_app, jsonify
-from sqlalchemy.exc import IntegrityError
-from email.mime.text import MIMEText
-from werkzeug.utils import secure_filename
-from PIL import Image
-from slugify import slugify
+
+import resend
 import mammoth
+
+from PIL import Image, UnidentifiedImageError
+
+from dotenv import load_dotenv
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+
+from flask import (
+    Flask, request, redirect, url_for, flash, render_template,
+    session, abort, current_app, jsonify, Response,
+    stream_with_context, has_request_context, g
+)
+
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import (
+    LoginManager, UserMixin, login_user, login_required,
+    logout_user, current_user
+)
+
+from sqlalchemy import text, case, or_, func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.types import TypeDecorator, String as SAString
+
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+from slugify import slugify
 from docx import Document
 from docx.oxml.ns import qn
 
-from flask import request, jsonify
-from datetime import datetime
-import requests
-import os
-
-import os
-from dotenv import load_dotenv
 
 
-
-
-import re, os, time, unicodedata
-from uuid import uuid4
-from flask import current_app
-from datetime import datetime, timezone, timedelta
 
 def _to_utc_aware(dt):
     """Đưa datetime về timezone-aware UTC để so sánh an toàn."""
@@ -62,7 +79,7 @@ def add_months_exact(dt_value, months):
     06/03 + 3 tháng = 06/06
     31/01 + 1 tháng = 28/02 hoặc 29/02
     """
-    import calendar
+    
 
     months = max(1, int(months or 1))
 
@@ -75,6 +92,29 @@ def add_months_exact(dt_value, months):
     day = min(dt_value.day, calendar.monthrange(year, month)[1])
 
     return dt_value.replace(year=year, month=month, day=day)
+
+def is_user_membership_active(user):
+    end = _to_utc_aware(user.trial_end) if getattr(user, "trial_end", None) else None
+    now = _to_utc_aware(now_vn())
+    return bool(end and end > now)
+
+def get_pending_change_type(user, new_plan_code: str):
+    """
+    return:
+      - expired_renew: đã hết hạn, giờ mua lại
+      - same_plan_extend: còn hạn, gia hạn cùng gói
+      - upgrade_or_downgrade: còn hạn, đổi sang gói khác
+    """
+    current_plan = norm_plan(getattr(user, "member", None) or "FREE")
+    new_plan_code = norm_plan(new_plan_code)
+
+    if not is_user_membership_active(user):
+        return "expired_renew"
+
+    if current_plan == new_plan_code:
+        return "same_plan_extend"
+
+    return "upgrade_or_downgrade"
 
 def vn_filename(text: str) -> str:
     """'Đỡ hạ' -> 'do_ha' """
@@ -174,6 +214,7 @@ def get_lesson_json_path(slug):
 
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config["SECRET_KEY"] = "KEN_TAEKWONDO_2026"
 os.makedirs(app.instance_path, exist_ok=True)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "quiz.db")
@@ -193,10 +234,17 @@ for i in (1, 2, 3):
 
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev_secret_change_me")
 
-BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5000").rstrip("/")
-LOGO_URL = f"{BASE_URL}/static/logo.jpg"
+BASE_URL = os.getenv(
+    "BASE_URL",
+    "https://phungtkdsystem.up.railway.app"
+).rstrip("/")
 
-from datetime import datetime
+def get_base_url():
+    if has_request_context():
+        return request.host_url.rstrip("/")
+    return BASE_URL
+
+LOGO_URL = f"{BASE_URL}/static/logo.jpg"
 
 # ==============================
 # JINJA FILTER: MASK EMAIL (REGISTER EARLY)
@@ -211,10 +259,8 @@ def mask_email(value, keep: int = 5):
 
 app.jinja_env.filters["mask_email"] = mask_email
 
-from datetime import datetime, timezone, timedelta
-import secrets
 
-ADMIN_EMAIL = "silentnight1993pro@gmail.com"
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "silentnight1993pro@gmail.com").strip()
 
 PLAN_PRICES = {
     "BASIC": 300_000,
@@ -224,7 +270,7 @@ PLAN_PRICES = {
 
 def norm_plan(code: str) -> str:
     c = (code or "").strip().upper()
-    if c in ("FREE", "BASIC", "PRO", "VIP"):
+    if c in ("FREE", "BASIC", "PRO", "VIP", "ADMIN"):
         return c
     return "FREE"
 
@@ -237,7 +283,7 @@ def plan_display(code: str) -> str:
         "VIP":   "Taekwondo Cao Cấp",
     }.get(c, "Taekwondo Free")
 
-from datetime import datetime, timezone
+
 
 def to_naive_utc(dt):
     if not dt:
@@ -277,7 +323,6 @@ def fmt_vnd(n: int) -> str:
     n = int(n or 0)
     return f"{n:,}".replace(",", ".") + " VNĐ"
 
-from sqlalchemy import text
 
 
 def migrate_user_table():
@@ -332,6 +377,82 @@ def migrate_notification_table():
         add("ref_months INTEGER", "ref_months")
         add("is_done INTEGER DEFAULT 0", "is_done")
 
+def send_voucher_to_selected_users(promo_id: int):
+    promo = PromotionCampaign.query.get(promo_id)
+    if not promo:
+        return
+
+    links = PromotionUser.query.filter_by(promotion_id=promo.id).all()
+    if not links:
+        return
+
+    for link in links:
+        user = User.query.get(link.user_id)
+        if not user:
+            continue
+
+        # 1) tạo thông báo trong hệ thống
+        try:
+            n = Notification(
+                role="user",
+                user_id=user.id,
+                title=f"🎁 Bạn nhận được phiếu khuyến mãi: {promo.code}",
+                message=(
+                    f"Bạn vừa nhận được phiếu khuyến mãi.\n"
+                    f"Mã: {promo.code}\n"
+                    f"Tên: {promo.title}\n"
+                    f"Gói áp dụng: {promo.plan_codes}\n"
+                    f"Giảm: "
+                    f"{str(promo.discount_value) + '%' if promo.discount_type == 'percent' else fmt_vnd(promo.discount_value)}\n"
+                    f"Từ: {promo.start_at.strftime('%d/%m/%Y %H:%M') if promo.start_at else ''}\n"
+                    f"Đến: {promo.end_at.strftime('%d/%m/%Y %H:%M') if promo.end_at else ''}\n\n"
+                    f"Hãy nhập mã này tại ô 'Mã khuyến mãi' khi thanh toán."
+                ),
+                target_url=url_for("sets"),
+                icon="🎁",
+                is_read=False,
+                action_type="voucher_notice",
+                ref_user_id=user.id,
+                is_done=False,
+                created_at=now_vn()
+            )
+            db.session.add(n)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print("[send_voucher_to_selected_users][notification] ERROR:", e)
+
+        # 2) gửi email nếu user có email
+        if user.email:
+            try:
+                html = render_app_email(
+                    subject_title="🎁 Bạn nhận được phiếu khuyến mãi",
+                    preheader=f"Mã {promo.code} đã được gửi cho bạn.",
+                    username=user.username,
+                    message_html=f"""
+                      <p>Xin chào <strong>{user.username}</strong>!</p>
+                      <p>Bạn vừa nhận được một <strong>phiếu khuyến mãi riêng</strong>.</p>
+
+                      <div style="margin:14px 0;padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;line-height:1.8;">
+                        <div><strong>Mã phiếu:</strong> {promo.code}</div>
+                        <div><strong>Tên:</strong> {promo.title}</div>
+                        <div><strong>Gói áp dụng:</strong> {promo.plan_codes}</div>
+                        <div><strong>Giảm:</strong> {"{}%".format(promo.discount_value) if promo.discount_type == "percent" else fmt_vnd(promo.discount_value)}</div>
+                        <div><strong>Hiệu lực từ:</strong> {promo.start_at.strftime('%d/%m/%Y %H:%M') if promo.start_at else ''}</div>
+                        <div><strong>Đến:</strong> {promo.end_at.strftime('%d/%m/%Y %H:%M') if promo.end_at else ''}</div>
+                      </div>
+
+                      <p>Khi thanh toán gói học, vui lòng nhập mã này vào ô <strong>Mã khuyến mãi</strong> để được trừ thêm tiền.</p>
+                    """,
+                    button_text="Vào hệ thống học tập",
+                    button_url=get_base_url(),
+                    note_html=None
+                )
+                send_email(user.email, f"Phiếu khuyến mãi {promo.code}", html)
+            except Exception as e:
+                print("[send_voucher_to_selected_users][email] ERROR:", e)
+
+
 def render_app_email(subject_title, preheader, username, message_html, button_text=None, button_url=None, note_html=None):
     return render_template(
         "base_email.html",
@@ -357,9 +478,16 @@ def render_app_email(subject_title, preheader, username, message_html, button_te
     )
 
 def build_user_waitaccept_email(username, plan_code, months):
-    price, raw_total, discount, final_total, rate = calc_totals(plan_code, months)
-    plan_name = plan_display(plan_code)
+    user = User.query.filter_by(username=username).first()
+    checkout = calc_plan_checkout_for_user(user, plan_code, months)
 
+    raw_total = checkout["raw_total"]
+    discount = checkout["discount"]
+    final_total = checkout["final_total"]
+    plan_name = checkout["plan"].name
+    rate = 0
+    if raw_total > 0:
+        rate = discount / raw_total
     body = f"""
       <p style="margin:0 0 10px;"><strong>Xin chào, {username}!</strong></p>
 
@@ -384,7 +512,7 @@ def build_user_waitaccept_email(username, plan_code, months):
 
       <p style="margin:0 0 12px;">
         Xin vui lòng chờ Admin duyệt. Nếu quá <strong>24h</strong>, vui lòng liên hệ về:</p>
-      <p style="margin:0 0 12px;"> <strong>email:</strong> silentnight1993pro@gmail.com</p>
+      <p style="margin:0 0 12px;"> <strong>Email:</strong> silentnight1993pro@gmail.com</p>
       <p style="margin:0 0 12px;"> <strong>Hotline:</strong> +84 989 03 04 93 </p>
 
       <p style="margin:0 0 8px;">
@@ -400,18 +528,26 @@ def build_user_waitaccept_email(username, plan_code, months):
     """
 
     return render_app_email(
-        subject_title="💳Đã ghi nhận thanh toán💳",
+        subject_title="💳Xác nhận thanh toán💳",
         preheader="Hệ thống đã ghi nhận thanh toán và đang chờ admin duyệt.",
         username=username,
         message_html=body,
         button_text="Vào trang web",
-        button_url=BASE_URL,
+        button_url=get_base_url(),
         note_html=None
     )
 
 def build_admin_email(username, email, plan_code, months, approve_url):
-    price, raw_total, discount, final_total, rate = calc_totals(plan_code, months)
-    plan_name = plan_display(plan_code)
+    user = User.query.filter_by(username=username).first()
+    checkout = calc_plan_checkout_for_user(user, plan_code, months)
+
+    raw_total = checkout["raw_total"]
+    discount = checkout["discount"]
+    final_total = checkout["final_total"]
+    plan_name = checkout["plan"].name
+    rate = 0
+    if raw_total > 0:
+        rate = discount / raw_total
     memo = f"{username} - {norm_plan(plan_code)} - {months}m"
 
     body = f"""
@@ -494,26 +630,14 @@ def build_user_approved_email(username, plan_code, months, trial_start, trial_en
         username=username,
         message_html=body,
         button_text="Vào hệ thống học tập",
-        button_url=BASE_URL,
+        button_url=get_base_url(),
         note_html=None
     )
 
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from flask import jsonify
+
 
 def get_signer():
     return URLSafeTimedSerializer(app.config["SECRET_KEY"], salt="renew-approve")
-
-from flask import jsonify, request
-
-import datetime as dt  # đảm bảo có ở đầu file (hoặc gần import)
-
-from flask import request, jsonify
-from flask_login import login_required, current_user
-from datetime import datetime, timedelta
-
-from datetime import datetime, timezone
-import secrets
 
 @app.post("/renew/confirm_paid")
 def renew_confirm_paid():
@@ -544,15 +668,46 @@ def renew_confirm_paid():
         if months <= 0:
             months = 1
 
-        price, raw_total, discount, final_total, rate = calc_totals(plan_code, months)
-        plan_name = plan_display(plan_code)
-        memo = f"{user.username} - {norm_plan(plan_code)} - {months}m"
+        promo_code = (data.get("promo_code") or "").strip().upper()
+        memo = (data.get("note") or f"{user.username} - {plan_code} - {months}m").strip()
 
-        token = secrets.token_urlsafe(32)
+        checkout = calc_plan_checkout_for_user(user, plan_code, months)
+
+        raw_total = int(checkout["raw_total"] or 0)
+        discount = int(checkout["discount"] or 0)
+        final_total = int(checkout["final_total"] or 0)
+        plan_name = checkout["plan"].name if checkout.get("plan") else plan_display(plan_code)
+
+        promo_discount = 0
+
+        if promo_code:
+            promo, promo_msg = get_promotion_by_code_for_user(user, promo_code, plan_code)
+            if not promo:
+                return jsonify({"ok": False, "message": promo_msg}), 400
+
+            after_month_discount = raw_total - discount
+
+            if str(promo.discount_type or "").lower() == "percent":
+                promo_discount = int(after_month_discount * float(promo.discount_value or 0) / 100)
+            else:
+                promo_discount = int(promo.discount_value or 0)
+
+            final_total = max(after_month_discount - promo_discount, 0)
+            discount = discount + promo_discount
+
+        token = get_signer().dumps({
+            "uid": user.id,
+            "plan_code": plan_code,
+            "months": months,
+            "ts": datetime.now(timezone.utc).timestamp()
+        })
+
+        old_plan_code = norm_plan(user.member or "FREE")
+        pending_change_type = get_pending_change_type(user, plan_code)
 
         # pending info
         user.pending_plan_code = plan_code
-        user.pending_member = user.member          # giữ gói cũ
+        user.pending_member = old_plan_code
         user.pending_member_name = plan_name
         user.pending_months = months
         user.pending_amount = raw_total
@@ -563,13 +718,15 @@ def renew_confirm_paid():
         user.pending_at = datetime.now(timezone.utc).isoformat()
         user.pending_approve_token = token
 
-        # trạng thái đúng sau khi user bấm "Tôi đã thanh toán"
-        user.status = "WAIT_ACCEPT"
-
-        # member đổi sang gói user đã đăng ký như Ken yêu cầu
-        user.member = plan_code
+        # Hết hạn rồi mới mua => WAIT_ACCEPT
+        # Còn hạn mà mua thêm / đổi gói => vẫn ACTIVE để tiếp tục học
+        if pending_change_type == "expired_renew":
+            user.status = "WAIT_ACCEPT"
+        else:
+            user.status = "ACTIVE"
 
         db.session.commit()
+
         try:
             create_notification(
                 role="admin",
@@ -577,9 +734,10 @@ def renew_confirm_paid():
                 message=(
                     f"User: {user.username}\n"
                     f"Email: {user.email or ''}\n"
-                    f"Gói: {plan_display(plan_code)} ({plan_code})\n"
+                    f"Gói: {plan_name} ({plan_code})\n"
                     f"Số tháng: {months}\n"
                     f"Thành tiền: {fmt_vnd(final_total)}\n"
+                    f"Ghi chú: {memo}\n"
                     f"Trạng thái: Chờ admin duyệt"
                 ),
                 target_url=url_for("admin_users"),
@@ -592,28 +750,63 @@ def renew_confirm_paid():
         except Exception as e:
             print("[create_notification] ERROR:", e)
 
+        # Telegram cho admin
+        try:
+            send_telegram_renew_request(user, {
+                "plan_code": plan_code,
+                "plan_name": plan_name,
+                "months": months,
+                "amount": final_total,
+                "memo": memo
+            })
+        except Exception as e:
+            print("[renew_confirm_paid] send telegram failed:", e)
+
         # lưu session để popup hiện lại ở login
         session["wait_accept_username"] = user.username
         session["wait_accept_email"] = user.email or ""
 
         approve_url = request.host_url.rstrip("/") + url_for("renew_approve", token=token)
 
+        user_mail_ok = False
+        admin_mail_ok = False
+
         # mail cho user
         if user.email:
-            html_user = build_user_waitaccept_email(user.username, plan_code, months)
-            send_email(user.email, "Đã ghi nhận thanh toán - Chờ admin duyệt", html_user)
+            try:
+                html_user = build_user_waitaccept_email(user.username, plan_code, months)
+                user_mail_ok = send_email(
+                    user.email,
+                    "Đã xác nhận thanh toán - Chờ admin duyệt",
+                    html_user
+                )
+                print("[renew_confirm_paid] user_mail_ok =", user_mail_ok, "->", user.email)
+            except Exception as e:
+                print("[renew_confirm_paid] send user email failed:", e)
 
         # mail cho admin
-        html_admin = build_admin_email(
-            username=user.username,
-            email=user.email or "",
-            plan_code=plan_code,
-            months=months,
-            approve_url=approve_url
-        )
-        send_email(ADMIN_EMAIL, "Yêu cầu duyệt gia hạn", html_admin)
+        try:
+            html_admin = build_admin_email(
+                username=user.username,
+                email=user.email or "",
+                plan_code=plan_code,
+                months=months,
+                approve_url=approve_url
+            )
+            admin_mail_ok = send_email(
+                ADMIN_EMAIL,
+                "Yêu cầu duyệt gia hạn",
+                html_admin
+            )
+            print("[renew_confirm_paid] admin_mail_ok =", admin_mail_ok, "->", ADMIN_EMAIL)
+        except Exception as e:
+            print("[renew_confirm_paid] send admin email failed:", e)
 
-        return jsonify({"ok": True})
+        return jsonify({
+            "ok": True,
+            "user_mail_ok": user_mail_ok,
+            "admin_mail_ok": admin_mail_ok
+        })
 
     except Exception as e:
         db.session.rollback()
@@ -624,53 +817,104 @@ def renew_confirm_paid():
 
 @app.route("/telegram/webhook", methods=["POST"], strict_slashes=False)
 def telegram_webhook():
-    ...
-    print("✅ TELEGRAM WEBHOOK HIT")
-    print(request.get_json(silent=True))
-    update = request.get_json() or {}
-    cb = update.get("callback_query")
+    try:
+        print("✅ TELEGRAM WEBHOOK HIT")
+        print(request.get_json(silent=True))
 
-    if not cb:
+        update = request.get_json(silent=True) or {}
+        cb = update.get("callback_query")
+        if not cb:
+            return "ok"
+
+        data = cb.get("data", "") or ""
+        parts = data.split(":")
+        action = parts[0] if parts else ""
+
+        if action not in ("APPROVE", "REJECT"):
+            return "ok"
+
+        if len(parts) < 2:
+            return "ok"
+
+        try:
+            user_id = int(parts[1])
+        except Exception:
+            return "ok"
+
+        user = User.query.get(user_id)
+        if not user:
+            return "ok"
+
+        if action == "REJECT":
+            user.status = "ACTIVE" if user.trial_end and user.trial_end > now_utc() else "pending"
+            user.pending_approve_token = None
+            user.pending_plan_code = None
+            user.pending_member = None
+            user.pending_member_name = None
+            user.pending_months = None
+            user.pending_amount = None
+            user.pending_discount = None
+            user.pending_final_total = None
+            user.pending_duration_label = None
+            user.pending_memo = None
+            user.pending_at = None
+            db.session.commit()
+            return "ok"
+
+        # APPROVE
+        # Hỗ trợ cả format mới: APPROVE:user_id:months:sign
+        # và format cũ: APPROVE:user_id
+        months = int(user.pending_months or 1)
+
+        if len(parts) >= 4:
+            try:
+                cb_months = int(parts[2])
+            except Exception:
+                cb_months = months
+
+            sign = parts[3]
+            if sign != sign_payload(f"{user_id}:{cb_months}"):
+                return "invalid"
+
+            months = cb_months
+
+        plan_code = norm_plan(user.pending_plan_code or user.member or "FREE")
+        apply_approved_membership(user, plan_code, months)
+
+        # clear pending
+        user.pending_approve_token = None
+        user.pending_plan_code = None
+        user.pending_member = None
+        user.pending_member_name = None
+        user.pending_months = None
+        user.pending_amount = None
+        user.pending_discount = None
+        user.pending_final_total = None
+        user.pending_duration_label = None
+        user.pending_memo = None
+        user.pending_at = None
+
+        db.session.commit()
+
+        try:
+            if user.email:
+                html_ok = build_user_approved_email(
+                    username=user.username,
+                    plan_code=plan_code,
+                    months=months,
+                    trial_start=user.trial_start,
+                    trial_end=user.trial_end
+                )
+                send_email(user.email, "Thanh toán đã được duyệt - Taekwondo", html_ok)
+        except Exception as e:
+            print("[telegram_webhook] send approved mail failed:", e)
+
         return "ok"
 
-    data = cb.get("data", "")
-    parts = data.split(":")
-
-    if parts[0] != "APPROVE":
+    except Exception as e:
+        db.session.rollback()
+        print("[telegram_webhook] ERROR:", e)
         return "ok"
-
-    user_id = int(parts[1])
-    months = int(parts[2])
-    sign = parts[3]
-
-    # verify chữ ký
-    if sign != sign_payload(f"{user_id}:{months}"):
-        return "invalid"
-
-    user = User.query.get(user_id)
-    if not user:
-        return "ok"
-
-    # ===== GIA HẠN =====
-    now = datetime.now(timezone.utc)
-    base = user.trial_end if user.trial_end and user.trial_end > now else now
-    user.trial_end = base + timedelta(days=30 * months)
-
-    user.status = "ACTIVE"
-
-    # clear pending
-    user.pending_plan_code = None
-    user.pending_plan_name = None
-    user.pending_months = None
-    user.pending_amount = None
-    user.pending_memo = None
-    user.pending_requested_at = None
-
-    db.session.commit()
-
-
-
-    return "ok"
 
 @app.route("/ping")
 def ping():
@@ -679,8 +923,6 @@ def ping():
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
-print("ENV_PATH =", ENV_PATH)
-print("ENV_EXISTS =", os.path.exists(ENV_PATH))
 
 load_dotenv(ENV_PATH)
 
@@ -689,58 +931,55 @@ EMAIL_APP_PASSWORD = (os.getenv("EMAIL_APP_PASSWORD") or "").strip()
 
 # admin nhận mail duyệt (Ken đang muốn cố định)
 ADMIN_EMAIL = (os.getenv("ADMIN_EMAIL") or "silentnight1993pro@gmail.com").strip()
-print("EMAIL_SENDER:", EMAIL_SENDER)
-print("APP_PWD_LEN:", len(EMAIL_APP_PASSWORD))
-print("ADMIN_EMAIL:", ADMIN_EMAIL)
-
-
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
 TELEGRAM_SECRET = os.getenv("TELEGRAM_SECRET", "CHANGE_ME")
 def send_telegram_renew_request(user, payload):
     """
-    Gửi tin nhắn Telegram cho Ken + nút Duyệt.
+    Gửi tin nhắn Telegram cho admin + nút duyệt/từ chối.
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_CHAT_ID:
         print("[TELEGRAM] Missing TELEGRAM_BOT_TOKEN / TELEGRAM_ADMIN_CHAT_ID")
         return
 
+    months = int(payload.get("months", 1) or 1)
+    sign = sign_payload(f"{user.id}:{months}")
+
     text = (
-        "🧾 *YÊU CẦU GIA HẠN*\n"
-        f"👤 User: `{user.username}`\n"
-        f"📧 Email: `{user.email or ''}`\n"
-        f"🎯 Member: *{payload.get('plan_name','') or payload.get('member_name','')}* ({payload.get('plan_code','') or payload.get('member','')})\n"
-        f"🗓️ Số tháng: *{payload.get('months',1)}*\n"
-        f"💰 Số tiền: *{payload.get('amount',0):,} vnđ*\n"
-        f"📝 Ghi chú: `{payload.get('memo','')}`\n"
-        "\n"
-        "Bấm nút bên dưới để *DUYỆT*."
+        "🧾 <b>YÊU CẦU GIA HẠN</b>\n"
+        f"👤 User: <code>{user.username}</code>\n"
+        f"📧 Email: <code>{user.email or ''}</code>\n"
+        f"🎯 Gói: <b>{payload.get('plan_name','') or payload.get('member_name','')}</b> "
+        f"({payload.get('plan_code','') or payload.get('member','')})\n"
+        f"🗓️ Số tháng: <b>{months}</b>\n"
+        f"💰 Số tiền: <b>{payload.get('amount',0):,} VNĐ</b>\n"
+        f"📝 Ghi chú: <code>{payload.get('memo','')}</code>\n\n"
+        "Bấm nút bên dưới để duyệt."
     )
 
-    # callback_data để duyệt (đơn giản: APPROVE:<user_id>)
     keyboard = {
         "inline_keyboard": [
             [
-                {"text": "✅ DUYỆT", "callback_data": f"APPROVE:{user.id}"},
+                {"text": "✅ DUYỆT", "callback_data": f"APPROVE:{user.id}:{months}:{sign}"},
                 {"text": "❌ TỪ CHỐI", "callback_data": f"REJECT:{user.id}"}
             ]
         ]
     }
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={
-        "chat_id": TELEGRAM_ADMIN_CHAT_ID,
-        "text": text,
-        "parse_mode": "Markdown",
-        "reply_markup": keyboard
-    }, timeout=10)
+    requests.post(
+        url,
+        json={
+            "chat_id": TELEGRAM_ADMIN_CHAT_ID,
+            "text": text,
+            "parse_mode": "HTML",
+            "reply_markup": keyboard
+        },
+        timeout=10
+    )
 
 
 
-
-import requests
-import hmac, hashlib, json
-import hashlib
 
 def tg_api(method: str):
     return f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}"
@@ -768,12 +1007,28 @@ def sign_payload(data: str) -> str:
         hashlib.sha256
     ).hexdigest()[:12]
 
-from datetime import timedelta
 
 
 
 
+def has_accessible_folder3_under_folder2(folder2_id):
+    folder3_list = (
+        Folder.query
+        .filter_by(level=3, parent_id=folder2_id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+    return any(can_access_plans(f3.member_plans) for f3 in folder3_list)
 
+
+def has_accessible_folder3_under_folder1(folder1_id):
+    folder2_list = (
+        Folder.query
+        .filter_by(level=2, parent_id=folder1_id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+    return any(has_accessible_folder3_under_folder2(f2.id) for f2 in folder2_list)
 
 
 @app.route("/Page")
@@ -786,22 +1041,27 @@ def page_root():
         EduFolder.query
         .filter(
             EduFolder.level == 1,
-            EduFolder.is_active == 1      # 🔥 CHỐT CHẶN Ở ĐÂY
+            EduFolder.is_active == 1
         )
         .order_by(EduFolder.order.asc(), EduFolder.id.asc())
         .all()
     )
 
-
     # ===============================
-    # ÔN TẬP – FOLDER CŨ
+    # ÔN TẬP – FOLDER CẤP 1
+    # Chỉ hiện nếu bên dưới còn ít nhất 1 folder3 user được quyền thấy
     # ===============================
-    folder1_list = (
+    all_folder1 = (
         Folder.query
         .filter_by(level=1)
         .order_by(Folder.order_index)
         .all()
     )
+
+    folder1_list = [
+        f1 for f1 in all_folder1
+        if has_accessible_folder3_under_folder1(f1.id)
+    ]
 
     items = [{
         "name": f.name,
@@ -816,10 +1076,8 @@ def page_root():
         lessons=[],
         items=items,
         breadcrumbs=[{"name": "Trang chủ", "url": None}],
-        mode="home"   # 🔥 DÒNG QUYẾT ĐỊNH
+        mode="home"
     )
-
-
 
 
 
@@ -830,21 +1088,33 @@ def page_root():
 @login_required
 def page_level1(slug1):
     f1 = next(
-        (f for f in Folder.query.filter_by(level=1).all()
+        (f for f in Folder.query.filter_by(level=1).order_by(Folder.order_index).all()
          if slugify(f.name) == slug1),
         None
     )
     if not f1:
         abort(404)
 
-    folder2_list = Folder.query.filter_by(
-        level=2, parent_id=f1.id
-    ).order_by(Folder.order_index).all()
+    # Nếu folder1 này không còn nội dung nào user được phép thấy -> 404
+    if not has_accessible_folder3_under_folder1(f1.id):
+        abort(404)
+
+    all_folder2 = (
+        Folder.query
+        .filter_by(level=2, parent_id=f1.id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+
+    folder2_list = [
+        f2 for f2 in all_folder2
+        if has_accessible_folder3_under_folder2(f2.id)
+    ]
 
     items = [{
         "name": f.name,
         "image": url_for("static", filename=f.image) if f.image else None,
-        "url": f"/Page/{slug1}/{slugify(f.name)}"
+        "url": url_for("page_level2", slug1=slug1, slug2=slugify(f.name))
     } for f in folder2_list]
 
     breadcrumbs = [
@@ -853,24 +1123,22 @@ def page_level1(slug1):
         {"name": f1.name, "url": None}
     ]
 
-
     return render_template(
         "folder_list.html",
         page_title=f1.name,
         items=items,
         breadcrumbs=breadcrumbs,
-        mode="practice",      # 🔥 BẮT BUỘC
-        edu_folders=[],       # 🔥 KHÔNG DÙNG
-        lessons=[]            # 🔥 KHÔNG DÙNG
+        mode="practice",
+        edu_folders=[],
+        lessons=[]
     )
-
 
 
 @app.route("/Page/<slug1>/<slug2>")
 @login_required
 def page_level2(slug1, slug2):
     f1 = next(
-        (f for f in Folder.query.filter_by(level=1).all()
+        (f for f in Folder.query.filter_by(level=1).order_by(Folder.order_index).all()
          if slugify(f.name) == slug1),
         None
     )
@@ -878,14 +1146,28 @@ def page_level2(slug1, slug2):
         abort(404)
 
     f2 = next(
-        (f for f in Folder.query.filter_by(level=2, parent_id=f1.id).all()
+        (f for f in Folder.query.filter_by(level=2, parent_id=f1.id).order_by(Folder.order_index).all()
          if slugify(f.name) == slug2),
         None
     )
     if not f2:
         abort(404)
 
-    folder3_list = Folder.query.filter_by(level=3, parent_id=f2.id).order_by(Folder.order_index).all()
+    # Nếu folder2 này không còn folder3 nào user được phép thấy -> 404
+    if not has_accessible_folder3_under_folder2(f2.id):
+        abort(404)
+
+    all_folder3 = (
+        Folder.query
+        .filter_by(level=3, parent_id=f2.id)
+        .order_by(Folder.order_index)
+        .all()
+    )
+
+    folder3_list = [
+        f3 for f3 in all_folder3
+        if can_access_plans(f3.member_plans)
+    ]
 
     items = [{
         "name": f.name,
@@ -900,14 +1182,12 @@ def page_level2(slug1, slug2):
         {"name": f2.name, "url": None}
     ]
 
-
-
     return render_template(
         "folder_list.html",
         page_title=f2.name,
         items=items,
         breadcrumbs=breadcrumbs,
-        mode="practice",      # 🔥 BẮT BUỘC
+        mode="practice",
         edu_folders=[],
         lessons=[]
     )
@@ -1053,7 +1333,49 @@ def account_change_password():
     return redirect(url_for("sets"))             # ✅ C.2
 
 
+def write_login_log_summary(username, ip, status):
 
+    uname = (username or "").strip().lower()
+    if not uname:
+        uname = "unknown"
+
+    st = (status or "").strip().lower()
+    now_dt = datetime.utcnow()
+
+    row = LoginLogSummary.query.filter_by(username=uname).first()
+
+    if not row:
+        row = LoginLogSummary(
+            username=uname,
+            last_ip=ip,
+            last_at=now_dt,
+            success_count=0,
+            failed_count=0,
+            blocked_count=0,
+            locked_count=0,
+            wait_accept_count=0,
+            expired_count=0,
+            wait_renew_count=0
+        )
+        db.session.add(row)
+
+    row.last_ip = ip
+    row.last_at = now_dt
+
+    if st == "success":
+        row.success_count += 1
+    elif st == "failed":
+        row.failed_count += 1
+    elif st == "blocked":
+        row.blocked_count += 1
+    elif st == "locked":
+        row.locked_count += 1
+    elif st == "wait_accept":
+        row.wait_accept_count += 1
+    elif st == "expired":
+        row.expired_count += 1
+    elif st == "wait_renew":
+        row.wait_renew_count += 1
 
 def ensure_schema():
     """Core schema: question / folder / user (nền tảng)"""
@@ -1259,8 +1581,49 @@ def ensure_lesson_media_columns():
     conn.commit()
     conn.close()
 
-from datetime import datetime, timezone
-from sqlalchemy.types import TypeDecorator, String as SAString
+def ensure_promotion_code_column():
+    db_path = os.path.join(app.instance_path, "quiz.db")
+    if not os.path.exists(db_path):
+        return
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    tables = {r[0] for r in cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+
+    if "promotion_campaign" in tables:
+        cur.execute("PRAGMA table_info(promotion_campaign)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "code" not in cols:
+            cur.execute("ALTER TABLE promotion_campaign ADD COLUMN code VARCHAR(50)")
+
+    conn.commit()
+    conn.close()
+
+def ensure_promotion_kind_column():
+    db_path = os.path.join(app.instance_path, "quiz.db")
+    if not os.path.exists(db_path):
+        return
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    tables = {r[0] for r in cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+
+    if "promotion_campaign" in tables:
+        cur.execute("PRAGMA table_info(promotion_campaign)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "promo_kind" not in cols:
+            cur.execute(
+                "ALTER TABLE promotion_campaign ADD COLUMN promo_kind VARCHAR(20) DEFAULT 'campaign'"
+            )
+
+    conn.commit()
+    conn.close()
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -1332,23 +1695,18 @@ class User(db.Model, UserMixin):
     activation_sent_at = db.Column(SafeDateTime, nullable=True)
 
     # ✅ các cột pending_ đã có trong quiz.db => khai báo để khỏi AttributeError
+    # ✅ các cột pending_
     pending_member = db.Column(db.Text, nullable=True)
     pending_member_name = db.Column(db.Text, nullable=True)
-    pending_plan_code = db.Column(db.Text)
-    pending_months = db.Column(db.Integer)
-    pending_amount = db.Column(db.Integer)
-
-    pending_discount = db.Column(db.Integer)
-    pending_final_total = db.Column(db.Integer)
-
-    pending_member = db.Column(db.Text)
-    pending_member_name = db.Column(db.Text)
-    pending_duration_label = db.Column(db.Text)
-
-    pending_memo = db.Column(db.Text)
-    pending_at = db.Column(db.Text)
-
-    pending_approve_token = db.Column(db.Text)
+    pending_plan_code = db.Column(db.Text, nullable=True)
+    pending_months = db.Column(db.Integer, nullable=True)
+    pending_amount = db.Column(db.Integer, nullable=True)
+    pending_discount = db.Column(db.Integer, nullable=True)
+    pending_final_total = db.Column(db.Integer, nullable=True)
+    pending_duration_label = db.Column(db.Text, nullable=True)
+    pending_memo = db.Column(db.Text, nullable=True)
+    pending_at = db.Column(db.Text, nullable=True)
+    pending_approve_token = db.Column(db.Text, nullable=True)
 
 
 class LoginLog(db.Model):
@@ -1357,6 +1715,23 @@ class LoginLog(db.Model):
     ip = db.Column(db.String(50))
     status = db.Column(db.String(30))  # success / blocked / failed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class LoginLogSummary(db.Model):
+    __tablename__ = "login_log_summary"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), nullable=False, unique=True, index=True)
+
+    last_ip = db.Column(db.String(50))
+    last_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    success_count = db.Column(db.Integer, default=0)
+    failed_count = db.Column(db.Integer, default=0)
+    blocked_count = db.Column(db.Integer, default=0)
+    locked_count = db.Column(db.Integer, default=0)
+    wait_accept_count = db.Column(db.Integer, default=0)
+    expired_count = db.Column(db.Integer, default=0)
+    wait_renew_count = db.Column(db.Integer, default=0)
 
 
 # ===================== ACCESS CONTROL =====================
@@ -1389,17 +1764,34 @@ class Topic(db.Model):
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
-    # ✅ Giữ lại topic_id (nullable) để các đoạn code cũ không crash
+    # Tạm giữ để code cũ không vỡ, chưa dùng nữa
     topic_id = db.Column(db.Integer, db.ForeignKey("topic.id"), nullable=True)
     topic = db.relationship("Topic")
 
-    # ✅ Hệ folder mới
     folder_id = db.Column(db.Integer, db.ForeignKey("folder.id"), nullable=True)
     folder = db.relationship("Folder")
-    type = db.Column(db.String(20), default="mcq")  # 🔥 THÊM DÒNG NÀY
 
+    type = db.Column(db.String(20), default="mcq")   # mcq / boolean / multi
     text = db.Column(db.Text, nullable=False)
     member_plans = db.Column(db.String(100), default="FREE,BASIC,PRO,VIP")
+
+    # ===== NEW: đáp án gộp vào question =====
+    answer_1 = db.Column(db.Text)
+    answer_2 = db.Column(db.Text)
+    answer_3 = db.Column(db.Text)
+    answer_4 = db.Column(db.Text)
+    answer_5 = db.Column(db.Text)
+    answer_6 = db.Column(db.Text)
+    answer_7 = db.Column(db.Text)
+    answer_8 = db.Column(db.Text)
+    answer_9 = db.Column(db.Text)
+    answer_10 = db.Column(db.Text)
+    answer_11 = db.Column(db.Text)
+    answer_12 = db.Column(db.Text)
+
+    answer_count = db.Column(db.Integer, default=0)
+    correct_indexes = db.Column(db.Text)         # ví dụ: "3" hoặc "2,3,4"
+    correct_answers_text = db.Column(db.Text)    # ví dụ: "đá vòng" hoặc "đá ngang||đá vòng||đá lái"
 
 class Folder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1428,7 +1820,11 @@ class Choice(db.Model):
     text = db.Column(db.Text, nullable=False)
     is_correct = db.Column(db.Boolean, default=False)
 
-    question = db.relationship("Question", backref=db.backref("choices", lazy=True))
+    question = db.relationship(
+        "Question",
+        backref=db.backref("choices", lazy=True, cascade="all, delete-orphan")
+    )
+
 
 class Attempt(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1461,6 +1857,94 @@ class AttemptAnswer(db.Model):
 
     attempt = db.relationship("Attempt", backref=db.backref("answers", lazy=True))
     question = db.relationship("Question")
+
+def question_answer_texts(q):
+    return [
+        q.answer_1, q.answer_2, q.answer_3, q.answer_4,
+        q.answer_5, q.answer_6, q.answer_7, q.answer_8,
+        q.answer_9, q.answer_10, q.answer_11, q.answer_12
+    ]
+
+
+def question_answers_payload(q, shuffle_answers=False, forced_order=None):
+    """
+    Trả về danh sách đáp án dạng:
+    [
+      {"orig_idx": 1, "label": "A", "text": "..."},
+      {"orig_idx": 2, "label": "B", "text": "..."},
+      ...
+    ]
+
+    - orig_idx = vị trí gốc trong question.answer_1 ... answer_12
+    - label = A/B/C/D... chỉ để hiển thị
+    - forced_order = danh sách thứ tự cố định, ví dụ [3,1,4,2]
+    """
+    answers_map = {}
+
+    for idx, txt in enumerate(question_answer_texts(q), start=1):
+        txt = (txt or "").strip()
+        if txt:
+            answers_map[idx] = {
+                "orig_idx": idx,
+                "text": txt
+            }
+
+    # ===== nếu có thứ tự cố định thì ưu tiên dùng =====
+    if forced_order:
+        ordered = []
+        for idx in forced_order:
+            if idx in answers_map:
+                ordered.append(answers_map[idx])
+        answers = ordered
+    else:
+        answers = list(answers_map.values())
+        if shuffle_answers:
+            random.shuffle(answers)
+
+    for pos, item in enumerate(answers):
+        item["label"] = chr(65 + pos)  # A B C D ...
+    return answers
+
+
+def parse_correct_indexes(q):
+    raw = (q.correct_indexes or "").strip()
+    if not raw:
+        return set()
+
+    out = set()
+    for x in raw.split(","):
+        x = x.strip()
+        if x.isdigit():
+            out.add(int(x))
+    return out
+
+
+def fill_question_answers(q, answers, correct_indexes):
+    """
+    answers: list[str]
+    correct_indexes: list[int] hoặc set[int] (theo thứ tự answer_1..answer_12)
+    """
+    clean_answers = [(a or "").strip() for a in answers if (a or "").strip()]
+    clean_answers = clean_answers[:12]
+
+    # reset hết 12 cột
+    for i in range(1, 13):
+        setattr(q, f"answer_{i}", None)
+
+    for i, txt in enumerate(clean_answers, start=1):
+        setattr(q, f"answer_{i}", txt)
+
+    q.answer_count = len(clean_answers)
+
+    correct_indexes = sorted(
+        i for i in set(int(x) for x in correct_indexes if str(x).strip().isdigit())
+        if 1 <= i <= len(clean_answers)
+    )
+
+    q.correct_indexes = ",".join(str(i) for i in correct_indexes)
+    q.correct_answers_text = "||".join(
+        clean_answers[i - 1] for i in correct_indexes if 1 <= i <= len(clean_answers)
+    )
 
 # ===================== AUTH =====================
 @app.context_processor
@@ -1504,6 +1988,23 @@ def inject_header_notifications():
         header_notifications=items,
         header_notification_unread=unread_count
     )
+
+@app.context_processor
+def inject_member_plan_cards():
+    try:
+        if current_user.is_authenticated:
+            return {
+                "member_plan_cards": build_member_plan_cards_for_user(current_user),
+                "payment_bank_setting": get_active_bank_setting(),
+            }
+    except Exception as e:
+        print("[inject_member_plan_cards] ERROR:", e)
+
+    return {
+        "member_plan_cards": [],
+        "payment_bank_setting": get_active_bank_setting(),
+    }
+
 
 def admin_notification_priority(n):
     action = (n.action_type or "").strip().lower()
@@ -1569,14 +2070,10 @@ def notification_confirm(noti_id):
         flash("Thiếu dữ liệu để xác nhận gia hạn.", "danger")
         return redirect(url_for("notifications_page", id=n.id))
 
-    approved_at = now_vn()
     plan_code = norm_plan(n.ref_plan_code)
     months = int(n.ref_months or 1)
 
-    user.trial_start = approved_at
-    user.trial_end = add_months_exact(approved_at, months)
-    user.status = "ACTIVE"
-    user.member = plan_code
+    apply_approved_membership(user, plan_code, months)
 
     # clear pending
     user.pending_approve_token = None
@@ -1596,6 +2093,25 @@ def notification_confirm(noti_id):
     n.title = f"Đã duyệt: {n.title}"
 
     db.session.commit()
+
+    # ===== GỬI MAIL XÁC NHẬN CHO USER =====
+    try:
+        if user.email:
+            html_ok = build_user_approved_email(
+                username=user.username,
+                plan_code=plan_code,
+                months=months,
+                trial_start=user.trial_start,
+                trial_end=user.trial_end
+            )
+            send_email(
+                user.email,
+                "Thanh toán đã được duyệt - Taekwondo",
+                html_ok
+            )
+            print("[notification_confirm] approve email sent to:", user.email)
+    except Exception as e:
+        print("[notification_confirm] send_mail failed:", e)
 
     flash(f"Đã xác nhận gia hạn cho user {user.username}.", "success")
     return redirect(url_for("notifications_page", id=n.id))
@@ -1620,7 +2136,7 @@ def notification_feedback():
     n = Notification(
         role="admin",
         user_id=None,
-        title=f"💬 Feedback từ {current_user.username}: {title}",
+        title=f"Feedback từ {current_user.username}: {title} 💬",
         message=(
             f"User: {current_user.username}\n"
             f"Email: {current_user.email or '-'}\n\n"
@@ -1679,7 +2195,7 @@ def notification_reply(noti_id):
     reply_noti = Notification(
         role="user",
         user_id=target_user.id,
-        title=f"💬 Admin trả lời: {reply_title}",
+        title=f"Admin trả lời: {reply_title} 💬",
         message=reply_message,
         target_url=url_for("notifications_page"),
         icon="💬",
@@ -1768,6 +2284,7 @@ def notifications_page():
         user_options=user_options
     )
 
+
 @app.route("/notifications/create", methods=["POST"])
 @login_required
 def notification_create():
@@ -1777,7 +2294,7 @@ def notification_create():
     audience_type = (request.form.get("audience_type") or "").strip().lower()
     member_plan = (request.form.get("member_plan") or "").strip().upper()
     title = (request.form.get("title") or "").strip()
-    import re
+
 
     message = (request.form.get("message") or "").strip()
     message_text = re.sub(r"<[^>]+>", "", message).strip()
@@ -1884,7 +2401,7 @@ def load_user(user_id):
 def admin_required():
     if not current_user.is_authenticated:
         abort(401)
-    if current_user.username != "nhoctotokute93":
+    if (current_user.role or "").strip().lower() != "admin":
         abort(403)
 
 def check_access_permission(user):
@@ -1984,12 +2501,28 @@ def register():
             return redirect(url_for("register"))
 
         # ✅ GỬI EMAIL KÍCH HOẠT (PHẢI NẰM SAU COMMIT THÀNH CÔNG)
+        mail_ok = False
         try:
-            send_activation_email(u)
+            mail_ok = send_activation_email(u)
         except Exception as e:
             print("[EMAIL] activation send error:", e)
+            mail_ok = False
 
-        flash("✅ Đã đăng ký thành công. Hãy vào email bạn đã đăng ký để kích hoạt tài khoản.", "success")
+        # ✅ lưu sẵn để login.html mở popup hướng dẫn kích hoạt
+        session["pending_activation_user_id"] = u.id
+        session["pending_activation_hint"] = u.email
+
+        if mail_ok:
+            flash(
+                "📩 Đăng ký thành công. Vui lòng vào email để bấm kích hoạt tài khoản trước khi đăng nhập.",
+                "login_warning"
+            )
+        else:
+            flash(
+                "⚠️ Đăng ký thành công nhưng email kích hoạt chưa gửi được. Vui lòng bấm Gửi lại email kích hoạt ở trang đăng nhập.",
+                "login_warning"
+            )
+
         return redirect(url_for("login"))
     return render_template("register.html")
 
@@ -2023,39 +2556,68 @@ def activate_account(token):
 
     # 🔥 xoá token để tránh bấm lại
     user.activation_token = None
-
     db.session.commit()
+
+    session.pop("pending_activation_user_id", None)
+    session.pop("pending_activation_hint", None)
 
     flash("✅ Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.", "success")
     return redirect(url_for("login"))
 
-from flask import session, jsonify, request, g
-from flask_login import current_user, login_required
+
+
 
 ALLOWED_PREVIEW_MEMBERS = {"free", "basic", "pro", "vip"}
 
 def get_effective_member():
     """
     Member hiệu lực để render nội dung.
-    - Admin bình thường: dùng member thật của admin nếu có, hoặc vip mặc định
+    - Admin bình thường: ADMIN
     - Admin đang preview: dùng gói preview
     - User thường: dùng member thật của user
     """
     if not current_user.is_authenticated:
         return "free"
 
-    # admin đang giả lập gói user
     if getattr(current_user, "role", "") == "admin":
         preview_member = (session.get("admin_preview_member") or "").strip().lower()
         if preview_member in ALLOWED_PREVIEW_MEMBERS:
             return preview_member
 
-        # admin không preview -> xem như full quyền
-        return (getattr(current_user, "member", None) or "vip").strip().lower()
+        return "admin"
 
-    # user thường
     return (getattr(current_user, "member", None) or "free").strip().lower()
 
+def parse_member_plans(raw: str):
+    return [x.strip().upper() for x in (raw or "").split(",") if x.strip()]
+
+def can_access_plans(raw_plans: str) -> bool:
+    """
+    Rule:
+    - Không set gói nào => ẩn
+    - Admin full mode => thấy tất cả
+    - Admin preview mode => lọc như user theo gói preview
+    - Nếu plan có ADMIN => chỉ admin full mode mới thấy
+    """
+    plans = parse_member_plans(raw_plans)
+
+    # không set gì => ẩn
+    if not plans:
+        return False
+
+    role = getattr(current_user, "role", "").lower()
+
+    # admin full quyền
+    if role == "admin" and not is_admin_preview_mode():
+        return True
+
+    user_plan = norm_plan(get_effective_member())
+
+    # user/admin preview không được dùng nội dung ADMIN-only
+    if "ADMIN" in plans:
+        return False
+
+    return user_plan in plans
 
 def is_admin_preview_mode():
     if not current_user.is_authenticated:
@@ -2117,20 +2679,21 @@ def admin_clear_preview_member():
         "message": "Đã thoát chế độ xem thử"
     })
 
-from sqlalchemy import or_, func
 
-@app.route("/login", methods=["GET","POST"])
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
 
-        # ✅ LẤY 1 FIELD CHUNG (username hoặc email)
-        login_id = request.form.get("username","").strip()
-        password = request.form.get("password","").strip()
+        # ===== INPUT =====
+        login_id = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
         ip = request.remote_addr
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
         login_key_lc = login_id.lower()
 
-        # ✅ Tìm theo username hoặc email (không phân biệt hoa thường)
+        # ===== FIND USER (username hoặc email) =====
         u = User.query.filter(
             or_(
                 func.lower(func.trim(User.username)) == login_key_lc,
@@ -2138,112 +2701,269 @@ def login():
             )
         ).first()
 
-        if "@" in login_key_lc:
-            # ✅ login bằng email (không phân biệt hoa thường)
-            u = User.query.filter(func.lower(func.trim(User.email)) == login_key_lc).first()
-        else:
-            # ✅ login bằng username (không phân biệt hoa thường)
-            u = User.query.filter(func.lower(func.trim(User.username)) == login_key_lc).first()
-        # ❌ Sai tài khoản hoặc mật khẩu
+        # ===== WRONG LOGIN =====
         if (not u) or (not check_password_hash(u.pw_hash, password)):
-            db.session.add(LoginLog(username=login_id, ip=ip, status="failed"))
+            write_login_log_summary(login_id, ip, "failed")
             db.session.commit()
+
+            if is_ajax:
+                return jsonify({
+                    "ok": False,
+                    "message": "Sai tài khoản hoặc mật khẩu"
+                }), 401
+
             flash("Sai tài khoản hoặc mật khẩu", "login_error")
             return redirect(url_for("login"))
 
-        # ⛔ CHƯA KÍCH HOẠT EMAIL (chỉ áp dụng user thường, admin bỏ qua)
+        # ===== EMAIL NOT VERIFIED =====
         if u.role != "admin" and not getattr(u, "email_verified", False):
-            db.session.add(LoginLog(username=u.username, ip=ip, status="blocked"))
+            write_login_log_summary(u.username, ip, "blocked")
             db.session.commit()
 
             session["pending_activation_user_id"] = u.id
             session["pending_activation_hint"] = u.email
 
             flash(
-                "📩 Tài khoản của bạn đã đăng ký nhưng chưa kích hoạt. "
-                "Vui lòng vào email để kích hoạt tài khoản trước khi sử dụng.",
+                "📩 Tài khoản chưa kích hoạt. Vui lòng kiểm tra email.",
                 "login_warning"
             )
+
+            if is_ajax:
+                return jsonify({
+                    "ok": False,
+                    "redirect_url": url_for("login"),
+                    "message": "Tài khoản chưa kích hoạt"
+                }), 403
+
             return redirect(url_for("login"))
 
-        # ✅ STATUS CONTROL (chỉ user, không áp dụng admin)
+        # ===== STATUS CONTROL =====
         if u.role != "admin":
             st = (getattr(u, "status", "") or "").strip().upper()
 
+            # ===== LOCK =====
             if st == "LOCK":
-                db.session.add(LoginLog(username=u.username, ip=ip, status="locked"))
+                write_login_log_summary(u.username, ip, "locked")
                 db.session.commit()
-                return render_template("login.html", locked=True, locked_username=u.username)
 
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "LOCK",
+                        "message": "Tài khoản đã bị khóa."
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    locked=True,
+                    locked_username=u.username,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+            # ===== WAIT_ACCEPT =====
             if st in ("WAIT_ACCEPT", "WAIT-ACCEPT", "WAIT-ACCPET"):
                 if st != "WAIT_ACCEPT":
                     u.status = "WAIT_ACCEPT"
                     db.session.commit()
 
-                db.session.add(LoginLog(username=u.username, ip=ip, status="wait_accept"))
-                db.session.commit()
-                return render_template(
-                    "login.html",
-                    wait_accept=True,
-                    expired_username=u.username,
-                    expired_email=u.email
-                )
+                end = _to_utc_aware(u.trial_end)
+                now = datetime.now(timezone.utc)
 
+                if end and end > now:
+                    u.status = "ACTIVE"
+                    db.session.commit()
+                else:
+                    write_login_log_summary(u.username, ip, "wait_accept")
+                    db.session.commit()
+                    if is_ajax:
+                        return jsonify({
+                            "ok": False,
+                            "status": "WAIT_ACCEPT",
+                            "message": "Tài khoản đang chờ admin duyệt.",
+                            "username": u.username,
+                            "email": u.email
+                        }), 403
+
+                    return render_template(
+                        "login.html",
+                        wait_accept=True,
+                        expired_username=u.username,
+                        expired_email=u.email,
+                        member_plan_cards=build_member_plan_cards_for_user(u),
+                        payment_bank_setting=get_active_bank_setting(),
+                        play_intro=False
+                    )
+
+            # ===== EXPIRED =====
             now = datetime.now(timezone.utc)
             end = _to_utc_aware(u.trial_end)
+
             if end and now > end:
                 if st != "WAIT_RENEW":
                     u.status = "WAIT_RENEW"
                     db.session.add(u)
 
-                db.session.add(LoginLog(username=u.username, ip=ip, status="expired"))
+                write_login_log_summary(u.username, ip, "expired")
                 db.session.commit()
-                return render_template("login.html",
-                                      wait_renew=True,
-                                      expired_username=u.username,
-                                      expired_email=u.email)
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "WAIT_RENEW",
+                        "message": "Tài khoản đã hết hạn, vui lòng gia hạn gói.",
+                        "username": u.username,
+                        "email": u.email
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    wait_renew=True,
+                    expired_username=u.username,
+                    expired_email=u.email,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+            # ===== WAIT_RENEW =====
             if st == "WAIT_RENEW":
-                db.session.add(LoginLog(username=u.username, ip=ip, status="wait_renew"))
+                write_login_log_summary(u.username, ip, "wait_renew")
                 db.session.commit()
-                return render_template("login.html",
-                                      wait_renew=True,
-                                      expired_username=u.username,
-                                      expired_email=u.email)
 
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "WAIT_RENEW",
+                        "message": "Tài khoản đang chờ gia hạn.",
+                        "username": u.username,
+                        "email": u.email
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    wait_renew=True,
+                    expired_username=u.username,
+                    expired_email=u.email,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+            # ===== UNKNOWN STATUS =====
             if st not in ("", "ACTIVE"):
-                db.session.add(LoginLog(username=u.username, ip=ip, status="blocked"))
+                write_login_log_summary(u.username, ip, "blocked")
                 db.session.commit()
-                return render_template("login.html", locked=True, locked_username=u.username)
 
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "LOCK",
+                        "message": "Tài khoản hiện không thể đăng nhập."
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    locked=True,
+                    locked_username=u.username,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+        # ===== LOGIN SUCCESS =====
         login_user(u)
 
         if getattr(u, "must_change_password", False):
-            db.session.add(LoginLog(username=u.username, ip=ip, status="success"))
+            write_login_log_summary(u.username, ip, "success")
             db.session.commit()
-            flash("🔐 Vui lòng đổi mật khẩu mới để tiếp tục sử dụng.", "login_warning")
+            flash("🔐 Vui lòng đổi mật khẩu.", "login_warning")
             return redirect(url_for("account"))
 
-        db.session.add(LoginLog(username=u.username, ip=ip, status="success"))
+        write_login_log_summary(u.username, ip, "success")
         db.session.commit()
-        return redirect(url_for("sets"))
 
-    # ====== GET /login show popup by query ======
+        if is_ajax:
+            return jsonify({"ok": True})
+
+        session["play_intro"] = True
+        return redirect(url_for("login"))
+
+    # ===== GET =====
     if request.method == "GET":
+
+        # ===== mở popup WAIT_ACCEPT từ session =====
         if request.args.get("wait_accept") == "1":
-            u = session.get("wait_accept_username", "")
-            e = session.get("wait_accept_email", "")
-            return render_template("login.html",
-                                  wait_accept=True,
-                                  expired_username=u,
-                                  expired_email=e)
+            username = session.get("wait_accept_username", "")
+            email = session.get("wait_accept_email", "")
 
-    return render_template("login.html")
+            target_user = None
 
-from flask import session
-from sqlalchemy import or_
+            if username:
+                target_user = User.query.filter_by(username=username).first()
+
+            if not target_user and email:
+                target_user = User.query.filter_by(email=email).first()
+
+            return render_template(
+                "login.html",
+                wait_accept=True,
+                expired_username=username or "",
+                expired_email=email or "",
+                member_plan_cards=build_member_plan_cards_for_user(target_user) if target_user else [],
+                payment_bank_setting=get_active_bank_setting(),
+                play_intro=False
+            )
+
+        # ===== GET NORMAL =====
+        play_intro = session.pop("play_intro", False)
+
+        return render_template(
+            "login.html",
+            member_plan_cards=[],
+            payment_bank_setting=get_active_bank_setting(),
+            play_intro=play_intro
+        )
 
 
+def apply_approved_membership(user, new_plan_code: str, months: int):
+    """
+    Rule:
+    1. Hết hạn mới mua lại -> bắt đầu từ lúc admin duyệt
+    2. Còn hạn + cùng gói -> cộng dồn từ trial_end hiện tại
+    3. Còn hạn + nâng/hạ gói -> bắt đầu gói mới từ lúc admin duyệt, không cộng dồn
+    """
+    approved_at = now_vn()
+    now = _to_utc_aware(approved_at)
 
+    old_plan_code = norm_plan(user.pending_member or user.member or "FREE")
+    new_plan_code = norm_plan(new_plan_code)
+
+    current_end = _to_utc_aware(user.trial_end) if user.trial_end else None
+    still_active = bool(current_end and current_end > now)
+
+    # Case 1: đã hết hạn
+    if not still_active:
+        user.trial_start = approved_at
+        user.trial_end = add_months_exact(approved_at, months)
+
+    # Case 2: còn hạn + cùng gói => cộng dồn
+    elif old_plan_code == new_plan_code:
+        base_end = user.trial_end if user.trial_end else approved_at
+        user.trial_end = add_months_exact(base_end, months)
+
+        if not user.trial_start:
+            user.trial_start = approved_at
+
+    # Case 3 + 4: còn hạn + đổi gói => không cộng dồn
+    else:
+        user.trial_start = approved_at
+        user.trial_end = add_months_exact(approved_at, months)
+
+    user.status = "ACTIVE"
+    user.member = new_plan_code
+
+    return approved_at
 
 @app.get("/renew/approve/<token>")
 def renew_approve(token):
@@ -2254,17 +2974,7 @@ def renew_approve(token):
     plan_code = norm_plan(user.pending_plan_code or user.member or "FREE")
     months = int(user.pending_months or 1)
 
-    # ✅ Lấy đúng giờ Việt Nam lúc admin bấm duyệt
-    approved_at = now_vn()
-
-    # ✅ Bắt đầu tính từ đúng thời điểm admin duyệt
-    user.trial_start = approved_at
-
-    # ✅ Cộng đúng số THÁNG theo lịch, không dùng 30 ngày
-    user.trial_end = add_months_exact(approved_at, months)
-
-    user.status = "ACTIVE"
-    user.member = plan_code
+    apply_approved_membership(user, plan_code, months)
 
     # clear pending
     user.pending_approve_token = None
@@ -2607,7 +3317,7 @@ def forgot_password():
         """,
 
         button_text="Vào trang web",
-        button_url=BASE_URL,
+        button_url=get_base_url(),
 
         # note_html: bỏ hoặc để ngắn (vì nội dung chính đã có)
         note_html=None
@@ -2620,40 +3330,32 @@ def forgot_password():
 
 
 
-from flask import request, redirect, url_for, flash
-from flask_login import login_required, current_user
+
 
 @app.route("/account/change-email", methods=["POST"])
 @login_required
 def change_email():
-    admin_required()  # nếu trang account chỉ cho admin, giữ; nếu user thường cũng dùng thì bỏ dòng này
-
     current_email = (request.form.get("current_email") or "").strip().lower()
-    new_email     = (request.form.get("new_email") or "").strip().lower()
+    new_email = (request.form.get("new_email") or "").strip().lower()
 
-    # 1) validate input
     if not current_email or not new_email:
         flash("❌ Vui lòng nhập đầy đủ email hiện tại và email mới.", "danger_email")
         return redirect(url_for("account"))
 
-    # 2) check email hiện tại đúng
     user_email = (current_user.email or "").strip().lower()
     if current_email != user_email:
         flash("❌ Email hiện tại không đúng.", "danger_email")
         return redirect(url_for("account"))
 
-    # 3) check email mới khác email cũ
     if new_email == user_email:
         flash("❌ Email mới phải khác email hiện tại.", "danger_email")
         return redirect(url_for("account"))
 
-    # 4) check email mới đã tồn tại chưa
-    existed = User.query.filter(User.email.ilike(new_email)).first()
+    existed = User.query.filter(User.email.ilike(new_email), User.id != current_user.id).first()
     if existed:
         flash("❌ Email mới đã được sử dụng.", "danger_email")
         return redirect(url_for("account"))
 
-    # 5) update
     current_user.email = new_email
     db.session.commit()
 
@@ -2679,14 +3381,11 @@ def sets():
     edu_parent_id = request.args.get("edu_id", type=int)
     if edu_parent_id:
         mode = "edu"
-    else:
-        mode = "home"
-
 
     edu_current = None
     edu_parent = None
     edu_root = None
-    lessons = []   # ✅ THÊM: DANH SÁCH BÀI HỌC
+    lessons = []
 
     if edu_parent_id:
         edu_current = (
@@ -2701,55 +3400,53 @@ def sets():
         if not edu_current:
             abort(404)
 
+        edu_parent = edu_current.parent
+        if edu_parent:
+            edu_root = edu_parent.parent
 
-        if edu_current:
-            edu_parent = edu_current.parent
-            if edu_parent:
-                edu_root = edu_parent.parent
-
-            # ✅ NẾU LÀ CẤP 3 → LOAD BÀI HỌC
-            if edu_current.level == 3:
-                lessons = load_lessons_by_folder3(edu_current.id)
-
+        # Nếu là cấp 3 thì load bài học
+        if edu_current.level == 3:
+            lessons = load_lessons_by_folder3(edu_current.id)
 
     # ===============================
     # LOAD EDU FOLDER (CẤP CON)
     # ===============================
     if edu_parent_id:
-        # 👉 Có cha → load con
         edu_folders = (
             EduFolder.query
             .filter(
                 EduFolder.parent_id == edu_parent_id,
-                EduFolder.is_active == 1      # 🔥 CHẶN ĐÚNG
+                EduFolder.is_active == 1
             )
             .order_by(EduFolder.order.asc(), EduFolder.id.asc())
             .all()
         )
-
     else:
-        # 👉 Không có cha → load cấp 1
         edu_folders = (
             EduFolder.query
             .filter(
                 EduFolder.level == 1,
-                EduFolder.is_active == 1      # 🔥 CHẶN ĐÚNG
+                EduFolder.is_active == 1
             )
             .order_by(EduFolder.order.asc(), EduFolder.id.asc())
             .all()
         )
 
-
-
     # ===============================
-    # ÔN TẬP – FOLDER CŨ
+    # ÔN TẬP – FOLDER CẤP 1
+    # Chỉ hiện folder1 còn ít nhất 1 folder3 hợp lệ
     # ===============================
-    folder1_list = (
+    all_folder1 = (
         Folder.query
         .filter_by(level=1)
         .order_by(Folder.order_index)
         .all()
     )
+
+    folder1_list = [
+        f1 for f1 in all_folder1
+        if has_accessible_folder3_under_folder1(f1.id)
+    ]
 
     items = [{
         "name": f.name,
@@ -2757,60 +3454,71 @@ def sets():
         "url": url_for("view_set", folder1_id=f.id)
     } for f in folder1_list]
 
-    edu_parent_id = request.args.get("edu_id", type=int)
-
+    # ===============================
+    # BREADCRUMB
+    # ===============================
     if edu_parent_id:
-        # ===== HỌC TAEKWONDO =====
-        # (giữ nguyên code load edu_root, edu_parent, edu_current của Ken)
-
         breadcrumbs = build_edu_breadcrumb(
             edu_root=edu_root,
             edu_parent=edu_parent,
             edu_current=edu_current
         )
     else:
-        # ===== TRANG CHỦ =====
         breadcrumbs = build_home_breadcrumb()
-
-
 
     # ===============================
     # RENDER
     # ===============================
     return render_template(
         "folder_list.html",
-        page_title="Trang chủ",
-        edu_folders=edu_folders,   # cây học Taekwondo
-        lessons=lessons,           # ✅ BÀI HỌC JSON
-        items=items,               # ôn tập cũ
+        page_title="Trang chủ" if not edu_current else edu_current.name,
+        edu_folders=edu_folders,
+        lessons=lessons,
+        items=items,
         breadcrumbs=breadcrumbs,
         mode=mode
     )
-
-
 
 
 @app.route("/set/<int:folder1_id>", defaults={"folder2_id": None})
 @app.route("/set/<int:folder1_id>/<int:folder2_id>")
 @login_required
 def view_set(folder1_id, folder2_id):
-
     f1 = Folder.query.get_or_404(folder1_id)
 
-    # ===== FOLDER 2 =====
+    # Nếu folder1 này không còn nội dung hợp lệ thì chặn luôn
+    if not has_accessible_folder3_under_folder1(f1.id):
+        abort(404)
+
+    # ===============================
+    # FOLDER 2
+    # ===============================
     if folder2_id is None:
-        folder2_list = Folder.query.filter_by(
-            level=2, parent_id=folder1_id
-        ).order_by(Folder.order_index).all()
+        all_folder2 = (
+            Folder.query
+            .filter_by(level=2, parent_id=folder1_id)
+            .order_by(Folder.order_index)
+            .all()
+        )
+
+        folder2_list = [
+            f2 for f2 in all_folder2
+            if has_accessible_folder3_under_folder2(f2.id)
+        ]
+
+        if not folder2_list:
+            abort(404)
 
         items = []
         for f in folder2_list:
             items.append({
                 "name": f.name,
                 "image": url_for("static", filename=f.image) if f.image else None,
-                "url": url_for("view_set",
-                               folder1_id=folder1_id,
-                               folder2_id=f.id)
+                "url": url_for(
+                    "view_set",
+                    folder1_id=folder1_id,
+                    folder2_id=f.id
+                )
             })
 
         breadcrumbs = build_practice_breadcrumb(
@@ -2823,43 +3531,49 @@ def view_set(folder1_id, folder2_id):
             page_title=f1.name,
             items=items,
             breadcrumbs=breadcrumbs,
-            mode="practice"   # 🔥 BẮT BUỘC
+            mode="practice",
+            edu_folders=[],
+            lessons=[]
         )
 
+    # ===============================
+    # FOLDER 3
+    # ===============================
+    f2 = Folder.query.filter_by(
+        id=folder2_id,
+        parent_id=f1.id,
+        level=2
+    ).first_or_404()
 
-    # ===== FOLDER 3 =====
-    f2 = Folder.query.get_or_404(folder2_id)
+    if not has_accessible_folder3_under_folder2(f2.id):
+        abort(404)
 
-    all_folder3 = Folder.query.filter_by(
-        level=3,
-        parent_id=f2.id,
-        is_active_practice=1
-    ).order_by(Folder.order_index.asc()).all()
+    all_folder3 = (
+        Folder.query
+        .filter_by(
+            level=3,
+            parent_id=f2.id,
+            is_active_practice=1
+        )
+        .order_by(Folder.order_index.asc())
+        .all()
+    )
 
-    user_plan = norm_plan(get_effective_member())
+    folder3_list = [
+        f3 for f3 in all_folder3
+        if can_access_plans(f3.member_plans)
+    ]
 
-    folder3_list = []
-    for f3 in all_folder3:
-        raw = (f3.member_plans or "").strip()
-        plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
+    if not folder3_list:
+        abort(404)
 
-        if not plans:
-            folder3_list.append(f3)
-            continue
-
-        if user_plan in plans:
-            folder3_list.append(f3)
-
-
-
-    # 🔥 NẾU CHỈ CÓ 1 FOLDER 3 → REDIRECT SANG URL CHỮ
+    # Nếu chỉ có 1 folder3 thì chuyển thẳng
     if len(folder3_list) == 1:
         f3 = folder3_list[0]
         return redirect(
             f"/{slugify(f1.name)}/{slugify(f2.name)}/{slugify(f3.name)}"
         )
 
-    # ❗ NẾU CÓ NHIỀU FOLDER 3 → GIỮ NGUYÊN UI
     items = []
     for f3 in folder3_list:
         items.append({
@@ -2873,15 +3587,35 @@ def view_set(folder1_id, folder2_id):
         folder2=f2
     )
 
-
     return render_template(
         "folder_list.html",
         page_title=f2.name,
         items=items,
         breadcrumbs=breadcrumbs,
-        mode="practice"
+        mode="practice",
+        edu_folders=[],
+        lessons=[]
     )
 
+
+@app.route("/quiz/prepare/<int:folder3_id>")
+@login_required
+def quiz_prepare(folder3_id):
+    f3 = Folder.query.filter_by(id=folder3_id).first()
+    if not f3:
+        return f"Không tìm thấy folder3 id={folder3_id}", 404
+
+    if not f3.is_active_practice:
+        return "Folder này đang tắt ôn tập", 404
+
+    if not can_access_plans(f3.member_plans):
+        return "Tài khoản hiện tại không có quyền", 404
+
+    return render_template(
+        "quiz_prepare.html",
+        topic_name=f3.name,
+        start_url=url_for("quiz_start_folder", folder3_id=f3.id)
+    )
 
 
 
@@ -2916,21 +3650,32 @@ def build_home_breadcrumb():
 def build_edu_breadcrumb(edu_root=None, edu_parent=None, edu_current=None):
     breadcrumbs = [
         {"name": "Trang chủ", "url": url_for("sets")},
-        {"name": "Học Taekwondo", "url": None}
+        {"name": "Học Taekwondo", "url": url_for("sets")}
     ]
 
+    # Nếu đang ở cấp 1
+    if edu_current and edu_current.level == 1:
+        breadcrumbs.append({
+            "name": edu_current.name,
+            "url": None
+        })
+        return breadcrumbs
+
+    # Nếu có root cấp 1
     if edu_root:
         breadcrumbs.append({
             "name": edu_root.name,
             "url": url_for("sets", edu_id=edu_root.id)
         })
 
+    # Nếu có parent cấp 2
     if edu_parent:
         breadcrumbs.append({
             "name": edu_parent.name,
             "url": url_for("sets", edu_id=edu_parent.id)
         })
 
+    # Current cuối cùng
     if edu_current:
         breadcrumbs.append({
             "name": edu_current.name,
@@ -2943,14 +3688,13 @@ def build_edu_breadcrumb(edu_root=None, edu_parent=None, edu_current=None):
 def build_practice_breadcrumb(folder1=None, folder2=None):
     breadcrumbs = [
         {"name": "Trang chủ", "url": url_for("sets")},
-        {"name": "Ôn tập", "url": url_for("view_set", folder1_id=folder1.id)}
-
+        {"name": "Ôn tập", "url": url_for("sets")}
     ]
 
     if folder1:
         breadcrumbs.append({
             "name": folder1.name,
-            "url": url_for("view_set", folder1_id=folder1.id)
+            "url": None if folder2 is None else url_for("view_set", folder1_id=folder1.id)
         })
 
     if folder2:
@@ -2967,27 +3711,6 @@ def build_practice_breadcrumb(folder1=None, folder2=None):
 
 
 
-
-
-@app.route("/quiz/prepare/<int:folder3_id>")
-@login_required
-def quiz_prepare(folder3_id):
-    f3 = Folder.query.get_or_404(folder3_id)
-
-    if not f3.is_active_practice:
-        abort(404)
-
-    user_plan = norm_plan(get_effective_member())
-    raw = (f3.member_plans or "").strip()
-    plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
-
-    if plans and user_plan not in plans:
-        abort(404)
-    return render_template(
-        "quiz_prepare.html",
-        topic_name=f3.name,
-        start_url=url_for("quiz_start_folder", folder3_id=f3.id)
-    )
 
 
 
@@ -3048,56 +3771,37 @@ def quiz_start_folder(folder3_id):
     if not f3.is_active_practice:
         abort(404)
 
-    user_plan = norm_plan(get_effective_member())
-    raw = (f3.member_plans or "").strip()
-    plans = [x.strip().upper() for x in raw.split(",") if x.strip()]
-
-    if not plans or user_plan not in plans:
+    if not can_access_plans(f3.member_plans):
         abort(404)
 
-    # ===== LẤY SETTING USER (KHÔNG ÉP) =====
-    num_questions = current_user.pref_num_questions   # None = làm hết
-    time_per_q = current_user.pref_time_per_q         # None = không tính giờ
+    num_questions = current_user.pref_num_questions
+    time_per_q = current_user.pref_time_per_q
 
-    # ===== LẤY CÂU HỎI =====
     all_qs = Question.query.filter_by(folder_id=folder3_id).all()
-    user_plan = norm_plan(get_effective_member())
+    qs = [q for q in all_qs if can_access_plans(q.member_plans)]
 
-    qs = []
-    for q in all_qs:
-        raw_q = (q.member_plans or "").strip()
-        q_plans = [x.strip().upper() for x in raw_q.split(",") if x.strip()]
-
-        if not q_plans:
-            continue
-
-        if user_plan in q_plans:
-            qs.append(q)
     if not qs:
         flash("Chủ đề này chưa có câu hỏi. Hãy quay lại bài học sau.", "danger")
         folder1_id = None
         if f3.parent and f3.parent.parent:
             folder1_id = f3.parent.parent.id
-
         return redirect(url_for("view_set", folder1_id=folder1_id))
 
     random.shuffle(qs)
 
-    # ===== CHỌN CÂU THEO SETTING =====
     if num_questions is None:
-        chosen_qs = qs                    # ✅ làm hết
+        chosen_qs = qs
         final_count = len(qs)
     else:
         n = int(num_questions)
         if len(qs) >= n:
-            chosen_qs = qs[:n]            # đủ câu
+            chosen_qs = qs[:n]
         else:
             chosen_qs = list(qs)
             need = n - len(qs)
-            chosen_qs.extend(random.choices(qs, k=need))  # cho phép lặp
+            chosen_qs.extend(random.choices(qs, k=need))
         final_count = n
 
-    # ===== TOPIC MẶC ĐỊNH (TRÁNH NULL) =====
     default_topic = Topic.query.first()
     if not default_topic:
         default_set = Set.query.first()
@@ -3110,19 +3814,17 @@ def quiz_start_folder(folder3_id):
         db.session.add(default_topic)
         db.session.commit()
 
-    # ===== TẠO ATTEMPT =====
     attempt = Attempt(
         user_id=current_user.id,
         topic_id=default_topic.id,
         created_at=datetime.now(timezone.utc),
         finished_at=None,
         question_count=final_count,
-        time_per_q=time_per_q      # ✅ None giữ nguyên
+        time_per_q=time_per_q
     )
     db.session.add(attempt)
     db.session.commit()
 
-    # ===== GẮN CÂU HỎI =====
     for q in chosen_qs:
         db.session.add(AttemptAnswer(
             attempt_id=attempt.id,
@@ -3141,17 +3843,14 @@ def quiz_do(attempt_id):
     if not attempt or attempt.user_id != current_user.id:
         return "Không hợp lệ", 403
 
-    # đã làm xong -> qua kết quả
     if attempt.finished_at:
         return redirect(url_for("quiz_result", attempt_id=attempt.id))
 
-    # tìm câu chưa trả lời đầu tiên
     unanswered = AttemptAnswer.query.filter_by(
         attempt_id=attempt.id,
         answered=False
     ).first()
 
-    # nếu hết câu -> chấm xong
     if not unanswered:
         attempt.finished_at = datetime.utcnow()
         db.session.commit()
@@ -3161,14 +3860,15 @@ def quiz_do(attempt_id):
     if not q:
         return "Câu hỏi không tồn tại", 404
 
-    # ===================== POST – CHẤM CÂU =====================
+    correct_indexes = parse_correct_indexes(q)
+
+    # ===================== POST =====================
     if request.method == "POST":
 
-        # ===== MULTI (NHIỀU LỰA CHỌN) =====
+        # ===== MULTI =====
         if q.type == "multi":
             raw_ids = request.form.getlist("choice_ids[]")
 
-            # Không chọn gì -> tính sai, nhưng không báo lỗi trắng trang
             if not raw_ids:
                 unanswered.answered = True
                 unanswered.chosen_choice_id = None
@@ -3177,10 +3877,20 @@ def quiz_do(attempt_id):
                 db.session.commit()
                 return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
-            # Ép kiểu an toàn
-            try:
-                chosen_ids = sorted(int(x) for x in raw_ids if str(x).strip())
-            except (TypeError, ValueError):
+            chosen_indexes = []
+            for x in raw_ids:
+                x = str(x).strip()
+                if x.isdigit():
+                    chosen_indexes.append(int(x))
+
+            chosen_indexes = sorted(set(chosen_indexes))
+
+            valid_answer_indexes = {
+                i for i, txt in enumerate(question_answer_texts(q), start=1)
+                if (txt or "").strip()
+            }
+
+            if not chosen_indexes or any(i not in valid_answer_indexes for i in chosen_indexes):
                 unanswered.answered = True
                 unanswered.chosen_choice_id = None
                 unanswered.chosen_choice_ids = json.dumps([])
@@ -3188,56 +3898,32 @@ def quiz_do(attempt_id):
                 db.session.commit()
                 return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
-            # Kiểm tra các choice có thật và có thuộc đúng câu hiện tại không
-            selected_choices = Choice.query.filter(Choice.id.in_(chosen_ids)).all()
-            valid_choice_ids = sorted(c.id for c in selected_choices if c.question_id == q.id)
-
-            # Nếu có id lạ / không thuộc câu này -> coi là sai, không văng lỗi
-            if valid_choice_ids != chosen_ids:
-                unanswered.answered = True
-                unanswered.chosen_choice_id = None
-                unanswered.chosen_choice_ids = json.dumps(chosen_ids)
-                unanswered.is_correct = False
-                db.session.commit()
-                return redirect(url_for("quiz_do", attempt_id=attempt.id))
-
-            correct_ids = sorted(c.id for c in q.choices if c.is_correct)
-
             unanswered.answered = True
             unanswered.chosen_choice_id = None
-            unanswered.chosen_choice_ids = json.dumps(chosen_ids)
-
-            # Đúng khi chọn đủ và không dư
-            unanswered.is_correct = (chosen_ids == correct_ids)
+            unanswered.chosen_choice_ids = json.dumps(chosen_indexes)
+            unanswered.is_correct = (set(chosen_indexes) == correct_indexes)
 
             db.session.commit()
             return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
-        # ===== MCQ / BOOLEAN (1 LỰA CHỌN) =====
+        # ===== MCQ / BOOLEAN =====
         chosen_id = request.form.get("choice_id")
 
-        # Không chọn gì -> tính sai, đi tiếp
-        if not chosen_id:
+        if not chosen_id or not str(chosen_id).strip().isdigit():
             unanswered.answered = True
             unanswered.chosen_choice_id = None
             unanswered.is_correct = False
             db.session.commit()
             return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
-        # Ép kiểu an toàn
-        try:
-            chosen_id = int(chosen_id)
-        except (TypeError, ValueError):
-            unanswered.answered = True
-            unanswered.chosen_choice_id = None
-            unanswered.is_correct = False
-            db.session.commit()
-            return redirect(url_for("quiz_do", attempt_id=attempt.id))
+        chosen_idx = int(chosen_id)
 
-        chosen = db.session.get(Choice, chosen_id)
+        valid_answer_indexes = {
+            i for i, txt in enumerate(question_answer_texts(q), start=1)
+            if (txt or "").strip()
+        }
 
-        # Choice không tồn tại hoặc không thuộc câu hiện tại -> tính sai, không trắng trang
-        if not chosen or chosen.question_id != q.id:
+        if chosen_idx not in valid_answer_indexes:
             unanswered.answered = True
             unanswered.chosen_choice_id = None
             unanswered.is_correct = False
@@ -3245,24 +3931,40 @@ def quiz_do(attempt_id):
             return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
         unanswered.answered = True
-        unanswered.chosen_choice_id = chosen.id
-        unanswered.is_correct = bool(chosen.is_correct)
+        unanswered.chosen_choice_id = chosen_idx   # giờ lưu orig_idx thay vì choice.id
+        unanswered.chosen_choice_ids = None
+        unanswered.is_correct = (chosen_idx in correct_indexes)
 
         db.session.commit()
         return redirect(url_for("quiz_do", attempt_id=attempt.id))
 
-    # ===================== GET – HIỂN THỊ =====================
+    # ===================== GET =====================
     total = AttemptAnswer.query.filter_by(attempt_id=attempt.id).count()
     done = AttemptAnswer.query.filter_by(attempt_id=attempt.id, answered=True).count()
 
-    correct_count = 0
-    if q.type == "multi":
-        correct_count = sum(1 for c in q.choices if c.is_correct)
+    # ===== GIỮ THỨ TỰ RANDOM CỐ ĐỊNH CHO TỪNG CÂU =====
+    session_key = f"quiz_answer_order_{attempt.id}_{q.id}"
+    forced_order = session.get(session_key)
+
+    if not forced_order:
+        base_answers = question_answers_payload(q, shuffle_answers=True)
+        forced_order = [item["orig_idx"] for item in base_answers]
+        session[session_key] = forced_order
+        session.modified = True
+
+    answers_payload = question_answers_payload(
+        q,
+        shuffle_answers=False,
+        forced_order=forced_order
+    )
+
+    correct_count = len(correct_indexes) if q.type == "multi" else 0
 
     return render_template(
         "quiz.html",
         attempt=attempt,
         question=q,
+        answers_payload=answers_payload,
         progress=(done, total),
         time_per_q=attempt.time_per_q,
         correct_count=correct_count
@@ -3280,7 +3982,6 @@ def quiz_result(attempt_id):
     score = sum(1 for a in answers if a.is_correct)
     total = len(answers)
 
-    # ===== LƯU ĐIỂM – CHỐNG F5 =====
     if (
         current_user.last_score != score
         or current_user.last_total != total
@@ -3295,45 +3996,45 @@ def quiz_result(attempt_id):
 
     for a in answers:
         q = db.session.get(Question, a.question_id)
+        if not q:
+            continue
+
         if not first_question:
             first_question = q
 
-        # ===== ĐÁP ÁN ĐÚNG =====
-        correct_ids = {c.id for c in q.choices if c.is_correct}
+        correct_indexes = parse_correct_indexes(q)
 
-        # ===== ĐÁP ÁN USER =====
-        chosen_ids = set()
-
-        # MULTI
+        chosen_indexes = set()
         if a.chosen_choice_ids:
-            chosen_ids = set(json.loads(a.chosen_choice_ids))
-
-        # MCQ / BOOLEAN
+            try:
+                chosen_indexes = set(int(x) for x in json.loads(a.chosen_choice_ids))
+            except Exception:
+                chosen_indexes = set()
         elif a.chosen_choice_id:
-            chosen_ids = {a.chosen_choice_id}
+            chosen_indexes = {int(a.chosen_choice_id)}
 
-        show_warning = not bool(chosen_ids)
+        show_warning = not bool(chosen_indexes)
 
-
-        # ===== CHUẨN HOÁ CHO VIEW =====
         choices_view = []
+        payload = question_answers_payload(q, shuffle_answers=False)
 
-        for idx, c in enumerate(q.choices):
-            picked = c.id in chosen_ids
-            correct = c.id in correct_ids
+        for item in payload:
+            idx = item["orig_idx"]
+            picked = idx in chosen_indexes
+            correct = idx in correct_indexes
 
             if picked and correct:
-                state = "correct"        # 🟢 đậm
+                state = "correct"
             elif picked and not correct:
-                state = "wrong"          # 🔴
+                state = "wrong"
             elif not picked and correct:
-                state = "missed"         # 🟢 nhạt
+                state = "missed"
             else:
                 state = "normal"
 
             choices_view.append({
-                "label": chr(65 + idx),   # A B C D
-                "text": c.text,
+                "label": item["label"],
+                "text": item["text"],
                 "state": state
             })
 
@@ -3356,7 +4057,7 @@ def quiz_result(attempt_id):
         total=total,
         review=review,
         topic_name=folder3.name if folder3 else "Ôn tập",
-        folder3_id=folder3.id if folder3 else None,   # ✅ BẮT BUỘC
+        folder3_id=folder3.id if folder3 else None,
         replay_url=url_for(
             "quiz_start_folder",
             folder3_id=folder3.id
@@ -3372,7 +4073,7 @@ def quiz_result(attempt_id):
 def admin_logs():
     admin_required()
 
-    logs = LoginLog.query.order_by(LoginLog.id.desc()).limit(300).all()
+    logs = LoginLogSummary.query.order_by(LoginLogSummary.last_at.desc()).all()
 
     return render_template(
         "admin_logs.html",
@@ -3380,10 +4081,6 @@ def admin_logs():
     )
 
 
-from datetime import datetime, timedelta
-from flask import request, redirect, url_for, flash, render_template
-from flask_login import login_required, current_user
-from sqlalchemy import case
 
 
 
@@ -3577,7 +4274,7 @@ def admin_users():
                               <p style="margin:10px 0 0;">Xin cảm ơn!</p>
                             """,
                             button_text="Vào trang web",
-                            button_url=BASE_URL,
+                            button_url=get_base_url(),
                             note_html=None
                         )
 
@@ -3696,7 +4393,7 @@ def admin_users():
                       <p style="margin:10px 0 0;">Xin cảm ơn!</p>
                     """,
                     button_text="Vào trang web",
-                    button_url=BASE_URL,
+                    button_url=get_base_url(),
                     note_html=None
                 )
                 send_email(u.email, subject, html)
@@ -3787,7 +4484,6 @@ def admin_users():
     )
 
 
-from datetime import datetime, timezone
 
 def calc_remain(trial_end):
     """
@@ -3937,8 +4633,9 @@ def admin_folder_add():
                             folder3_id=f.id))
 
 
+
 def save_folder_image(file, level, name):
-    from uuid import uuid4
+    
 
     folder = f"uploads/folder{level}"
     abs_folder = os.path.join(app.static_folder, folder)
@@ -3976,11 +4673,9 @@ def save_folder_image(file, level, name):
 
     return f"{folder}/{final_name}"
 
+
 def save_lesson_image(file, lesson_title):
-    import os, time
-    from uuid import uuid4
-    from PIL import Image, UnidentifiedImageError
-    from flask import current_app
+    
 
     # ✅ chỉ cho phép ảnh
     ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -4049,8 +4744,9 @@ def save_lesson_image(file, lesson_title):
             except: pass
         return None
 
+
+
 def save_lesson_pdf(file, slug):
-    from uuid import uuid4
 
     folder = os.path.join(current_app.static_folder, "uploads", "lesson_pdfs")
     os.makedirs(folder, exist_ok=True)
@@ -4072,6 +4768,76 @@ def save_lesson_pdf(file, slug):
 
     # path tương đối để url_for('static', filename=...)
     return f"uploads/lesson_pdfs/{final_name}"
+
+import shutil
+import fitz  # pymupdf
+
+
+def get_lesson_pages_dir(slug):
+    folder = os.path.join(current_app.static_folder, "uploads", "lesson_pages", slug)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def clear_lesson_pages(slug):
+    folder = os.path.join(current_app.static_folder, "uploads", "lesson_pages", slug)
+    if os.path.isdir(folder):
+        shutil.rmtree(folder, ignore_errors=True)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def convert_lesson_pdf_to_png(pdf_rel_path, slug, zoom=2.0):
+    """
+    pdf_rel_path: ví dụ uploads/lesson_pdfs/moa_seogi_tan_nghiem.pdf
+    output: static/uploads/lesson_pages/<slug>/page_1.png ...
+    """
+    if not pdf_rel_path:
+        return []
+
+    pdf_abs_path = os.path.join(current_app.static_folder, pdf_rel_path)
+    if not os.path.isfile(pdf_abs_path):
+        return []
+
+    out_dir = clear_lesson_pages(slug)
+    saved = []
+
+    doc = fitz.open(pdf_abs_path)
+    try:
+        matrix = fitz.Matrix(zoom, zoom)
+
+        for i, page in enumerate(doc, start=1):
+            pix = page.get_pixmap(matrix=matrix, alpha=False)
+            out_name = f"page_{i}.png"
+            out_abs = os.path.join(out_dir, out_name)
+            pix.save(out_abs)
+            saved.append(f"uploads/lesson_pages/{slug}/{out_name}")
+    finally:
+        doc.close()
+
+    return saved
+
+
+def get_lesson_image_pages(slug):
+    folder = os.path.join(current_app.static_folder, "uploads", "lesson_pages", slug)
+    if not os.path.isdir(folder):
+        return []
+
+    exts = (".webp", ".png", ".jpg", ".jpeg")
+
+    def sort_key(name):
+        m = re.search(r"page_(\d+)", name.lower())
+        return int(m.group(1)) if m else 999999
+
+    files = sorted(
+        [f for f in os.listdir(folder) if f.lower().endswith(exts)],
+        key=sort_key
+    )
+
+    return [
+        url_for("static", filename=f"uploads/lesson_pages/{slug}/{f}")
+        for f in files
+    ]
 
 @app.route("/admin/folder/<int:folder_id>/edit", methods=["POST"])
 @login_required
@@ -4242,28 +5008,26 @@ def api_question(qid):
     if not q:
         return jsonify(ok=False)
 
-    # xác định type
-    q_type = q.type  # "mcq" | "boolean" | "multi"
-
-    choices = (
-        Choice.query
-        .filter_by(question_id=q.id)
-        .order_by(Choice.id.asc())
-        .all()
-    )
+    answers = question_answers_payload(q, shuffle_answers=False)
+    correct_indexes = parse_correct_indexes(q)
 
     return jsonify(
         ok=True,
         id=q.id,
         text=q.text,
-        type=q_type,
-        choices=[
+        type=q.type,
+        answers=[
             {
-                "text": c.text,
-                "is_correct": c.is_correct
+                "orig_idx": a["orig_idx"],
+                "label": a["label"],
+                "text": a["text"],
+                "is_correct": a["orig_idx"] in correct_indexes
             }
-            for c in choices
-        ]
+            for a in answers
+        ],
+        answer_count=q.answer_count or 0,
+        correct_indexes=sorted(list(correct_indexes)),
+        correct_answers_text=q.correct_answers_text or ""
     )
 
 
@@ -4301,51 +5065,51 @@ def admin_questions():
             ans_b = request.form.get("answer_b", "").strip()
             ans_c = request.form.get("answer_c", "").strip()
             ans_d = request.form.get("answer_d", "").strip()
-            correct = request.form.get("correct_answer")
+            correct = (request.form.get("correct_answer") or "").strip().upper()
 
             if not all([ans_a, ans_b, ans_c, ans_d]):
                 return jsonify({"error": "Vui lòng nhập đủ 4 đáp án"}), 400
             if correct not in ("A", "B", "C", "D"):
                 return jsonify({"error": "Chưa chọn đáp án đúng"}), 400
 
-            for k, v in {"A": ans_a, "B": ans_b, "C": ans_c, "D": ans_d}.items():
-                db.session.add(
-                    Choice(
-                        question_id=q.id,
-                        text=v,
-                        is_correct=(k == correct)
-                    )
-                )
+            answers = [ans_a, ans_b, ans_c, ans_d]
+            correct_indexes = [{"A": 1, "B": 2, "C": 3, "D": 4}[correct]]
+            fill_question_answers(q, answers, correct_indexes)
 
         # ===== BOOLEAN =====
         elif question_type == "boolean":
-            correct = request.form.get("correct_answer")
+            correct = (request.form.get("correct_answer") or "").strip().upper()
             if correct not in ("A", "B"):
                 return jsonify({"error": "Chưa chọn đáp án đúng"}), 400
 
-            db.session.add(Choice(question_id=q.id, text="Đúng", is_correct=(correct == "A")))
-            db.session.add(Choice(question_id=q.id, text="Sai",  is_correct=(correct == "B")))
+            answers = ["Đúng", "Sai"]
+            correct_indexes = [1 if correct == "A" else 2]
+            fill_question_answers(q, answers, correct_indexes)
 
         # ===== MULTI =====
         elif question_type == "multi":
-            texts = request.form.getlist("multi_text[]")
-            corrects = request.form.getlist("multi_correct[]")
+            texts = request.form.getlist("multi_text[]")[:12]
+            corrects = request.form.getlist("multi_correct[]")[:12]
 
-            if len(texts) < 2:
-                return jsonify({"error": "Multi cần ít nhất 2 đáp án"}), 400
-            if "1" not in corrects:
+            pairs = []
+            for text, flag in zip(texts, corrects):
+                text = (text or "").strip()
+                if text:
+                    pairs.append((text, str(flag).strip() == "1"))
+
+            if len(pairs) > 12:
+                return jsonify({"error": "Multi chỉ được tối đa 12 đáp án"}), 400
+
+            correct_indexes = [i for i, (_, ok) in enumerate(pairs, start=1) if ok]
+            if not correct_indexes:
                 return jsonify({"error": "Cần chọn ít nhất 1 đáp án đúng"}), 400
 
-            for text, is_correct in zip(texts, corrects):
-                if not text.strip():
-                    continue
-                db.session.add(
-                    Choice(
-                        question_id=q.id,
-                        text=text.strip(),
-                        is_correct=(is_correct == "1")
-                    )
-                )
+            answers = [txt for txt, _ in pairs]
+            fill_question_answers(q, answers, correct_indexes)
+
+        else:
+            return jsonify({"error": "Kiểu câu hỏi không hợp lệ"}), 400
+
 
         # 🔥 BẮT BUỘC PHẢI CÓ
         db.session.commit()
@@ -4401,27 +5165,18 @@ def admin_questions():
     # ===============================
     # 🔥 THỐNG KÊ ĐÁP ÁN ĐÚNG (DYNAMIC – ALL TYPES)
     # ===============================
-    answer_stats = {}      # vd: {"A": 20, "B": 15, "E": 3}
+    answer_stats = {}
     total_correct = 0
 
     if folder3_id:
-        all_questions = Question.query.filter_by(
-            folder_id=folder3_id
-        ).all()
+        all_questions = Question.query.filter_by(folder_id=folder3_id).all()
 
         for q in all_questions:
-            choices = (
-                Choice.query
-                .filter_by(question_id=q.id)
-                .order_by(Choice.id.asc())
-                .all()
-            )
-
-            for idx, c in enumerate(choices):
-                if c.is_correct:
-                    letter = chr(65 + idx)   # A B C D E F ...
-                    answer_stats[letter] = answer_stats.get(letter, 0) + 1
-                    total_correct += 1
+            correct_indexes = parse_correct_indexes(q)
+            for idx in sorted(correct_indexes):
+                letter = chr(64 + idx) if 1 <= idx <= 26 else f"#{idx}"
+                answer_stats[letter] = answer_stats.get(letter, 0) + 1
+                total_correct += 1
 
 
     # ⬇️ RỒI TỚI ĐÂY
@@ -4452,75 +5207,55 @@ def admin_edit_question(question_id):
     if not q.text:
         return jsonify({"error": "Thiếu nội dung"}), 400
 
-    # ===== helpers: nhận cả field name mới + cũ =====
-    def get_first(*keys):
-        for k in keys:
-            v = request.form.get(k)
-            if v is not None:
-                v = str(v).strip()
-                if v != "":
-                    return v
-        return ""
-
     qtype = (q.type or "").lower().strip()
 
-    # ===== validate & build new choices (chưa xoá cũ vội) =====
-    new_choices = []
-
     if qtype == "mcq":
-        mapping = {
-            "A": get_first("answer_a", "choice1"),
-            "B": get_first("answer_b", "choice2"),
-            "C": get_first("answer_c", "choice3"),
-            "D": get_first("answer_d", "choice4"),
-        }
-        correct = get_first("correct_answer", "correct").upper()
+        ans_a = request.form.get("answer_a", "").strip()
+        ans_b = request.form.get("answer_b", "").strip()
+        ans_c = request.form.get("answer_c", "").strip()
+        ans_d = request.form.get("answer_d", "").strip()
+        correct = (request.form.get("correct_answer") or "").strip().upper()
 
+        if not all([ans_a, ans_b, ans_c, ans_d]):
+            return jsonify({"error": "Thiếu đáp án"}), 400
         if correct not in ["A", "B", "C", "D"]:
             return jsonify({"error": "Chưa chọn đáp án đúng"}), 400
 
-        for k, v in mapping.items():
-            if not v:
-                return jsonify({"error": "Thiếu đáp án"}), 400
-            new_choices.append(Choice(question_id=q.id, text=v, is_correct=(k == correct)))
+        answers = [ans_a, ans_b, ans_c, ans_d]
+        correct_indexes = [{"A": 1, "B": 2, "C": 3, "D": 4}[correct]]
+        fill_question_answers(q, answers, correct_indexes)
 
     elif qtype == "boolean":
-        correct = get_first("correct_answer", "correct", "correct_tf").upper()
+        correct = (request.form.get("correct_answer") or "").strip().upper()
         if correct not in ["A", "B"]:
             return jsonify({"error": "Thiếu đáp án đúng"}), 400
 
-        # cố định theo chuẩn DB của Ken: 2 choice "Đúng"/"Sai"
-        new_choices.append(Choice(question_id=q.id, text="Đúng", is_correct=(correct == "A")))
-        new_choices.append(Choice(question_id=q.id, text="Sai",  is_correct=(correct == "B")))
+        answers = ["Đúng", "Sai"]
+        correct_indexes = [1 if correct == "A" else 2]
+        fill_question_answers(q, answers, correct_indexes)
 
     elif qtype == "multi":
         texts = request.form.getlist("multi_text[]")
         corrects = request.form.getlist("multi_correct[]")
 
-        if len(texts) < 2:
+        pairs = []
+        for text, flag in zip(texts, corrects):
+            text = (text or "").strip()
+            if text:
+                pairs.append((text, str(flag).strip() == "1"))
+
+        if len(pairs) < 2:
             return jsonify({"error": "Multi cần ít nhất 2 đáp án"}), 400
 
-        any_valid = False
-        for text, correct in zip(texts, corrects):
-            text = (text or "").strip()
-            if not text:
-                continue
-            any_valid = True
-            new_choices.append(Choice(
-                question_id=q.id,
-                text=text,
-                is_correct=(str(correct).strip() == "1")
-            ))
-        if not any_valid:
-            return jsonify({"error": "Vui lòng nhập ít nhất 2 đáp án hợp lệ"}), 400
+        correct_indexes = [i for i, (_, ok) in enumerate(pairs, start=1) if ok]
+        if not correct_indexes:
+            return jsonify({"error": "Cần chọn ít nhất 1 đáp án đúng"}), 400
+
+        answers = [txt for txt, _ in pairs]
+        fill_question_answers(q, answers, correct_indexes)
 
     else:
         return jsonify({"error": f"Kiểu câu hỏi không hỗ trợ: {q.type}"}), 400
-
-    # ===== OK rồi mới xoá & insert =====
-    Choice.query.filter_by(question_id=q.id).delete()
-    for c in new_choices:
-        db.session.add(c)
 
     db.session.commit()
     return jsonify({"success": True})
@@ -4528,26 +5263,46 @@ def admin_edit_question(question_id):
 
 
 # ===================== ADMIN: DELETE QUESTION (AJAX) =====================
-@app.route("/admin/questions/<int:question_id>/delete", methods=["POST"])
+@app.post("/admin/questions/<int:question_id>/delete")
 @login_required
 def admin_delete_question(question_id):
     admin_required()
 
-    q = db.session.get(Question, question_id)
-    if not q:
-        return jsonify({"error": "Không tìm thấy câu hỏi"}), 404
+    try:
+        q = db.session.get(Question, question_id)
+        if not q:
+            return jsonify({"ok": False, "message": "Không tìm thấy câu hỏi"}), 404
 
-    # 🔥 xoá dữ liệu liên quan
-    AttemptAnswer.query.filter_by(question_id=q.id).delete()
-    Choice.query.filter_by(question_id=q.id).delete()
+        f3 = q.folder
+        f2 = f3.parent if f3 else None
+        f1 = f2.parent if f2 else None
 
-    db.session.delete(q)
-    db.session.commit()
+        folder1_id = f1.id if f1 else None
+        folder2_id = f2.id if f2 else None
+        folder3_id = f3.id if f3 else None
 
-    return jsonify({
-        "success": True,
-        "id": question_id
-    })
+        # Xóa các attempt answers đang tham chiếu câu này
+        AttemptAnswer.query.filter_by(question_id=question_id).delete()
+
+        db.session.delete(q)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "message": "Đã xóa câu hỏi",
+            "redirect": url_for(
+                "admin_questions",
+                folder1_id=folder1_id,
+                folder2_id=folder2_id,
+                folder3_id=folder3_id
+            )
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print("admin_delete_question error:", e)
+        return jsonify({"ok": False, "message": f"Lỗi xóa câu hỏi: {e}"}), 500
+
 
 
 @app.route("/admin/question/duplicate", methods=["POST"])
@@ -4562,38 +5317,38 @@ def duplicate_question():
         flash("❌ Thiếu dữ liệu để nhân câu hỏi.", "error")
         return redirect(url_for("admin_questions"))
 
-    # ===== LẤY CÂU HỎI GỐC =====
     old_q = db.session.get(Question, qid)
     if not old_q:
         flash("❌ Không tìm thấy câu hỏi gốc.", "error")
         return redirect(url_for("admin_questions"))
 
-    # ===== TẠO CÂU HỎI MỚI =====
     new_q = Question(
         text=old_q.text,
         type=old_q.type,
         folder_id=folder3_id,
-        member_plans=old_q.member_plans or "FREE,BASIC,PRO,VIP"
+        member_plans=old_q.member_plans or "FREE,BASIC,PRO,VIP",
+
+        answer_1=old_q.answer_1,
+        answer_2=old_q.answer_2,
+        answer_3=old_q.answer_3,
+        answer_4=old_q.answer_4,
+        answer_5=old_q.answer_5,
+        answer_6=old_q.answer_6,
+        answer_7=old_q.answer_7,
+        answer_8=old_q.answer_8,
+        answer_9=old_q.answer_9,
+        answer_10=old_q.answer_10,
+        answer_11=old_q.answer_11,
+        answer_12=old_q.answer_12,
+        answer_count=old_q.answer_count,
+        correct_indexes=old_q.correct_indexes,
+        correct_answers_text=old_q.correct_answers_text
     )
     db.session.add(new_q)
-    db.session.commit()          # 🔥 để lấy new_q.id
-
-    # ===== COPY ĐÁP ÁN =====
-    old_choices = Choice.query.filter_by(question_id=old_q.id).all()
-    for c in old_choices:
-        db.session.add(
-            Choice(
-                question_id=new_q.id,
-                text=c.text,
-                is_correct=c.is_correct
-            )
-        )
-
     db.session.commit()
 
     flash(f"🔁 Đã nhân câu hỏi #{old_q.id} → #{new_q.id}", "success")
 
-    # ===== QUAY VỀ ĐÚNG CHỦ ĐỀ =====
     f3 = Folder.query.get(folder3_id)
     return redirect(url_for(
         "admin_questions",
@@ -4601,6 +5356,8 @@ def duplicate_question():
         folder2_id=f3.parent_id if f3 else None,
         folder3_id=folder3_id
     ))
+
+
 
 @app.route("/api/question/<int:qid>/path")
 @login_required
@@ -4699,13 +5456,10 @@ def seed_admin():
     db.session.commit()
     print("✅ Đã tạo tài khoản ADMIN mặc định.")
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 TRIAL_DAYS_DEFAULT = 7
 
 def send_activation_email(user):
-    # tạo token mới mỗi lần đăng ký
     token = secrets.token_urlsafe(32)
 
     user.activation_token = token
@@ -4713,7 +5467,7 @@ def send_activation_email(user):
     db.session.commit()
 
     activate_url = url_for("activate_account", token=token, _external=True)
-    website_url = BASE_URL  # hoặc url_for('login', _external=True) nếu Ken muốn vào login
+    website_url = get_base_url()
 
     html = render_template(
         "base_email.html",
@@ -4721,7 +5475,6 @@ def send_activation_email(user):
         preheader="Vui lòng kích hoạt tài khoản để bắt đầu dùng thử.",
         username=user.username,
         current_year=datetime.now().year,
-
         brand_name="Hệ thống học tập Taekwondo",
         brand_url=BASE_URL,
         logo_url=LOGO_URL,
@@ -4729,7 +5482,6 @@ def send_activation_email(user):
         brand_address="TP.HCM, Việt Nam",
         support_email="silentnight1993pro@gmail.com",
         unsubscribe_url=None,
-
         message_html=f"""
           <p style="margin:0 0 10px;">Xin chào, <strong>{user.username}</strong>!</p>
 
@@ -4751,11 +5503,8 @@ def send_activation_email(user):
           </p>
           <p style="margin:10px 0 0;">Xin cảm ơn!</p>
         """,
-
         button_text="Kích hoạt tài khoản",
         button_url=activate_url,
-
-        # Nút phụ "Vào trang web" (Ken muốn có)
         note_html=f"""
           <div style="margin-top:14px;">
             <a href="{website_url}" style="
@@ -4769,51 +5518,44 @@ def send_activation_email(user):
             ">Vào trang web</a>
           </div>
           <div style="margin-top:10px; font-size:13px; color:#64748b;">
-            Nếu nút không bấm được, copy link này:
-            <span style="word-break:break-all;">{website_url}</span>
+            Nếu nút kích hoạt không bấm được, copy link này:
+            <span style="word-break:break-all;">{activate_url}</span>
           </div>
         """
     )
 
-    send_email(user.email, "Kích hoạt tài khoản – Hệ thống học tập Taekwondo", html)
+    return send_email(user.email, "Kích hoạt tài khoản – Hệ thống học tập Taekwondo", html)
 
-import smtplib
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import smtplib
+
+
 
 def send_email(to_email, subject, html_body):
-    # dùng biến global đã load từ .env
-    sender = (EMAIL_SENDER or "").strip()
-    app_password = (EMAIL_APP_PASSWORD or "").strip()
+    api_key = (os.getenv("RESEND_API_KEY") or "").strip()
+    mail_from = (os.getenv("MAIL_FROM") or "Phungtkdsystem <no-reply@phungtkdsystem.online>").strip()
 
-    print("[MAIL] sender=", sender)
-    print("[MAIL] app_pwd_len=", len(app_password or ""))
-    print("[MAIL] to=", to_email, " subject=", subject)
+    print("[MAIL] RESEND key len =", len(api_key))
+    print("[MAIL] from =", mail_from)
+    print("[MAIL] to =", to_email, " subject =", subject)
 
-    if not sender or not app_password:
-        print("[EMAIL] Missing EMAIL_SENDER / EMAIL_APP_PASSWORD -> skip sending")
+    if not api_key:
+        print("[EMAIL] Missing RESEND_API_KEY -> skip sending")
         return False
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = to_email
+        resend.api_key = api_key
 
-        # ✅ FIX: dùng đúng html_body
-        msg.attach(MIMEText(html_body or "", "html", "utf-8"))
+        params = {
+            "from": mail_from,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_body or "",
+        }
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender, app_password)
-            server.sendmail(sender, [to_email], msg.as_string())
-
+        result = resend.Emails.send(params)
+        print("[EMAIL] Sent OK ->", to_email, result)
         return True
 
-    except smtplib.SMTPAuthenticationError as e:
-        print("[EMAIL] SMTPAuthenticationError:", e)
-        return False
     except Exception as e:
         print("[EMAIL] Send failed:", e)
         return False
@@ -4825,7 +5567,7 @@ def create_notification(role, title, message="", target_url=None, user_id=None, 
         role=role,
         user_id=user_id,
         title=title,
-        message=message,
+        message=message or "",
         target_url=target_url,
         icon=icon or "🔔",
         is_read=False,
@@ -4833,7 +5575,8 @@ def create_notification(role, title, message="", target_url=None, user_id=None, 
         ref_user_id=ref_user_id,
         ref_plan_code=ref_plan_code,
         ref_months=ref_months,
-        is_done=False
+        is_done=False,
+        created_at=now_vn()
     )
     db.session.add(n)
     db.session.commit()
@@ -5328,7 +6071,7 @@ def load_lesson_json(slug):
         return json.load(f)
 
 
-import json
+
 
 @app.route("/admin/lesson/editor/<slug>")
 @login_required
@@ -5350,25 +6093,26 @@ def admin_lesson_editor(slug):
 @app.route("/admin/lesson/save-sections", methods=["POST"])
 @login_required
 def admin_save_lesson():
+    admin_required()
 
     data = request.get_json() or {}
-    slug = data.get("slug")
-    sections = data.get("sections")
+    slug = (data.get("slug") or "").strip()
+    sections = data.get("sections", [])
 
     if not slug:
-        return jsonify(ok=False, error="Thiếu slug")
+        return jsonify(ok=False, error="❌ Thiếu slug bài học.")
 
     lesson = Lesson.query.filter_by(slug=slug).first()
     if not lesson:
-        return jsonify(ok=False, error="Không tìm thấy lesson")
+        return jsonify(ok=False, error="❌ Không tìm thấy bài học.")
 
     try:
         lesson.sections = json.dumps(sections, ensure_ascii=False)
         db.session.commit()
-        return jsonify(ok=True)
+        return jsonify(ok=True, message="✅ Đã lưu bài học thành công!")
     except Exception as e:
         db.session.rollback()
-        return jsonify(ok=False, error=str(e))
+        return jsonify(ok=False, error=f"❌ Lưu thất bại: {str(e)}")
 
 
 
@@ -5457,6 +6201,13 @@ def admin_create_lesson():
                 return redirect(request.referrer or url_for("admin_educations"))
 
             lesson.pdf = saved_pdf
+
+            try:
+                convert_lesson_pdf_to_png(saved_pdf, lesson.slug)
+            except Exception as e:
+                db.session.rollback()
+                flash(f"❌ Convert PDF sang ảnh thất bại: {e}", "danger")
+                return redirect(request.referrer or url_for("admin_educations"))
         else:
             # nếu không upload thì dùng pdf mặc định
             lesson.pdf = "Bai_hoc.pdf"
@@ -5482,8 +6233,6 @@ def admin_create_lesson():
     flash("✅ Đã tạo bài học", "success")
     return redirect(request.referrer or url_for("admin_educations"))
 
-import re
-from urllib.parse import urlparse, parse_qs
 
 def extract_drive_file_id(url: str) -> str | None:
     if not url:
@@ -5511,13 +6260,6 @@ def build_drive_direct_url(share_url: str) -> str | None:
         return None
     # dùng uc?export=download để lấy stream trực tiếp
     return f"https://drive.google.com/uc?export=download&id={fid}"
-
-from flask import request, redirect, flash
-
-
-import re
-import requests
-from flask import Response, stream_with_context, request
 
 def _drive_get_confirm_token(resp: requests.Response) -> str | None:
     # token thường nằm trong cookie dạng download_warning_*
@@ -5575,62 +6317,6 @@ def drive_stream(file_id):
     return Response(stream_with_context(gen()), headers=headers, status=200)
 
 
-@app.route("/admin/lesson/edit", methods=["POST"])
-@login_required
-def admin_lesson_edit():
-    admin_required()
-
-    slug = (request.form.get("slug") or "").strip()
-    if not slug:
-        flash("❌ Thiếu bài học.", "danger")
-        return redirect(url_for("admin_educations"))
-
-    lesson = Lesson.query.filter_by(slug=slug).first_or_404()
-
-    new_title   = (request.form.get("new_title") or "").strip()
-    review_type = (request.form.get("review_type") or "pdf").strip().lower()
-    source_url  = (request.form.get("source_url") or "").strip()
-    drive_kind  = (request.form.get("drive_kind") or "").strip().lower()
-
-    # đổi title
-    if new_title:
-        lesson.title = new_title
-
-    # đổi image
-    image_file = request.files.get("image")
-    if image_file and image_file.filename:
-        lesson.image = save_lesson_image(image_file, lesson.slug)
-
-    # đổi pdf (chỉ khi type=pdf và có upload)
-    pdf_file = request.files.get("pdf")
-    if review_type == "pdf" and pdf_file and pdf_file.filename:
-        lesson.pdf = save_lesson_pdf(pdf_file)  # hoặc save_lesson_pdf(pdf_file, lesson.slug) tùy hàm Ken
-
-    # lưu kiểu học + link
-    lesson.review_type = review_type
-    lesson.source_url  = source_url if review_type != "pdf" else ""
-
-    # lưu drive_kind nếu là drive
-    if review_type == "drive":
-        lesson.drive_kind = drive_kind or (lesson.drive_kind or "pdf")
-    else:
-        # không phải drive thì dọn drive_kind cho sạch (optional)
-        # lesson.drive_kind = None
-        pass
-
-    db.session.commit()
-
-    flash("✅ Đã cập nhật bài học.", "success")
-    return redirect(url_for(
-        "admin_educations",
-        folder3_id=lesson.folder3_id,
-        open_lesson=lesson.slug
-    ))
-
-
-from flask import render_template, abort, flash
-from flask_login import login_required
-import json
 
 @app.get("/lesson/<slug>")
 @login_required
@@ -5641,7 +6327,6 @@ def lesson_view(slug):
     try:
         sections = lesson.sections or []
         if isinstance(sections, str):
-            import json
             sections = json.loads(sections) if sections.strip() else []
     except Exception:
         sections = []
@@ -5656,9 +6341,7 @@ def lesson_view(slug):
             flash("❌ Link Drive không hợp lệ.", "danger")
             return render_template("lesson_review.html", lesson=lesson, sections=sections)
 
-        drive_kind = (getattr(lesson, "drive_kind", "") or "").strip().lower()
-        kind = drive_kind or (guess_drive_kind(source_url) or "pdf")
-
+        kind = (lesson.drive_kind or "pdf").strip().lower()
         preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
         direct_url  = f"https://drive.google.com/uc?export=download&id={file_id}"
 
@@ -5673,7 +6356,7 @@ def lesson_view(slug):
             )
 
         elif kind == "video":
-            video_url = url_for("drive_stream", file_id=file_id)
+            video_url = url_for("drive_media", file_id=file_id)
             return render_template(
                 "lesson_drive_video.html",
                 lesson=lesson,
@@ -5683,7 +6366,7 @@ def lesson_view(slug):
             )
 
         elif kind == "audio":
-            audio_url = url_for("drive_stream", file_id=file_id)
+            audio_url = url_for("drive_media", file_id=file_id)
             return render_template(
                 "lesson_drive_audio.html",
                 lesson=lesson,
@@ -5703,18 +6386,22 @@ def lesson_view(slug):
 
     # ===================== PDF LOCAL =====================
     if rtype == "pdf":
-        pdf_url = ""
-        if hasattr(lesson, "pdf_url") and (lesson.pdf_url or "").strip():
-            pdf_url = lesson.pdf_url.strip()
-        else:
-            pdf_url = "/static/" + (lesson.pdf or "Bai_hoc.pdf")
+        image_pages = get_lesson_image_pages(lesson.slug)
+
+        # fallback: nếu chưa có ảnh mà có pdf thì tự convert 1 lần
+        if not image_pages and lesson.pdf:
+            try:
+                convert_lesson_pdf_to_png(lesson.pdf, lesson.slug)
+                image_pages = get_lesson_image_pages(lesson.slug)
+            except Exception as e:
+                print("[lesson_view] convert fallback error:", e)
 
         return render_template(
             "lesson_review.html",
             lesson=lesson,
             sections=sections,
-            pdf_url=pdf_url,
-            body_class="is-pdf"
+            image_pages=image_pages,
+            body_class="is-image-review"
         )
 
     # ===================== YOUTUBE =====================
@@ -5783,8 +6470,7 @@ def get_lessons_by_folder(folder3_id):
 
     return results
 
-from flask import request, jsonify, current_app
-import os
+
 
 @app.route("/admin/lesson/delete", methods=["POST"])
 @login_required
@@ -5901,11 +6587,19 @@ def admin_edit_lesson():
 
     db.session.commit()
 
-    flash("Đã cập nhật bài học", "success")
-    return redirect(request.referrer)
+    f3 = lesson.folder
+    f2 = f3.parent if f3 else None
+    f1 = f2.parent if f2 else None
+
+    return redirect(url_for(
+        "admin_educations",
+        folder1_id=f1.id if f1 else None,
+        folder2_id=f2.id if f2 else None,
+        folder3_id=f3.id if f3 else None,
+        open_lesson=lesson.slug
+    ))
 
 
-import requests
 
 def detect_drive_kind_by_head(file_id: str) -> str:
     """
@@ -5930,10 +6624,6 @@ def detect_drive_kind_by_head(file_id: str) -> str:
 
 
 
-
-from flask import request, jsonify
-import json, os
-from datetime import datetime
 
 @app.route("/admin/lesson/save", methods=["POST"])
 @login_required
@@ -5984,10 +6674,6 @@ def admin_lesson_list_partial():
     )
 
 
-import re
-import json
-from flask import render_template, abort, flash
-from flask_login import login_required
 
 def _safe_lower(x):
     try:
@@ -6204,9 +6890,6 @@ def normalize_sections(sections):
     return out
 
 
-import mammoth
-import re
-
 
 def drive_file_id(url: str):
     if not url:
@@ -6233,9 +6916,6 @@ def drive_direct_url(url: str):
     # direct stream cho <video>/<audio>
     return f"https://drive.google.com/uc?export=download&id={fid}"
 
-import re
-import requests
-from flask import Response, request, stream_with_context
 
 def _extract_confirm_token(html: str):
     if not html:
@@ -6257,14 +6937,24 @@ def drive_media(file_id):
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "*/*",
+        "Connection": "keep-alive",
     }
+
     range_header = request.headers.get("Range")
     if range_header:
         headers["Range"] = range_header
 
     sess = requests.Session()
 
-    r1 = sess.get(base, params=params, headers=headers, stream=True, allow_redirects=True, timeout=30)
+    r1 = sess.get(
+        base,
+        params=params,
+        headers=headers,
+        stream=True,
+        allow_redirects=True,
+        timeout=(10, 60)
+    )
+
     ctype1 = (r1.headers.get("Content-Type") or "").lower()
 
     if "text/html" in ctype1:
@@ -6275,40 +6965,77 @@ def drive_media(file_id):
             html = ""
 
         if _is_login_or_block_page(html):
-            return ("Drive đang chặn vì file chưa public. "
-                    "Vào Drive → Share → Anyone with the link (Viewer).", 400)
+            r1.close()
+            return (
+                "Drive đang chặn vì file chưa public. "
+                "Vào Drive → Share → Anyone with the link (Viewer).",
+                400
+            )
 
         token = _extract_confirm_token(html)
+        r1.close()
+
         if not token:
-            return ("Không lấy được token confirm từ Drive. "
-                    "Thường do file chưa public hoặc Drive chặn tải.", 400)
+            return (
+                "Không lấy được token confirm từ Drive. "
+                "Thường do file chưa public hoặc Drive chặn tải.",
+                400
+            )
 
         params2 = {"export": "download", "id": file_id, "confirm": token}
-        r = sess.get(base, params=params2, headers=headers, stream=True, allow_redirects=True, timeout=30)
+        r = sess.get(
+            base,
+            params=params2,
+            headers=headers,
+            stream=True,
+            allow_redirects=True,
+            timeout=(10, 60)
+        )
     else:
         r = r1
 
     ctype = (r.headers.get("Content-Type") or "").lower()
     if "text/html" in ctype:
-        return ("Drive vẫn trả về HTML (không phải file media). "
-                "Kiểm tra lại quyền share hoặc thử file nhỏ hơn.", 400)
+        r.close()
+        return (
+            "Drive vẫn trả về HTML (không phải file media). "
+            "Kiểm tra lại quyền share hoặc thử file nhỏ hơn.",
+            400
+        )
 
     def generate():
-        for chunk in r.iter_content(chunk_size=1024 * 256):
-            if chunk:
-                yield chunk
+        try:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):   # 1MB
+                if chunk:
+                    yield chunk
+        finally:
+            r.close()
+            sess.close()
 
-    resp = Response(stream_with_context(generate()), status=r.status_code)
+    resp = Response(
+        stream_with_context(generate()),
+        status=r.status_code,
+        direct_passthrough=True
+    )
 
-    passthrough = ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"]
+    passthrough = [
+        "Content-Type",
+        "Content-Length",
+        "Content-Range",
+        "Accept-Ranges",
+        "Content-Disposition",
+        "ETag",
+        "Last-Modified"
+    ]
     for h in passthrough:
         if h in r.headers:
             resp.headers[h] = r.headers[h]
 
-    # ✅ set header phụ trợ cho UI
+    if "Accept-Ranges" not in resp.headers:
+        resp.headers["Accept-Ranges"] = "bytes"
+
     resp.headers["X-File-Name"] = file_id
     resp.headers["Cache-Control"] = "public, max-age=3600"
-
     return resp
 
 @app.route("/admin/lesson/detail/<slug>")
@@ -6581,7 +7308,7 @@ def admin_lesson_member_setup():
     if not lesson:
         return jsonify({"ok": False, "message": "Không tìm thấy bài học"}), 404
 
-    valid = ["FREE", "BASIC", "PRO", "VIP"]
+    valid = ["FREE", "BASIC", "PRO", "VIP", "ADMIN"]
 
     clean_plans = []
     for p in plans:
@@ -6610,7 +7337,7 @@ def admin_practice_member_setup():
     if not folder:
         return jsonify({"ok": False, "message": "Không tìm thấy chủ đề ôn tập"}), 404
 
-    valid = ["FREE", "BASIC", "PRO", "VIP"]
+    valid = ["FREE", "BASIC", "PRO", "VIP", "ADMIN"]
 
     clean_plans = []
     for p in plans:
@@ -6676,7 +7403,7 @@ def admin_practice_question_plans_save():
         return jsonify({"ok": False, "message": "Không tìm thấy chủ đề ôn tập"}), 404
 
     folder_plans = [x.strip().upper() for x in (folder.member_plans or "").split(",") if x.strip()]
-    valid = {"FREE", "BASIC", "PRO", "VIP"}
+    valid = {"FREE", "BASIC", "PRO", "VIP", "ADMIN"}
 
     qids = [int(x.get("id")) for x in items if x.get("id")]
     questions = Question.query.filter(Question.id.in_(qids), Question.folder_id == folder.id).all()
@@ -6793,10 +7520,6 @@ def admin_move_practice_folder():
 
 
 
-from flask import request, jsonify
-from flask_login import login_required
-import os
-
 
 @app.route("/admin/lesson/move", methods=["POST"])
 @login_required
@@ -6871,14 +7594,39 @@ def admin_move_lesson():
 @app.route("/exam")
 @login_required
 def exam_home():
-    # lấy toàn bộ câu hỏi thuộc folder ôn tập (level 3)
-    questions = (
+
+    # ===============================
+    # Lấy tất cả câu hỏi thuộc folder3
+    # ===============================
+    all_questions = (
         Question.query
         .join(Folder, Question.folder_id == Folder.id)
-        .filter(Folder.level == 3)
+        .filter(
+            Folder.level == 3,
+            Folder.is_active_practice == 1
+        )
         .order_by(Question.id.asc())
         .all()
     )
+
+    # ===============================
+    # Lọc theo gói
+    # ===============================
+    questions = []
+
+    for q in all_questions:
+
+        folder = q.folder
+
+        # folder phải được phép
+        if not can_access_plans(folder.member_plans):
+            continue
+
+        # question phải được phép
+        if not can_access_plans(q.member_plans):
+            continue
+
+        questions.append(q)
 
     return render_template(
         "admin_exam.html",
@@ -6891,37 +7639,106 @@ def exam_home():
 def exam_get_question(qid):
     q = db.session.get(Question, qid)
     if not q:
-        return jsonify(ok=False)
+        return jsonify(ok=False, error="Không tìm thấy câu hỏi")
+
+    payload = question_answers_payload(q, shuffle_answers=True)
+    correct_indexes = parse_correct_indexes(q)
+
+    qtype = (q.type or "mcq").strip().lower()
+    if qtype in ("truefalse", "true_false", "tf"):
+        qtype = "boolean"
+    elif qtype in ("multiple", "multiple_choice_multi"):
+        qtype = "multi"
+    else:
+        qtype = "mcq" if qtype not in ("mcq", "boolean", "multi") else qtype
 
     return jsonify(
         ok=True,
         id=q.id,
         text=q.text,
+        type=qtype,
+        correct_count=len(correct_indexes),
         choices=[
             {
-                "id": c.id,
-                "text": c.text,
-                "is_correct": c.is_correct
+                "id": item["orig_idx"],
+                "text": item["text"],
+                "label": item["label"]
             }
-            for c in q.choices
+            for item in payload
         ]
     )
+
 
 @app.route("/exam/check", methods=["POST"])
 @login_required
 def exam_check():
-    qid = request.json.get("question_id")
-    choice_id = request.json.get("choice_id")
+    data = request.get_json(silent=True) or {}
 
-    choice = db.session.get(Choice, choice_id)
-    if not choice or choice.question_id != qid:
-        return jsonify(ok=False)
+    qid = data.get("question_id")
+    q = db.session.get(Question, qid)
+    if not q:
+        return jsonify(ok=False, error="Không tìm thấy câu hỏi")
+
+    qtype = (q.type or "mcq").strip().lower()
+    if qtype in ("truefalse", "true_false", "tf"):
+        qtype = "boolean"
+    elif qtype in ("multiple", "multiple_choice_multi"):
+        qtype = "multi"
+    else:
+        qtype = "mcq" if qtype not in ("mcq", "boolean", "multi") else qtype
+
+    correct_indexes = parse_correct_indexes(q)
+
+    valid_answer_indexes = {
+        i for i, txt in enumerate(question_answer_texts(q), start=1)
+        if (txt or "").strip()
+    }
+
+    if qtype == "multi":
+        raw_ids = data.get("choice_ids", [])
+
+        if not isinstance(raw_ids, list):
+            return jsonify(ok=False, error="Dữ liệu đáp án không hợp lệ")
+
+        chosen_indexes = []
+        for x in raw_ids:
+            s = str(x).strip()
+            if s.isdigit():
+                chosen_indexes.append(int(s))
+
+        chosen_indexes = sorted(set(chosen_indexes))
+
+        if not chosen_indexes:
+            return jsonify(ok=False, error="Vui lòng chọn ít nhất 1 đáp án")
+
+        if any(i not in valid_answer_indexes for i in chosen_indexes):
+            return jsonify(ok=False, error="Có đáp án không hợp lệ")
+
+        return jsonify(
+            ok=True,
+            correct=(set(chosen_indexes) == correct_indexes),
+            type="multi",
+            chosen_indexes=chosen_indexes,
+            correct_indexes=sorted(list(correct_indexes))
+        )
+
+    choice_id = data.get("choice_id")
+
+    try:
+        choice_id = int(choice_id)
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="Đáp án không hợp lệ")
+
+    if choice_id not in valid_answer_indexes:
+        return jsonify(ok=False, error="Đáp án không hợp lệ")
 
     return jsonify(
         ok=True,
-        correct=bool(choice.is_correct)
+        correct=(choice_id in correct_indexes),
+        type=qtype,
+        chosen_index=choice_id,
+        correct_indexes=sorted(list(correct_indexes))
     )
-
 
 class Lesson(db.Model):
     __tablename__ = "lessons"
@@ -7011,7 +7828,572 @@ def load_lessons_by_folder3(folder3_id):
         if user_plan in plans:
             allowed_lessons.append(lesson)
 
-    return allowed_lessons
+    return [lesson for lesson in lessons if can_access_plans(lesson.member_plans)]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class MemberPlan(db.Model):
+    __tablename__ = "member_plan"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)   # BASIC / PRO / VIP
+    name = db.Column(db.String(100), nullable=False)
+    price_monthly = db.Column(db.Integer, nullable=False, default=0)
+    description = db.Column(db.Text, nullable=True)
+    features_text = db.Column(db.Text, nullable=True)  # mỗi dòng 1 quyền lợi
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(VN_TZ), onupdate=lambda: datetime.now(VN_TZ))
+
+
+class PromotionCampaign(db.Model):
+    __tablename__ = "promotion_campaign"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+
+    # all / selected
+    target_mode = db.Column(db.String(20), nullable=False, default="all")
+
+    # percent / fixed
+    discount_type = db.Column(db.String(20), nullable=False, default="percent")
+    discount_value = db.Column(db.Integer, nullable=False, default=0)
+
+    # áp dụng cho plan nào: BASIC,PRO,VIP hoặc ALL
+    plan_codes = db.Column(db.String(100), nullable=False, default="ALL")
+
+    start_at = db.Column(db.DateTime, nullable=False)
+    end_at = db.Column(db.DateTime, nullable=False)
+
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(VN_TZ), nullable=False)
+
+    code = db.Column(db.String(50), unique=True, nullable=True)
+    promo_kind = db.Column(db.String(20), nullable=False, default="campaign")
+
+
+class PromotionUser(db.Model):
+    __tablename__ = "promotion_user"
+
+    id = db.Column(db.Integer, primary_key=True)
+    promotion_id = db.Column(db.Integer, db.ForeignKey("promotion_campaign.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    promotion = db.relationship("PromotionCampaign", backref="promotion_users")
+    user = db.relationship("User", backref="promotion_links")
+
+    __table_args__ = (
+        db.UniqueConstraint("promotion_id", "user_id", name="uq_promotion_user"),
+    )
+
+class PaymentBankSetting(db.Model):
+    __tablename__ = "payment_bank_setting"
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_name = db.Column(db.String(150), nullable=False)
+    bank_code = db.Column(db.String(50), nullable=False)   # vd: ACB, MBBANK, BIDV...
+    bank_bin = db.Column(db.String(20), nullable=True)     # vd: 970416
+    bank_name = db.Column(db.String(150), nullable=False)
+    account_no = db.Column(db.String(50), nullable=False)
+    note_default = db.Column(db.String(255), nullable=False, default="Theo ghi chú phần thông tin đơn hàng bên trên")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(VN_TZ), onupdate=lambda: datetime.now(VN_TZ))
+
+def seed_member_plans():
+    defaults = [
+        {
+            "code": "BASIC",
+            "name": "Taekwondo Cơ Bản",
+            "price_monthly": 300000,
+            "description": "Nội dung gói cơ bản",
+            "features_text": "+ Kỹ thuật cơ bản",
+            "sort_order": 1,
+        },
+        {
+            "code": "PRO",
+            "name": "Taekwondo Nâng cao",
+            "price_monthly": 500000,
+            "description": "Nội dung gói nâng cao",
+            "features_text": "+ Kỹ thuật cơ bản\n+ Kỹ thuật nâng cao\n+ Nội dung thi đẳng",
+            "sort_order": 2,
+        },
+        {
+            "code": "VIP",
+            "name": "Taekwondo Cao Cấp",
+            "price_monthly": 800000,
+            "description": "Nội dung gói cao cấp",
+            "features_text": "+ Kỹ thuật cơ bản\n+ Kỹ thuật nâng cao\n+ Nội dung thi đẳng\n+ Kỹ thuật cao cấp\n+ Võ nhạc",
+            "sort_order": 3,
+        },
+    ]
+
+    for item in defaults:
+        exists = MemberPlan.query.filter_by(code=item["code"]).first()
+        if not exists:
+            db.session.add(MemberPlan(**item))
+
+    bank = PaymentBankSetting.query.first()
+    if not bank:
+        db.session.add(PaymentBankSetting(
+            account_name="NGUYEN THIEN PHUNG",
+            bank_code="ACB",
+            bank_bin="970416",
+            bank_name="Ngân hàng Á Châu",
+            account_no="682657",
+            note_default="Theo ghi chú phần thông tin đơn hàng bên trên",
+        ))
+
+    db.session.commit()
+
+
+@app.route("/admin/subscription-manager")
+@login_required
+def admin_subscription_manager():
+    if current_user.role != "admin":
+        abort(403)
+
+    plans = MemberPlan.query.order_by(MemberPlan.sort_order.asc()).all()
+    promotions = PromotionCampaign.query.order_by(PromotionCampaign.created_at.desc()).all()
+    bank = PaymentBankSetting.query.filter_by(is_active=True).first()
+
+    users = (
+        User.query
+        .filter(User.role != "admin")
+        .order_by(User.id.asc())
+        .all()
+    )
+
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+
+    return render_template(
+        "admin_subscription_manager.html",
+        plans=plans,
+        promotions=promotions,
+        bank=bank,
+        users=users,
+        now_dt=now,
+    )
+
+@app.post("/admin/subscription-manager/plan/<int:plan_id>/save")
+@login_required
+def admin_save_plan(plan_id):
+    if current_user.role != "admin":
+        abort(403)
+
+    plan = MemberPlan.query.get_or_404(plan_id)
+    plan.name = request.form.get("name", "").strip()
+    plan.price_monthly = int(request.form.get("price_monthly", 0) or 0)
+    plan.description = request.form.get("description", "").strip()
+    plan.features_text = request.form.get("features_text", "").strip()
+
+    db.session.commit()
+    flash(f"Đã lưu gói {plan.code}", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+
+from datetime import datetime
+
+@app.post("/admin/subscription-manager/promotion/create")
+@login_required
+def admin_create_promotion():
+    if current_user.role != "admin":
+        abort(403)
+
+    title = request.form.get("title", "").strip()
+    code = request.form.get("code", "").strip().upper()
+    promo_kind = request.form.get("promo_kind", "campaign").strip().lower()
+    target_mode = request.form.get("target_mode", "all").strip()
+    plan_codes = request.form.get("plan_codes", "ALL").strip().upper()
+    discount_type = request.form.get("discount_type", "percent").strip()
+    discount_value = int(request.form.get("discount_value", 0) or 0)
+
+    start_at = datetime.fromisoformat(request.form.get("start_at"))
+    end_at = datetime.fromisoformat(request.form.get("end_at"))
+
+    if not title:
+        flash("Thiếu tên khuyến mãi", "danger")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if promo_kind not in ("campaign", "voucher"):
+        flash("Loại khuyến mãi không hợp lệ", "danger")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if promo_kind == "voucher" and not code:
+        flash("Phiếu khuyến mãi phải có mã", "danger")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if code:
+        existed = PromotionCampaign.query.filter_by(code=code).first()
+        if existed:
+            flash("Mã khuyến mãi đã tồn tại", "danger")
+            return redirect(url_for("admin_subscription_manager"))
+
+    promo = PromotionCampaign(
+        title=title,
+        code=code if code else None,
+        promo_kind=promo_kind,
+        target_mode=target_mode,
+        plan_codes=plan_codes,
+        discount_type=discount_type,
+        discount_value=discount_value,
+        start_at=start_at,
+        end_at=end_at,
+        is_active=True,
+    )
+    db.session.add(promo)
+    db.session.flush()
+
+    selected_users = []
+    if target_mode == "selected":
+        raw_ids = request.form.get("selected_user_ids", "")
+        user_ids = []
+        for x in raw_ids.split(","):
+            x = x.strip()
+            if x.isdigit():
+                user_ids.append(int(x))
+
+        for uid in set(user_ids):
+            db.session.add(PromotionUser(
+                promotion_id=promo.id,
+                user_id=uid
+            ))
+            selected_users.append(uid)
+
+    db.session.commit()
+
+    # Gửi phiếu giảm giá riêng cho user được chọn
+    if promo_kind == "voucher" and selected_users:
+        send_voucher_to_selected_users(promo.id)
+
+    flash("Đã tạo khuyến mãi", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+@app.route("/admin/update-promotion", methods=["POST"])
+@login_required
+def admin_update_promotion():
+    promo_id = request.form.get("promo_id", type=int)
+    promo = PromotionCampaign.query.get_or_404(promo_id)
+
+    promo.title = (request.form.get("title") or "").strip()
+    promo.code = (request.form.get("code") or "").strip() or None
+    promo.target_mode = (request.form.get("target_mode") or "all").strip()
+    promo.plan_codes = (request.form.get("plan_codes") or "ALL").strip()
+    promo.discount_type = (request.form.get("discount_type") or "fixed").strip()
+
+    discount_value_raw = (request.form.get("discount_value") or "0").replace(",", "").strip()
+    try:
+        promo.discount_value = float(discount_value_raw or 0)
+    except:
+        promo.discount_value = 0
+
+    start_at_raw = request.form.get("start_at") or ""
+    end_at_raw = request.form.get("end_at") or ""
+
+    try:
+        promo.start_at = datetime.strptime(start_at_raw, "%Y-%m-%dT%H:%M") if start_at_raw else None
+        promo.end_at = datetime.strptime(end_at_raw, "%Y-%m-%dT%H:%M") if end_at_raw else None
+    except ValueError:
+        flash("Thời gian khuyến mãi không hợp lệ.", "error")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if promo.discount_type == "percent":
+        if promo.discount_value < 0:
+            promo.discount_value = 0
+        if promo.discount_value > 100:
+            promo.discount_value = 100
+
+    db.session.commit()
+    flash("Đã cập nhật khuyến mãi thành công.", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+@app.post("/admin/subscription-manager/promotion/<int:promo_id>/delete")
+@login_required
+def admin_delete_promotion(promo_id):
+    if current_user.role != "admin":
+        abort(403)
+
+    promo = PromotionCampaign.query.get_or_404(promo_id)
+
+    PromotionUser.query.filter_by(promotion_id=promo.id).delete()
+    db.session.delete(promo)
+    db.session.commit()
+
+    flash("Đã xóa khuyến mãi", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+
+
+@app.post("/admin/subscription-manager/bank/save")
+@login_required
+def admin_save_bank_setting():
+    if current_user.role != "admin":
+        abort(403)
+
+    bank = PaymentBankSetting.query.first()
+    if not bank:
+        bank = PaymentBankSetting()
+        db.session.add(bank)
+
+    bank.account_name = request.form.get("account_name", "").strip()
+    bank.bank_code = request.form.get("bank_code", "").strip()
+    bank.bank_name = request.form.get("bank_name", "").strip()
+    bank.bank_bin = request.form.get("bank_bin", "").strip()
+    bank.account_no = request.form.get("account_no", "").strip()
+    bank.note_default = request.form.get("note_default", "Theo ghi chú phần thông tin đơn hàng bên trên").strip()
+
+    db.session.commit()
+    flash("Đã cập nhật thông tin ngân hàng", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+def get_active_promotion_for_user(user, plan_code):
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+
+    promos = PromotionCampaign.query.filter(
+        PromotionCampaign.is_active == True,
+        PromotionCampaign.promo_kind == "campaign",
+        PromotionCampaign.start_at <= now,
+        PromotionCampaign.end_at >= now
+    ).all()
+
+    matched = []
+    for p in promos:
+        if p.plan_codes not in ("ALL", plan_code):
+            continue
+
+        if p.target_mode == "all":
+            matched.append(p)
+            continue
+
+        has_user = PromotionUser.query.filter_by(
+            promotion_id=p.id,
+            user_id=user.id
+        ).first()
+        if has_user:
+            matched.append(p)
+
+    if not matched:
+        return None
+
+    matched.sort(key=lambda x: x.discount_value, reverse=True)
+    return matched[0]
+
+def get_promotion_by_code_for_user(user, code, plan_code):
+    code = (code or "").strip().upper()
+    if not code:
+        return None, "Không có mã khuyến mãi."
+
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+
+    promo = PromotionCampaign.query.filter(
+        PromotionCampaign.is_active == True,
+        PromotionCampaign.promo_kind == "voucher",
+        PromotionCampaign.code == code,
+        PromotionCampaign.start_at <= now,
+        PromotionCampaign.end_at >= now
+    ).first()
+
+    if not promo:
+        return None, "Mã khuyến mãi không hợp lệ hoặc đã hết hạn."
+
+    if promo.plan_codes not in ("ALL", plan_code):
+        return None, "Khuyến mãi không dành cho gói này."
+
+    if promo.target_mode == "selected":
+        has_user = PromotionUser.query.filter_by(
+            promotion_id=promo.id,
+            user_id=user.id
+        ).first()
+        if not has_user:
+            return None, "Khuyến mãi này không áp dụng cho tài khoản của bạn."
+
+    return promo, ""
+
+@app.post("/renew/check-promo")
+def renew_check_promo():
+    try:
+        data = request.get_json(silent=True) or request.form or {}
+
+        username = (data.get("username") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+
+        user = None
+        if username:
+            user = User.query.filter_by(username=username).first()
+        if not user and email:
+            user = User.query.filter_by(email=email).first()
+
+        if not user:
+            return jsonify({"ok": False, "message": "Không tìm thấy user."}), 400
+
+        plan_code = norm_plan(data.get("plan_code"))
+        if plan_code == "FREE":
+            return jsonify({"ok": False, "message": "Gói đăng ký không hợp lệ."}), 400
+
+        promo_code = (data.get("promo_code") or "").strip().upper()
+        if not promo_code:
+            return jsonify({"ok": False, "message": "Vui lòng nhập mã khuyến mãi."}), 400
+
+        try:
+            raw_total = int(data.get("raw_total", 0) or 0)
+        except Exception:
+            raw_total = 0
+
+        try:
+            discount = int(data.get("discount", 0) or 0)
+        except Exception:
+            discount = 0
+
+        promo, promo_msg = get_promotion_by_code_for_user(user, promo_code, plan_code)
+        if not promo:
+            return jsonify({"ok": False, "message": promo_msg}), 400
+
+        after_month_discount = max(raw_total - discount, 0)
+
+        if str(promo.discount_type or "").lower() == "percent":
+            promo_discount = int(after_month_discount * float(promo.discount_value or 0) / 100)
+        else:
+            promo_discount = int(promo.discount_value or 0)
+
+        promo_discount = max(promo_discount, 0)
+
+        return jsonify({
+            "ok": True,
+            "promo_code": promo.code,
+            "promo_title": promo.title,
+            "promo_discount": promo_discount
+        })
+
+    except Exception as e:
+        print("[renew_check_promo] ERROR:", e)
+        return jsonify({"ok": False, "message": "Lỗi kiểm tra mã khuyến mãi."}), 500
+
+def calc_discounted_price(base_price, promo):
+    if not promo:
+        return base_price
+
+    if promo.discount_type == "percent":
+        final_price = base_price - int(base_price * promo.discount_value / 100)
+    else:
+        final_price = base_price - promo.discount_value
+
+    return max(final_price, 0)
+
+def build_member_plan_cards_for_user(user=None):
+    plans = (
+        MemberPlan.query
+        .filter_by(is_active=True)
+        .order_by(MemberPlan.sort_order.asc())
+        .all()
+    )
+
+    # Nếu chưa có gói nào thì tự seed lại
+    if not plans:
+        try:
+            seed_member_plans()
+            plans = (
+                MemberPlan.query
+                .filter_by(is_active=True)
+                .order_by(MemberPlan.sort_order.asc())
+                .all()
+            )
+        except Exception as e:
+            print("[build_member_plan_cards_for_user] seed failed:", e)
+            return []
+
+    cards = []
+    for p in plans:
+        promo = get_active_promotion_for_user(user, p.code) if user else None
+        final_price = calc_discounted_price(p.price_monthly, promo)
+
+        cards.append({
+            "code": p.code,
+            "name": p.name,
+            "price_monthly": int(p.price_monthly or 0),
+            "final_price": int(final_price or 0),
+            "description": p.description or "",
+            "features": [x.strip() for x in (p.features_text or "").splitlines() if x.strip()],
+            "promo": promo,
+        })
+    return cards
+
+
+def get_active_bank_setting():
+    return PaymentBankSetting.query.filter_by(is_active=True).first()
+
+
+def calc_plan_checkout_for_user(user, plan_code: str, months: int):
+    plan_code = norm_plan(plan_code)
+    months = max(1, int(months or 1))
+
+    plan = MemberPlan.query.filter_by(code=plan_code, is_active=True).first()
+    if not plan:
+        raise ValueError("Gói không tồn tại hoặc đang tắt.")
+
+    promo = get_active_promotion_for_user(user, plan_code) if user else None
+
+    unit_price = int(plan.price_monthly or 0)
+    promo_price = int(calc_discounted_price(unit_price, promo) or 0)
+
+    raw_total = unit_price * months
+    final_total = promo_price * months
+    discount = max(raw_total - final_total, 0)
+
+    return {
+        "plan": plan,
+        "promo": promo,
+        "unit_price": unit_price,
+        "promo_price": promo_price,
+        "raw_total": raw_total,
+        "discount": discount,
+        "final_total": final_total,
+    }
+
+
+from urllib.parse import quote
+
+
+def build_vietqr_url(bank_code, account_no, amount, add_info, account_name):
+    bank_code = (bank_code or "").strip()
+    account_no = (account_no or "").strip()
+    account_name = (account_name or "").strip()
+    add_info = (add_info or "").strip()
+
+    return (
+        f"https://img.vietqr.io/image/{bank_code}-{account_no}-compact2.png"
+        f"?amount={int(amount)}"
+        f"&addInfo={quote(add_info)}"
+        f"&accountName={quote(account_name)}"
+    )
+
+
+def make_qr_for_checkout(user, plan_code, months):
+    bank = get_active_bank_setting()
+    if not bank:
+        return ""
+
+    checkout = calc_plan_checkout_for_user(user, plan_code, months)
+    transfer_note = f"{user.username} - {norm_plan(plan_code)} - {months}m"
+
+    return build_vietqr_url(
+        bank_code=bank.bank_code,
+        account_no=bank.account_no,
+        amount=checkout["final_total"],
+        add_info=transfer_note,
+        account_name=bank.account_name
+    )
+
+
 
 
 
@@ -7019,6 +8401,9 @@ def load_lessons_by_folder3(folder3_id):
 
 if __name__ == "__main__":
     with app.app_context():
+        print("APP FILE =", __file__)
+        print("TEST FOLDER 24 =", Folder.query.filter_by(id=24).first())
+
         db.create_all()
         ensure_schema()
         ensure_user_pref_columns()
@@ -7027,9 +8412,13 @@ if __name__ == "__main__":
         ensure_lesson_member_plans_column()
         ensure_folder_member_plans_column()
         ensure_question_member_plans_column()
+        ensure_promotion_code_column()   # <- THÊM DÒNG NÀY
+        ensure_promotion_kind_column()
         migrate_user_table()
         migrate_notification_table()
         seed_admin()
+        seed_member_plans()
+
     app.run(debug=True, use_reloader=False)
 
 

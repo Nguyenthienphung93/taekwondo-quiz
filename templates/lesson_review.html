@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson_review.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson.css') }}">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
 </head>
 
 <body>
@@ -61,7 +61,7 @@
         </div>
       </aside>
 
-      <canvas id="pdfCanvas"></canvas>
+      <img id="lessonImage" class="lesson-image" src="" alt="{{ lesson.title }}" loading="eager">
 
       <!-- Nút lùi trang -->
       <button id="btnPrev"
@@ -111,10 +111,10 @@
   window.LESSON_DATA = {
     slug: {{ lesson.slug | tojson }},
     title: {{ lesson.title | tojson }},
-    pdf: {{ (pdf_url or ('/static/' ~ (lesson.pdf or 'Bai_hoc.pdf'))) | tojson }},
     review_type: {{ (lesson.review_type or "pdf") | tojson }},
     source_url: {{ (lesson.source_url or "") | tojson }},
-    sections: {{ (sections or []) | tojson }}
+    sections: {{ (sections or []) | tojson }},
+    image_pages: {{ (image_pages or []) | tojson }}
   };
 </script>
 
@@ -122,5 +122,223 @@
 <!-- SCRIPT -->
 <!-- ===================================================== -->
 <script src="{{ url_for('static', filename='js/lesson-review.js') }}"></script>
+
+
+<script>
+(function(){
+  const lessonWindow   = document.querySelector('.lesson-window');
+  const lessonContent  = document.getElementById('lessonContent');
+  const lessonImage    = document.getElementById('lessonImage');
+  const sidebarButtons = () => Array.from(document.querySelectorAll('.lesson-nav-btn'));
+
+  if (!lessonWindow || !lessonContent) return;
+
+  /* =====================================================
+     FULLSCREEN
+  ===================================================== */
+  async function enterFullscreen(el){
+    try{
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        await el.webkitRequestFullscreen();
+      } else {
+        document.body.classList.add('is-fullscreen-mobile');
+      }
+    }catch(err){
+      document.body.classList.add('is-fullscreen-mobile');
+      console.log('fullscreen fallback:', err);
+    }
+  }
+
+  async function exitFullscreen(){
+    try{
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      } else {
+        document.body.classList.remove('is-fullscreen-mobile');
+      }
+    }catch(err){
+      document.body.classList.remove('is-fullscreen-mobile');
+      console.log('exit fullscreen fallback:', err);
+    }
+  }
+
+  window.toggleFullscreen = async function(){
+    const active = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.body.classList.contains('is-fullscreen-mobile')
+    );
+
+    if (active) await exitFullscreen();
+    else await enterFullscreen(lessonWindow);
+  };
+
+  document.addEventListener('fullscreenchange', function(){
+    document.body.classList.toggle('is-fullscreen-mobile', !!document.fullscreenElement);
+  });
+
+  /* =====================================================
+     MOBILE TOUCH BEHAVIOR
+  ===================================================== */
+  lessonContent.style.webkitOverflowScrolling = 'touch';
+  lessonContent.style.overflow = 'auto';
+  lessonContent.style.touchAction = 'pan-x pan-y pinch-zoom';
+
+  if (lessonImage) {
+    lessonImage.style.touchAction = 'pan-x pan-y pinch-zoom';
+  }
+
+  /* =====================================================
+     HELPERS
+  ===================================================== */
+  function getActiveSectionIndex(){
+    const btns = sidebarButtons();
+    return btns.findIndex(btn => btn.classList.contains('active'));
+  }
+
+  function goPrevPage(){
+    if (typeof window.prevPage === 'function') {
+      window.prevPage();
+      return;
+    }
+    const btn = document.querySelector('.pdf-side-nav--left, .pager-btn.prev, [data-page-action="prev"]');
+    if (btn) btn.click();
+  }
+
+  function goNextPage(){
+    if (typeof window.nextPage === 'function') {
+      window.nextPage();
+      return;
+    }
+    const btn = document.querySelector('.pdf-side-nav--right, .pager-btn.next, [data-page-action="next"]');
+    if (btn) btn.click();
+  }
+
+  function goPrevSection(){
+    const btns = sidebarButtons();
+    if (!btns.length) return;
+
+    let idx = getActiveSectionIndex();
+    if (idx < 0) idx = 0;
+
+    const nextIdx = Math.max(0, idx - 1);
+
+    if (typeof window.loadSection === 'function') {
+      window.loadSection(nextIdx);
+      if (typeof window.closeSidebar === 'function') window.closeSidebar();
+    } else if (btns[nextIdx]) {
+      btns[nextIdx].click();
+    }
+  }
+
+  function goNextSection(){
+    const btns = sidebarButtons();
+    if (!btns.length) return;
+
+    let idx = getActiveSectionIndex();
+    if (idx < 0) idx = 0;
+
+    const nextIdx = Math.min(btns.length - 1, idx + 1);
+
+    if (typeof window.loadSection === 'function') {
+      window.loadSection(nextIdx);
+      if (typeof window.closeSidebar === 'function') window.closeSidebar();
+    } else if (btns[nextIdx]) {
+      btns[nextIdx].click();
+    }
+  }
+
+  /* =====================================================
+     GESTURE
+     - Vuốt trái/phải: đổi trang PDF
+     - Vuốt lên/xuống: đổi tiêu đề / section
+  ===================================================== */
+  let startX = 0;
+  let startY = 0;
+  let endX = 0;
+  let endY = 0;
+  let startTime = 0;
+  let isTouching = false;
+  let gestureLock = false;
+
+  const HORIZONTAL_THRESHOLD = 70;
+  const VERTICAL_THRESHOLD   = 90;
+  const AXIS_TOLERANCE       = 45;
+  const SWIPE_MAX_TIME       = 700;
+  const ACTION_COOLDOWN      = 450;
+
+  function lockGesture(){
+    gestureLock = true;
+    setTimeout(() => { gestureLock = false; }, ACTION_COOLDOWN);
+  }
+
+  lessonContent.addEventListener('touchstart', function(e){
+    if (!e.touches || !e.touches[0]) return;
+
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    endX = startX;
+    endY = startY;
+    startTime = Date.now();
+    isTouching = true;
+  }, { passive: true });
+
+  lessonContent.addEventListener('touchmove', function(e){
+    if (!isTouching || !e.touches || !e.touches[0]) return;
+
+    const t = e.touches[0];
+    endX = t.clientX;
+    endY = t.clientY;
+  }, { passive: true });
+
+  lessonContent.addEventListener('touchend', function(){
+    if (!isTouching || gestureLock) {
+      isTouching = false;
+      return;
+    }
+
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const dt = Date.now() - startTime;
+
+    isTouching = false;
+
+    if (dt > SWIPE_MAX_TIME) return;
+
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    /* Vuốt ngang => đổi trang */
+    if (absX >= HORIZONTAL_THRESHOLD && absY <= AXIS_TOLERANCE) {
+      lockGesture();
+
+      if (dx < 0) {
+        goNextPage();   // vuốt từ phải sang trái => qua trang
+      } else {
+        goPrevPage();   // vuốt từ trái sang phải => lùi trang
+      }
+      return;
+    }
+
+    /* Vuốt dọc => đổi section / tiêu đề */
+    if (absY >= VERTICAL_THRESHOLD && absX <= AXIS_TOLERANCE) {
+      lockGesture();
+
+      if (dy < 0) {
+        goNextSection();  // vuốt lên => mục tiếp theo
+      } else {
+        goPrevSection();  // vuốt xuống => mục trước
+      }
+    }
+  }, { passive: true });
+
+})();
+</script>
+
 </body>
 </html>
