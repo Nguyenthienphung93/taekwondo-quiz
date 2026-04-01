@@ -10,3 +10,4 @@ mammoth
 python-docx
 python-dotenv
 resend
+PyMuPDF==1.24.14
