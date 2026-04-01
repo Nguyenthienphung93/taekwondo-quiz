@@ -377,6 +377,82 @@ def migrate_notification_table():
         add("ref_months INTEGER", "ref_months")
         add("is_done INTEGER DEFAULT 0", "is_done")
 
+def send_voucher_to_selected_users(promo_id: int):
+    promo = PromotionCampaign.query.get(promo_id)
+    if not promo:
+        return
+
+    links = PromotionUser.query.filter_by(promotion_id=promo.id).all()
+    if not links:
+        return
+
+    for link in links:
+        user = User.query.get(link.user_id)
+        if not user:
+            continue
+
+        # 1) tạo thông báo trong hệ thống
+        try:
+            n = Notification(
+                role="user",
+                user_id=user.id,
+                title=f"🎁 Bạn nhận được phiếu khuyến mãi: {promo.code}",
+                message=(
+                    f"Bạn vừa nhận được phiếu khuyến mãi.\n"
+                    f"Mã: {promo.code}\n"
+                    f"Tên: {promo.title}\n"
+                    f"Gói áp dụng: {promo.plan_codes}\n"
+                    f"Giảm: "
+                    f"{str(promo.discount_value) + '%' if promo.discount_type == 'percent' else fmt_vnd(promo.discount_value)}\n"
+                    f"Từ: {promo.start_at.strftime('%d/%m/%Y %H:%M') if promo.start_at else ''}\n"
+                    f"Đến: {promo.end_at.strftime('%d/%m/%Y %H:%M') if promo.end_at else ''}\n\n"
+                    f"Hãy nhập mã này tại ô 'Mã khuyến mãi' khi thanh toán."
+                ),
+                target_url=url_for("sets"),
+                icon="🎁",
+                is_read=False,
+                action_type="voucher_notice",
+                ref_user_id=user.id,
+                is_done=False,
+                created_at=now_vn()
+            )
+            db.session.add(n)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print("[send_voucher_to_selected_users][notification] ERROR:", e)
+
+        # 2) gửi email nếu user có email
+        if user.email:
+            try:
+                html = render_app_email(
+                    subject_title="🎁 Bạn nhận được phiếu khuyến mãi",
+                    preheader=f"Mã {promo.code} đã được gửi cho bạn.",
+                    username=user.username,
+                    message_html=f"""
+                      <p>Xin chào <strong>{user.username}</strong>!</p>
+                      <p>Bạn vừa nhận được một <strong>phiếu khuyến mãi riêng</strong>.</p>
+
+                      <div style="margin:14px 0;padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;line-height:1.8;">
+                        <div><strong>Mã phiếu:</strong> {promo.code}</div>
+                        <div><strong>Tên:</strong> {promo.title}</div>
+                        <div><strong>Gói áp dụng:</strong> {promo.plan_codes}</div>
+                        <div><strong>Giảm:</strong> {"{}%".format(promo.discount_value) if promo.discount_type == "percent" else fmt_vnd(promo.discount_value)}</div>
+                        <div><strong>Hiệu lực từ:</strong> {promo.start_at.strftime('%d/%m/%Y %H:%M') if promo.start_at else ''}</div>
+                        <div><strong>Đến:</strong> {promo.end_at.strftime('%d/%m/%Y %H:%M') if promo.end_at else ''}</div>
+                      </div>
+
+                      <p>Khi thanh toán gói học, vui lòng nhập mã này vào ô <strong>Mã khuyến mãi</strong> để được trừ thêm tiền.</p>
+                    """,
+                    button_text="Vào hệ thống học tập",
+                    button_url=get_base_url(),
+                    note_html=None
+                )
+                send_email(user.email, f"Phiếu khuyến mãi {promo.code}", html)
+            except Exception as e:
+                print("[send_voucher_to_selected_users][email] ERROR:", e)
+
+
 def render_app_email(subject_title, preheader, username, message_html, button_text=None, button_url=None, note_html=None):
     return render_template(
         "base_email.html",
@@ -402,9 +478,16 @@ def render_app_email(subject_title, preheader, username, message_html, button_te
     )
 
 def build_user_waitaccept_email(username, plan_code, months):
-    price, raw_total, discount, final_total, rate = calc_totals(plan_code, months)
-    plan_name = plan_display(plan_code)
+    user = User.query.filter_by(username=username).first()
+    checkout = calc_plan_checkout_for_user(user, plan_code, months)
 
+    raw_total = checkout["raw_total"]
+    discount = checkout["discount"]
+    final_total = checkout["final_total"]
+    plan_name = checkout["plan"].name
+    rate = 0
+    if raw_total > 0:
+        rate = discount / raw_total
     body = f"""
       <p style="margin:0 0 10px;"><strong>Xin chào, {username}!</strong></p>
 
@@ -429,7 +512,7 @@ def build_user_waitaccept_email(username, plan_code, months):
 
       <p style="margin:0 0 12px;">
         Xin vui lòng chờ Admin duyệt. Nếu quá <strong>24h</strong>, vui lòng liên hệ về:</p>
-      <p style="margin:0 0 12px;"> <strong>email:</strong> silentnight1993pro@gmail.com</p>
+      <p style="margin:0 0 12px;"> <strong>Email:</strong> silentnight1993pro@gmail.com</p>
       <p style="margin:0 0 12px;"> <strong>Hotline:</strong> +84 989 03 04 93 </p>
 
       <p style="margin:0 0 8px;">
@@ -445,7 +528,7 @@ def build_user_waitaccept_email(username, plan_code, months):
     """
 
     return render_app_email(
-        subject_title="💳Đã ghi nhận thanh toán💳",
+        subject_title="💳Xác nhận thanh toán💳",
         preheader="Hệ thống đã ghi nhận thanh toán và đang chờ admin duyệt.",
         username=username,
         message_html=body,
@@ -455,8 +538,16 @@ def build_user_waitaccept_email(username, plan_code, months):
     )
 
 def build_admin_email(username, email, plan_code, months, approve_url):
-    price, raw_total, discount, final_total, rate = calc_totals(plan_code, months)
-    plan_name = plan_display(plan_code)
+    user = User.query.filter_by(username=username).first()
+    checkout = calc_plan_checkout_for_user(user, plan_code, months)
+
+    raw_total = checkout["raw_total"]
+    discount = checkout["discount"]
+    final_total = checkout["final_total"]
+    plan_name = checkout["plan"].name
+    rate = 0
+    if raw_total > 0:
+        rate = discount / raw_total
     memo = f"{username} - {norm_plan(plan_code)} - {months}m"
 
     body = f"""
@@ -576,26 +667,48 @@ def renew_confirm_paid():
 
         if months <= 0:
             months = 1
-        price, raw_total, discount, final_total, rate = calc_totals(plan_code, months)
-        plan_name = plan_display(plan_code)
-        memo = f"{user.username} - {norm_plan(plan_code)} - {months}m"
 
-        token = secrets.token_urlsafe(32)
+        promo_code = (data.get("promo_code") or "").strip().upper()
+        memo = (data.get("note") or f"{user.username} - {plan_code} - {months}m").strip()
 
-        # ✅ chặn gửi trùng khi đang còn 1 yêu cầu chờ duyệt
-        if (user.pending_approve_token or "").strip():
-            return jsonify({
-                "ok": False,
-                "message": "Tài khoản đang có một yêu cầu chờ admin duyệt rồi."
-            }), 400
+        checkout = calc_plan_checkout_for_user(user, plan_code, months)
+
+        raw_total = int(checkout["raw_total"] or 0)
+        discount = int(checkout["discount"] or 0)
+        final_total = int(checkout["final_total"] or 0)
+        plan_name = checkout["plan"].name if checkout.get("plan") else plan_display(plan_code)
+
+        promo_discount = 0
+
+        if promo_code:
+            promo, promo_msg = get_promotion_by_code_for_user(user, promo_code, plan_code)
+            if not promo:
+                return jsonify({"ok": False, "message": promo_msg}), 400
+
+            after_month_discount = raw_total - discount
+
+            if str(promo.discount_type or "").lower() == "percent":
+                promo_discount = int(after_month_discount * float(promo.discount_value or 0) / 100)
+            else:
+                promo_discount = int(promo.discount_value or 0)
+
+            final_total = max(after_month_discount - promo_discount, 0)
+            discount = discount + promo_discount
+
+        token = get_signer().dumps({
+            "uid": user.id,
+            "plan_code": plan_code,
+            "months": months,
+            "ts": datetime.now(timezone.utc).timestamp()
+        })
 
         old_plan_code = norm_plan(user.member or "FREE")
         pending_change_type = get_pending_change_type(user, plan_code)
 
         # pending info
-        user.pending_plan_code = plan_code              # gói user muốn đăng ký
-        user.pending_member = old_plan_code             # gói hiện tại trước khi duyệt
-        user.pending_member_name = plan_name            # tên gói mới để hiển thị
+        user.pending_plan_code = plan_code
+        user.pending_member = old_plan_code
+        user.pending_member_name = plan_name
         user.pending_months = months
         user.pending_amount = raw_total
         user.pending_discount = discount
@@ -605,18 +718,15 @@ def renew_confirm_paid():
         user.pending_at = datetime.now(timezone.utc).isoformat()
         user.pending_approve_token = token
 
-        # ✅ QUAN TRỌNG:
-        # - Hết hạn rồi mới mua -> khóa đăng nhập, chờ duyệt
-        # - Còn hạn mà mua thêm / nâng / hạ gói -> vẫn ACTIVE để học bình thường
+        # Hết hạn rồi mới mua => WAIT_ACCEPT
+        # Còn hạn mà mua thêm / đổi gói => vẫn ACTIVE để tiếp tục học
         if pending_change_type == "expired_renew":
             user.status = "WAIT_ACCEPT"
         else:
             user.status = "ACTIVE"
 
-        # ✅ KHÔNG đổi member ở đây nữa
-        # user.member = plan_code   <-- bỏ hẳn dòng này
-
         db.session.commit()
+
         try:
             create_notification(
                 role="admin",
@@ -624,9 +734,10 @@ def renew_confirm_paid():
                 message=(
                     f"User: {user.username}\n"
                     f"Email: {user.email or ''}\n"
-                    f"Gói: {plan_display(plan_code)} ({plan_code})\n"
+                    f"Gói: {plan_name} ({plan_code})\n"
                     f"Số tháng: {months}\n"
                     f"Thành tiền: {fmt_vnd(final_total)}\n"
+                    f"Ghi chú: {memo}\n"
                     f"Trạng thái: Chờ admin duyệt"
                 ),
                 target_url=url_for("admin_users"),
@@ -639,13 +750,24 @@ def renew_confirm_paid():
         except Exception as e:
             print("[create_notification] ERROR:", e)
 
+        # Telegram cho admin
+        try:
+            send_telegram_renew_request(user, {
+                "plan_code": plan_code,
+                "plan_name": plan_name,
+                "months": months,
+                "amount": final_total,
+                "memo": memo
+            })
+        except Exception as e:
+            print("[renew_confirm_paid] send telegram failed:", e)
+
         # lưu session để popup hiện lại ở login
         session["wait_accept_username"] = user.username
         session["wait_accept_email"] = user.email or ""
 
         approve_url = request.host_url.rstrip("/") + url_for("renew_approve", token=token)
 
-        # mail cho user
         user_mail_ok = False
         admin_mail_ok = False
 
@@ -655,7 +777,7 @@ def renew_confirm_paid():
                 html_user = build_user_waitaccept_email(user.username, plan_code, months)
                 user_mail_ok = send_email(
                     user.email,
-                    "Đã ghi nhận thanh toán - Chờ admin duyệt",
+                    "Đã xác nhận thanh toán - Chờ admin duyệt",
                     html_user
                 )
                 print("[renew_confirm_paid] user_mail_ok =", user_mail_ok, "->", user.email)
@@ -686,8 +808,6 @@ def renew_confirm_paid():
             "admin_mail_ok": admin_mail_ok
         })
 
-        return jsonify({"ok": True})
-
     except Exception as e:
         db.session.rollback()
         print("[renew_confirm_paid] ERROR:", e)
@@ -697,53 +817,104 @@ def renew_confirm_paid():
 
 @app.route("/telegram/webhook", methods=["POST"], strict_slashes=False)
 def telegram_webhook():
-    ...
-    print("✅ TELEGRAM WEBHOOK HIT")
-    print(request.get_json(silent=True))
-    update = request.get_json() or {}
-    cb = update.get("callback_query")
+    try:
+        print("✅ TELEGRAM WEBHOOK HIT")
+        print(request.get_json(silent=True))
 
-    if not cb:
+        update = request.get_json(silent=True) or {}
+        cb = update.get("callback_query")
+        if not cb:
+            return "ok"
+
+        data = cb.get("data", "") or ""
+        parts = data.split(":")
+        action = parts[0] if parts else ""
+
+        if action not in ("APPROVE", "REJECT"):
+            return "ok"
+
+        if len(parts) < 2:
+            return "ok"
+
+        try:
+            user_id = int(parts[1])
+        except Exception:
+            return "ok"
+
+        user = User.query.get(user_id)
+        if not user:
+            return "ok"
+
+        if action == "REJECT":
+            user.status = "ACTIVE" if user.trial_end and user.trial_end > now_utc() else "pending"
+            user.pending_approve_token = None
+            user.pending_plan_code = None
+            user.pending_member = None
+            user.pending_member_name = None
+            user.pending_months = None
+            user.pending_amount = None
+            user.pending_discount = None
+            user.pending_final_total = None
+            user.pending_duration_label = None
+            user.pending_memo = None
+            user.pending_at = None
+            db.session.commit()
+            return "ok"
+
+        # APPROVE
+        # Hỗ trợ cả format mới: APPROVE:user_id:months:sign
+        # và format cũ: APPROVE:user_id
+        months = int(user.pending_months or 1)
+
+        if len(parts) >= 4:
+            try:
+                cb_months = int(parts[2])
+            except Exception:
+                cb_months = months
+
+            sign = parts[3]
+            if sign != sign_payload(f"{user_id}:{cb_months}"):
+                return "invalid"
+
+            months = cb_months
+
+        plan_code = norm_plan(user.pending_plan_code or user.member or "FREE")
+        apply_approved_membership(user, plan_code, months)
+
+        # clear pending
+        user.pending_approve_token = None
+        user.pending_plan_code = None
+        user.pending_member = None
+        user.pending_member_name = None
+        user.pending_months = None
+        user.pending_amount = None
+        user.pending_discount = None
+        user.pending_final_total = None
+        user.pending_duration_label = None
+        user.pending_memo = None
+        user.pending_at = None
+
+        db.session.commit()
+
+        try:
+            if user.email:
+                html_ok = build_user_approved_email(
+                    username=user.username,
+                    plan_code=plan_code,
+                    months=months,
+                    trial_start=user.trial_start,
+                    trial_end=user.trial_end
+                )
+                send_email(user.email, "Thanh toán đã được duyệt - Taekwondo", html_ok)
+        except Exception as e:
+            print("[telegram_webhook] send approved mail failed:", e)
+
         return "ok"
 
-    data = cb.get("data", "")
-    parts = data.split(":")
-
-    if parts[0] != "APPROVE":
+    except Exception as e:
+        db.session.rollback()
+        print("[telegram_webhook] ERROR:", e)
         return "ok"
-
-    user_id = int(parts[1])
-    months = int(parts[2])
-    sign = parts[3]
-
-    # verify chữ ký
-    if sign != sign_payload(f"{user_id}:{months}"):
-        return "invalid"
-
-    user = User.query.get(user_id)
-    if not user:
-        return "ok"
-
-    # ===== GIA HẠN =====
-    now = datetime.now(timezone.utc)
-    base = user.trial_end if user.trial_end and user.trial_end > now else now
-    user.trial_end = base + timedelta(days=30 * months)
-
-    user.status = "ACTIVE"
-
-    # clear pending
-    user.pending_plan_code = None
-    user.pending_plan_name = None
-    user.pending_months = None
-    user.pending_amount = None
-    user.pending_memo = None
-    user.pending_requested_at = None
-
-    db.session.commit()
-
-
-
-    return "ok"
 
 @app.route("/ping")
 def ping():
@@ -752,8 +923,6 @@ def ping():
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
-print("ENV_PATH =", ENV_PATH)
-print("ENV_EXISTS =", os.path.exists(ENV_PATH))
 
 load_dotenv(ENV_PATH)
 
@@ -762,54 +931,52 @@ EMAIL_APP_PASSWORD = (os.getenv("EMAIL_APP_PASSWORD") or "").strip()
 
 # admin nhận mail duyệt (Ken đang muốn cố định)
 ADMIN_EMAIL = (os.getenv("ADMIN_EMAIL") or "silentnight1993pro@gmail.com").strip()
-print("EMAIL_SENDER:", EMAIL_SENDER)
-print("APP_PWD_LEN:", len(EMAIL_APP_PASSWORD))
-print("ADMIN_EMAIL:", ADMIN_EMAIL)
-
-print("DATABASE_URL exists =", bool(os.getenv("DATABASE_URL")))
-print("SUPABASE_URL exists =", bool(os.getenv("SUPABASE_URL")))
-print("RESEND key len =", len((os.getenv("RESEND_API_KEY") or "").strip()))
-print("MAIL_FROM =", os.getenv("MAIL_FROM"))
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
 TELEGRAM_SECRET = os.getenv("TELEGRAM_SECRET", "CHANGE_ME")
 def send_telegram_renew_request(user, payload):
     """
-    Gửi tin nhắn Telegram cho Ken + nút Duyệt.
+    Gửi tin nhắn Telegram cho admin + nút duyệt/từ chối.
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_CHAT_ID:
         print("[TELEGRAM] Missing TELEGRAM_BOT_TOKEN / TELEGRAM_ADMIN_CHAT_ID")
         return
 
+    months = int(payload.get("months", 1) or 1)
+    sign = sign_payload(f"{user.id}:{months}")
+
     text = (
-        "🧾 *YÊU CẦU GIA HẠN*\n"
-        f"👤 User: `{user.username}`\n"
-        f"📧 Email: `{user.email or ''}`\n"
-        f"🎯 Member: *{payload.get('plan_name','') or payload.get('member_name','')}* ({payload.get('plan_code','') or payload.get('member','')})\n"
-        f"🗓️ Số tháng: *{payload.get('months',1)}*\n"
-        f"💰 Số tiền: *{payload.get('amount',0):,} vnđ*\n"
-        f"📝 Ghi chú: `{payload.get('memo','')}`\n"
-        "\n"
-        "Bấm nút bên dưới để *DUYỆT*."
+        "🧾 <b>YÊU CẦU GIA HẠN</b>\n"
+        f"👤 User: <code>{user.username}</code>\n"
+        f"📧 Email: <code>{user.email or ''}</code>\n"
+        f"🎯 Gói: <b>{payload.get('plan_name','') or payload.get('member_name','')}</b> "
+        f"({payload.get('plan_code','') or payload.get('member','')})\n"
+        f"🗓️ Số tháng: <b>{months}</b>\n"
+        f"💰 Số tiền: <b>{payload.get('amount',0):,} VNĐ</b>\n"
+        f"📝 Ghi chú: <code>{payload.get('memo','')}</code>\n\n"
+        "Bấm nút bên dưới để duyệt."
     )
 
-    # callback_data để duyệt (đơn giản: APPROVE:<user_id>)
     keyboard = {
         "inline_keyboard": [
             [
-                {"text": "✅ DUYỆT", "callback_data": f"APPROVE:{user.id}"},
+                {"text": "✅ DUYỆT", "callback_data": f"APPROVE:{user.id}:{months}:{sign}"},
                 {"text": "❌ TỪ CHỐI", "callback_data": f"REJECT:{user.id}"}
             ]
         ]
     }
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={
-        "chat_id": TELEGRAM_ADMIN_CHAT_ID,
-        "text": text,
-        "parse_mode": "Markdown",
-        "reply_markup": keyboard
-    }, timeout=10)
+    requests.post(
+        url,
+        json={
+            "chat_id": TELEGRAM_ADMIN_CHAT_ID,
+            "text": text,
+            "parse_mode": "HTML",
+            "reply_markup": keyboard
+        },
+        timeout=10
+    )
 
 
 
@@ -1414,6 +1581,49 @@ def ensure_lesson_media_columns():
     conn.commit()
     conn.close()
 
+def ensure_promotion_code_column():
+    db_path = os.path.join(app.instance_path, "quiz.db")
+    if not os.path.exists(db_path):
+        return
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    tables = {r[0] for r in cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+
+    if "promotion_campaign" in tables:
+        cur.execute("PRAGMA table_info(promotion_campaign)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "code" not in cols:
+            cur.execute("ALTER TABLE promotion_campaign ADD COLUMN code VARCHAR(50)")
+
+    conn.commit()
+    conn.close()
+
+def ensure_promotion_kind_column():
+    db_path = os.path.join(app.instance_path, "quiz.db")
+    if not os.path.exists(db_path):
+        return
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    tables = {r[0] for r in cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+
+    if "promotion_campaign" in tables:
+        cur.execute("PRAGMA table_info(promotion_campaign)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "promo_kind" not in cols:
+            cur.execute(
+                "ALTER TABLE promotion_campaign ADD COLUMN promo_kind VARCHAR(20) DEFAULT 'campaign'"
+            )
+
+    conn.commit()
+    conn.close()
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -1485,23 +1695,18 @@ class User(db.Model, UserMixin):
     activation_sent_at = db.Column(SafeDateTime, nullable=True)
 
     # ✅ các cột pending_ đã có trong quiz.db => khai báo để khỏi AttributeError
+    # ✅ các cột pending_
     pending_member = db.Column(db.Text, nullable=True)
     pending_member_name = db.Column(db.Text, nullable=True)
-    pending_plan_code = db.Column(db.Text)
-    pending_months = db.Column(db.Integer)
-    pending_amount = db.Column(db.Integer)
-
-    pending_discount = db.Column(db.Integer)
-    pending_final_total = db.Column(db.Integer)
-
-    pending_member = db.Column(db.Text)
-    pending_member_name = db.Column(db.Text)
-    pending_duration_label = db.Column(db.Text)
-
-    pending_memo = db.Column(db.Text)
-    pending_at = db.Column(db.Text)
-
-    pending_approve_token = db.Column(db.Text)
+    pending_plan_code = db.Column(db.Text, nullable=True)
+    pending_months = db.Column(db.Integer, nullable=True)
+    pending_amount = db.Column(db.Integer, nullable=True)
+    pending_discount = db.Column(db.Integer, nullable=True)
+    pending_final_total = db.Column(db.Integer, nullable=True)
+    pending_duration_label = db.Column(db.Text, nullable=True)
+    pending_memo = db.Column(db.Text, nullable=True)
+    pending_at = db.Column(db.Text, nullable=True)
+    pending_approve_token = db.Column(db.Text, nullable=True)
 
 
 class LoginLog(db.Model):
@@ -1784,6 +1989,23 @@ def inject_header_notifications():
         header_notification_unread=unread_count
     )
 
+@app.context_processor
+def inject_member_plan_cards():
+    try:
+        if current_user.is_authenticated:
+            return {
+                "member_plan_cards": build_member_plan_cards_for_user(current_user),
+                "payment_bank_setting": get_active_bank_setting(),
+            }
+    except Exception as e:
+        print("[inject_member_plan_cards] ERROR:", e)
+
+    return {
+        "member_plan_cards": [],
+        "payment_bank_setting": get_active_bank_setting(),
+    }
+
+
 def admin_notification_priority(n):
     action = (n.action_type or "").strip().lower()
 
@@ -1914,7 +2136,7 @@ def notification_feedback():
     n = Notification(
         role="admin",
         user_id=None,
-        title=f"💬 Feedback từ {current_user.username}: {title}",
+        title=f"Feedback từ {current_user.username}: {title} 💬",
         message=(
             f"User: {current_user.username}\n"
             f"Email: {current_user.email or '-'}\n\n"
@@ -1973,7 +2195,7 @@ def notification_reply(noti_id):
     reply_noti = Notification(
         role="user",
         user_id=target_user.id,
-        title=f"💬 Admin trả lời: {reply_title}",
+        title=f"Admin trả lời: {reply_title} 💬",
         message=reply_message,
         target_url=url_for("notifications_page"),
         icon="💬",
@@ -2179,7 +2401,7 @@ def load_user(user_id):
 def admin_required():
     if not current_user.is_authenticated:
         abort(401)
-    if current_user.username != "nhoctotokute93":
+    if (current_user.role or "").strip().lower() != "admin":
         abort(403)
 
 def check_access_permission(user):
@@ -2286,10 +2508,20 @@ def register():
             print("[EMAIL] activation send error:", e)
             mail_ok = False
 
+        # ✅ lưu sẵn để login.html mở popup hướng dẫn kích hoạt
+        session["pending_activation_user_id"] = u.id
+        session["pending_activation_hint"] = u.email
+
         if mail_ok:
-            flash("✅ Đã đăng ký thành công. Hãy vào email bạn đã đăng ký để kích hoạt tài khoản.", "success")
+            flash(
+                "📩 Đăng ký thành công. Vui lòng vào email để bấm kích hoạt tài khoản trước khi đăng nhập.",
+                "login_warning"
+            )
         else:
-            flash("⚠️ Đăng ký thành công nhưng email kích hoạt chưa gửi được. Vui lòng bấm gửi lại email kích hoạt ở trang đăng nhập.", "warning")
+            flash(
+                "⚠️ Đăng ký thành công nhưng email kích hoạt chưa gửi được. Vui lòng bấm Gửi lại email kích hoạt ở trang đăng nhập.",
+                "login_warning"
+            )
 
         return redirect(url_for("login"))
     return render_template("register.html")
@@ -2324,8 +2556,10 @@ def activate_account(token):
 
     # 🔥 xoá token để tránh bấm lại
     user.activation_token = None
-
     db.session.commit()
+
+    session.pop("pending_activation_user_id", None)
+    session.pop("pending_activation_hint", None)
 
     flash("✅ Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.", "success")
     return redirect(url_for("login"))
@@ -2447,18 +2681,19 @@ def admin_clear_preview_member():
 
 
 
-@app.route("/login", methods=["GET","POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
 
-        # ✅ LẤY 1 FIELD CHUNG (username hoặc email)
-        login_id = request.form.get("username","").strip()
-        password = request.form.get("password","").strip()
+        # ===== INPUT =====
+        login_id = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
         ip = request.remote_addr
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
         login_key_lc = login_id.lower()
 
-        # ✅ Tìm theo username hoặc email (không phân biệt hoa thường)
+        # ===== FIND USER (username hoặc email) =====
         u = User.query.filter(
             or_(
                 func.lower(func.trim(User.username)) == login_key_lc,
@@ -2466,20 +2701,21 @@ def login():
             )
         ).first()
 
-        if "@" in login_key_lc:
-            # ✅ login bằng email (không phân biệt hoa thường)
-            u = User.query.filter(func.lower(func.trim(User.email)) == login_key_lc).first()
-        else:
-            # ✅ login bằng username (không phân biệt hoa thường)
-            u = User.query.filter(func.lower(func.trim(User.username)) == login_key_lc).first()
-        # ❌ Sai tài khoản hoặc mật khẩu
+        # ===== WRONG LOGIN =====
         if (not u) or (not check_password_hash(u.pw_hash, password)):
             write_login_log_summary(login_id, ip, "failed")
             db.session.commit()
+
+            if is_ajax:
+                return jsonify({
+                    "ok": False,
+                    "message": "Sai tài khoản hoặc mật khẩu"
+                }), 401
+
             flash("Sai tài khoản hoặc mật khẩu", "login_error")
             return redirect(url_for("login"))
 
-        # ⛔ CHƯA KÍCH HOẠT EMAIL (chỉ áp dụng user thường, admin bỏ qua)
+        # ===== EMAIL NOT VERIFIED =====
         if u.role != "admin" and not getattr(u, "email_verified", False):
             write_login_log_summary(u.username, ip, "blocked")
             db.session.commit()
@@ -2488,27 +2724,50 @@ def login():
             session["pending_activation_hint"] = u.email
 
             flash(
-                "📩 Tài khoản của bạn đã đăng ký nhưng chưa kích hoạt. "
-                "Vui lòng vào email để kích hoạt tài khoản trước khi sử dụng.",
+                "📩 Tài khoản chưa kích hoạt. Vui lòng kiểm tra email.",
                 "login_warning"
             )
+
+            if is_ajax:
+                return jsonify({
+                    "ok": False,
+                    "redirect_url": url_for("login"),
+                    "message": "Tài khoản chưa kích hoạt"
+                }), 403
+
             return redirect(url_for("login"))
 
-        # ✅ STATUS CONTROL (chỉ user, không áp dụng admin)
+        # ===== STATUS CONTROL =====
         if u.role != "admin":
             st = (getattr(u, "status", "") or "").strip().upper()
 
+            # ===== LOCK =====
             if st == "LOCK":
                 write_login_log_summary(u.username, ip, "locked")
                 db.session.commit()
-                return render_template("login.html", locked=True, locked_username=u.username)
 
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "LOCK",
+                        "message": "Tài khoản đã bị khóa."
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    locked=True,
+                    locked_username=u.username,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+            # ===== WAIT_ACCEPT =====
             if st in ("WAIT_ACCEPT", "WAIT-ACCEPT", "WAIT-ACCPET"):
                 if st != "WAIT_ACCEPT":
                     u.status = "WAIT_ACCEPT"
                     db.session.commit()
 
-                # ✅ nếu vẫn còn hạn thì cho đăng nhập học gói cũ bình thường
                 end = _to_utc_aware(u.trial_end)
                 now = datetime.now(timezone.utc)
 
@@ -2518,15 +2777,29 @@ def login():
                 else:
                     write_login_log_summary(u.username, ip, "wait_accept")
                     db.session.commit()
+                    if is_ajax:
+                        return jsonify({
+                            "ok": False,
+                            "status": "WAIT_ACCEPT",
+                            "message": "Tài khoản đang chờ admin duyệt.",
+                            "username": u.username,
+                            "email": u.email
+                        }), 403
+
                     return render_template(
                         "login.html",
                         wait_accept=True,
                         expired_username=u.username,
-                        expired_email=u.email
+                        expired_email=u.email,
+                        member_plan_cards=build_member_plan_cards_for_user(u),
+                        payment_bank_setting=get_active_bank_setting(),
+                        play_intro=False
                     )
 
+            # ===== EXPIRED =====
             now = datetime.now(timezone.utc)
             end = _to_utc_aware(u.trial_end)
+
             if end and now > end:
                 if st != "WAIT_RENEW":
                     u.status = "WAIT_RENEW"
@@ -2534,47 +2807,123 @@ def login():
 
                 write_login_log_summary(u.username, ip, "expired")
                 db.session.commit()
-                return render_template("login.html",
-                                      wait_renew=True,
-                                      expired_username=u.username,
-                                      expired_email=u.email)
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "WAIT_RENEW",
+                        "message": "Tài khoản đã hết hạn, vui lòng gia hạn gói.",
+                        "username": u.username,
+                        "email": u.email
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    wait_renew=True,
+                    expired_username=u.username,
+                    expired_email=u.email,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+            # ===== WAIT_RENEW =====
             if st == "WAIT_RENEW":
                 write_login_log_summary(u.username, ip, "wait_renew")
                 db.session.commit()
-                return render_template("login.html",
-                                      wait_renew=True,
-                                      expired_username=u.username,
-                                      expired_email=u.email)
 
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "WAIT_RENEW",
+                        "message": "Tài khoản đang chờ gia hạn.",
+                        "username": u.username,
+                        "email": u.email
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    wait_renew=True,
+                    expired_username=u.username,
+                    expired_email=u.email,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+            # ===== UNKNOWN STATUS =====
             if st not in ("", "ACTIVE"):
                 write_login_log_summary(u.username, ip, "blocked")
                 db.session.commit()
-                return render_template("login.html", locked=True, locked_username=u.username)
 
+                if is_ajax:
+                    return jsonify({
+                        "ok": False,
+                        "status": "LOCK",
+                        "message": "Tài khoản hiện không thể đăng nhập."
+                    }), 403
+
+                return render_template(
+                    "login.html",
+                    locked=True,
+                    locked_username=u.username,
+                    member_plan_cards=build_member_plan_cards_for_user(u),
+                    payment_bank_setting=get_active_bank_setting(),
+                    play_intro=False
+                )
+
+        # ===== LOGIN SUCCESS =====
         login_user(u)
 
         if getattr(u, "must_change_password", False):
             write_login_log_summary(u.username, ip, "success")
             db.session.commit()
-            flash("🔐 Vui lòng đổi mật khẩu mới để tiếp tục sử dụng.", "login_warning")
+            flash("🔐 Vui lòng đổi mật khẩu.", "login_warning")
             return redirect(url_for("account"))
 
         write_login_log_summary(u.username, ip, "success")
         db.session.commit()
-        return redirect(url_for("sets"))
 
-    # ====== GET /login show popup by query ======
+        if is_ajax:
+            return jsonify({"ok": True})
+
+        session["play_intro"] = True
+        return redirect(url_for("login"))
+
+    # ===== GET =====
     if request.method == "GET":
+
+        # ===== mở popup WAIT_ACCEPT từ session =====
         if request.args.get("wait_accept") == "1":
-            u = session.get("wait_accept_username", "")
-            e = session.get("wait_accept_email", "")
-            return render_template("login.html",
-                                  wait_accept=True,
-                                  expired_username=u,
-                                  expired_email=e)
+            username = session.get("wait_accept_username", "")
+            email = session.get("wait_accept_email", "")
 
-    return render_template("login.html")
+            target_user = None
 
+            if username:
+                target_user = User.query.filter_by(username=username).first()
+
+            if not target_user and email:
+                target_user = User.query.filter_by(email=email).first()
+
+            return render_template(
+                "login.html",
+                wait_accept=True,
+                expired_username=username or "",
+                expired_email=email or "",
+                member_plan_cards=build_member_plan_cards_for_user(target_user) if target_user else [],
+                payment_bank_setting=get_active_bank_setting(),
+                play_intro=False
+            )
+
+        # ===== GET NORMAL =====
+        play_intro = session.pop("play_intro", False)
+
+        return render_template(
+            "login.html",
+            member_plan_cards=[],
+            payment_bank_setting=get_active_bank_setting(),
+            play_intro=play_intro
+        )
 
 
 def apply_approved_membership(user, new_plan_code: str, months: int):
@@ -2986,34 +3335,27 @@ def forgot_password():
 @app.route("/account/change-email", methods=["POST"])
 @login_required
 def change_email():
-    admin_required()  # nếu trang account chỉ cho admin, giữ; nếu user thường cũng dùng thì bỏ dòng này
-
     current_email = (request.form.get("current_email") or "").strip().lower()
-    new_email     = (request.form.get("new_email") or "").strip().lower()
+    new_email = (request.form.get("new_email") or "").strip().lower()
 
-    # 1) validate input
     if not current_email or not new_email:
         flash("❌ Vui lòng nhập đầy đủ email hiện tại và email mới.", "danger_email")
         return redirect(url_for("account"))
 
-    # 2) check email hiện tại đúng
     user_email = (current_user.email or "").strip().lower()
     if current_email != user_email:
         flash("❌ Email hiện tại không đúng.", "danger_email")
         return redirect(url_for("account"))
 
-    # 3) check email mới khác email cũ
     if new_email == user_email:
         flash("❌ Email mới phải khác email hiện tại.", "danger_email")
         return redirect(url_for("account"))
 
-    # 4) check email mới đã tồn tại chưa
-    existed = User.query.filter(User.email.ilike(new_email)).first()
+    existed = User.query.filter(User.email.ilike(new_email), User.id != current_user.id).first()
     if existed:
         flash("❌ Email mới đã được sử dụng.", "danger_email")
         return redirect(url_for("account"))
 
-    # 5) update
     current_user.email = new_email
     db.session.commit()
 
@@ -4427,6 +4769,76 @@ def save_lesson_pdf(file, slug):
     # path tương đối để url_for('static', filename=...)
     return f"uploads/lesson_pdfs/{final_name}"
 
+import shutil
+import fitz  # pymupdf
+
+
+def get_lesson_pages_dir(slug):
+    folder = os.path.join(current_app.static_folder, "uploads", "lesson_pages", slug)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def clear_lesson_pages(slug):
+    folder = os.path.join(current_app.static_folder, "uploads", "lesson_pages", slug)
+    if os.path.isdir(folder):
+        shutil.rmtree(folder, ignore_errors=True)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def convert_lesson_pdf_to_png(pdf_rel_path, slug, zoom=2.0):
+    """
+    pdf_rel_path: ví dụ uploads/lesson_pdfs/moa_seogi_tan_nghiem.pdf
+    output: static/uploads/lesson_pages/<slug>/page_1.png ...
+    """
+    if not pdf_rel_path:
+        return []
+
+    pdf_abs_path = os.path.join(current_app.static_folder, pdf_rel_path)
+    if not os.path.isfile(pdf_abs_path):
+        return []
+
+    out_dir = clear_lesson_pages(slug)
+    saved = []
+
+    doc = fitz.open(pdf_abs_path)
+    try:
+        matrix = fitz.Matrix(zoom, zoom)
+
+        for i, page in enumerate(doc, start=1):
+            pix = page.get_pixmap(matrix=matrix, alpha=False)
+            out_name = f"page_{i}.png"
+            out_abs = os.path.join(out_dir, out_name)
+            pix.save(out_abs)
+            saved.append(f"uploads/lesson_pages/{slug}/{out_name}")
+    finally:
+        doc.close()
+
+    return saved
+
+
+def get_lesson_image_pages(slug):
+    folder = os.path.join(current_app.static_folder, "uploads", "lesson_pages", slug)
+    if not os.path.isdir(folder):
+        return []
+
+    exts = (".webp", ".png", ".jpg", ".jpeg")
+
+    def sort_key(name):
+        m = re.search(r"page_(\d+)", name.lower())
+        return int(m.group(1)) if m else 999999
+
+    files = sorted(
+        [f for f in os.listdir(folder) if f.lower().endswith(exts)],
+        key=sort_key
+    )
+
+    return [
+        url_for("static", filename=f"uploads/lesson_pages/{slug}/{f}")
+        for f in files
+    ]
+
 @app.route("/admin/folder/<int:folder_id>/edit", methods=["POST"])
 @login_required
 def admin_folder_edit(folder_id):
@@ -5106,8 +5518,8 @@ def send_activation_email(user):
             ">Vào trang web</a>
           </div>
           <div style="margin-top:10px; font-size:13px; color:#64748b;">
-            Nếu nút không bấm được, copy link này:
-            <span style="word-break:break-all;">{website_url}</span>
+            Nếu nút kích hoạt không bấm được, copy link này:
+            <span style="word-break:break-all;">{activate_url}</span>
           </div>
         """
     )
@@ -5120,7 +5532,7 @@ def send_activation_email(user):
 
 def send_email(to_email, subject, html_body):
     api_key = (os.getenv("RESEND_API_KEY") or "").strip()
-    mail_from = (os.getenv("MAIL_FROM") or "no-reply@phungtkdsystem.online").strip()
+    mail_from = (os.getenv("MAIL_FROM") or "Phungtkdsystem <no-reply@phungtkdsystem.online>").strip()
 
     print("[MAIL] RESEND key len =", len(api_key))
     print("[MAIL] from =", mail_from)
@@ -5134,7 +5546,7 @@ def send_email(to_email, subject, html_body):
         resend.api_key = api_key
 
         params = {
-            "from": f"Taekwondo <{mail_from}>",
+            "from": mail_from,
             "to": [to_email],
             "subject": subject,
             "html": html_body or "",
@@ -5789,6 +6201,13 @@ def admin_create_lesson():
                 return redirect(request.referrer or url_for("admin_educations"))
 
             lesson.pdf = saved_pdf
+
+            try:
+                convert_lesson_pdf_to_png(saved_pdf, lesson.slug)
+            except Exception as e:
+                db.session.rollback()
+                flash(f"❌ Convert PDF sang ảnh thất bại: {e}", "danger")
+                return redirect(request.referrer or url_for("admin_educations"))
         else:
             # nếu không upload thì dùng pdf mặc định
             lesson.pdf = "Bai_hoc.pdf"
@@ -5898,59 +6317,6 @@ def drive_stream(file_id):
     return Response(stream_with_context(gen()), headers=headers, status=200)
 
 
-@app.route("/admin/lesson/edit", methods=["POST"])
-@login_required
-def admin_lesson_edit():
-    admin_required()
-
-    slug = (request.form.get("slug") or "").strip()
-    if not slug:
-        flash("❌ Thiếu bài học.", "danger")
-        return redirect(url_for("admin_educations"))
-
-    lesson = Lesson.query.filter_by(slug=slug).first_or_404()
-
-    new_title   = (request.form.get("new_title") or "").strip()
-    review_type = (request.form.get("review_type") or "pdf").strip().lower()
-    source_url  = (request.form.get("source_url") or "").strip()
-    drive_kind  = (request.form.get("drive_kind") or "").strip().lower()
-
-    # đổi title
-    if new_title:
-        lesson.title = new_title
-
-    # đổi image
-    image_file = request.files.get("image")
-    if image_file and image_file.filename:
-        lesson.image = save_lesson_image(image_file, lesson.slug)
-
-    # đổi pdf (chỉ khi type=pdf và có upload)
-    pdf_file = request.files.get("pdf")
-    if review_type == "pdf" and pdf_file and pdf_file.filename:
-        lesson.pdf = save_lesson_pdf(pdf_file)  # hoặc save_lesson_pdf(pdf_file, lesson.slug) tùy hàm Ken
-
-    # lưu kiểu học + link
-    lesson.review_type = review_type
-    lesson.source_url  = source_url if review_type != "pdf" else ""
-
-    # lưu drive_kind nếu là drive
-    if review_type == "drive":
-        lesson.drive_kind = drive_kind or (lesson.drive_kind or "pdf")
-    else:
-        # không phải drive thì dọn drive_kind cho sạch (optional)
-        # lesson.drive_kind = None
-        pass
-
-    db.session.commit()
-
-    flash("✅ Đã cập nhật bài học.", "success")
-    return redirect(url_for(
-        "admin_educations",
-        folder3_id=lesson.folder3_id,
-        open_lesson=lesson.slug
-    ))
-
-
 
 @app.get("/lesson/<slug>")
 @login_required
@@ -5975,9 +6341,7 @@ def lesson_view(slug):
             flash("❌ Link Drive không hợp lệ.", "danger")
             return render_template("lesson_review.html", lesson=lesson, sections=sections)
 
-        drive_kind = (getattr(lesson, "drive_kind", "") or "").strip().lower()
-        kind = drive_kind or (guess_drive_kind(source_url) or "pdf")
-
+        kind = (lesson.drive_kind or "pdf").strip().lower()
         preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
         direct_url  = f"https://drive.google.com/uc?export=download&id={file_id}"
 
@@ -5992,7 +6356,7 @@ def lesson_view(slug):
             )
 
         elif kind == "video":
-            video_url = url_for("drive_stream", file_id=file_id)
+            video_url = url_for("drive_media", file_id=file_id)
             return render_template(
                 "lesson_drive_video.html",
                 lesson=lesson,
@@ -6002,7 +6366,7 @@ def lesson_view(slug):
             )
 
         elif kind == "audio":
-            audio_url = url_for("drive_stream", file_id=file_id)
+            audio_url = url_for("drive_media", file_id=file_id)
             return render_template(
                 "lesson_drive_audio.html",
                 lesson=lesson,
@@ -6022,18 +6386,22 @@ def lesson_view(slug):
 
     # ===================== PDF LOCAL =====================
     if rtype == "pdf":
-        pdf_url = ""
-        if hasattr(lesson, "pdf_url") and (lesson.pdf_url or "").strip():
-            pdf_url = lesson.pdf_url.strip()
-        else:
-            pdf_url = "/static/" + (lesson.pdf or "Bai_hoc.pdf")
+        image_pages = get_lesson_image_pages(lesson.slug)
+
+        # fallback: nếu chưa có ảnh mà có pdf thì tự convert 1 lần
+        if not image_pages and lesson.pdf:
+            try:
+                convert_lesson_pdf_to_png(lesson.pdf, lesson.slug)
+                image_pages = get_lesson_image_pages(lesson.slug)
+            except Exception as e:
+                print("[lesson_view] convert fallback error:", e)
 
         return render_template(
             "lesson_review.html",
             lesson=lesson,
             sections=sections,
-            pdf_url=pdf_url,
-            body_class="is-pdf"
+            image_pages=image_pages,
+            body_class="is-image-review"
         )
 
     # ===================== YOUTUBE =====================
@@ -6219,8 +6587,17 @@ def admin_edit_lesson():
 
     db.session.commit()
 
-    flash("Đã cập nhật bài học", "success")
-    return redirect(request.referrer)
+    f3 = lesson.folder
+    f2 = f3.parent if f3 else None
+    f1 = f2.parent if f2 else None
+
+    return redirect(url_for(
+        "admin_educations",
+        folder1_id=f1.id if f1 else None,
+        folder2_id=f2.id if f2 else None,
+        folder3_id=f3.id if f3 else None,
+        open_lesson=lesson.slug
+    ))
 
 
 
@@ -6560,14 +6937,24 @@ def drive_media(file_id):
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "*/*",
+        "Connection": "keep-alive",
     }
+
     range_header = request.headers.get("Range")
     if range_header:
         headers["Range"] = range_header
 
     sess = requests.Session()
 
-    r1 = sess.get(base, params=params, headers=headers, stream=True, allow_redirects=True, timeout=30)
+    r1 = sess.get(
+        base,
+        params=params,
+        headers=headers,
+        stream=True,
+        allow_redirects=True,
+        timeout=(10, 60)
+    )
+
     ctype1 = (r1.headers.get("Content-Type") or "").lower()
 
     if "text/html" in ctype1:
@@ -6578,40 +6965,77 @@ def drive_media(file_id):
             html = ""
 
         if _is_login_or_block_page(html):
-            return ("Drive đang chặn vì file chưa public. "
-                    "Vào Drive → Share → Anyone with the link (Viewer).", 400)
+            r1.close()
+            return (
+                "Drive đang chặn vì file chưa public. "
+                "Vào Drive → Share → Anyone with the link (Viewer).",
+                400
+            )
 
         token = _extract_confirm_token(html)
+        r1.close()
+
         if not token:
-            return ("Không lấy được token confirm từ Drive. "
-                    "Thường do file chưa public hoặc Drive chặn tải.", 400)
+            return (
+                "Không lấy được token confirm từ Drive. "
+                "Thường do file chưa public hoặc Drive chặn tải.",
+                400
+            )
 
         params2 = {"export": "download", "id": file_id, "confirm": token}
-        r = sess.get(base, params=params2, headers=headers, stream=True, allow_redirects=True, timeout=30)
+        r = sess.get(
+            base,
+            params=params2,
+            headers=headers,
+            stream=True,
+            allow_redirects=True,
+            timeout=(10, 60)
+        )
     else:
         r = r1
 
     ctype = (r.headers.get("Content-Type") or "").lower()
     if "text/html" in ctype:
-        return ("Drive vẫn trả về HTML (không phải file media). "
-                "Kiểm tra lại quyền share hoặc thử file nhỏ hơn.", 400)
+        r.close()
+        return (
+            "Drive vẫn trả về HTML (không phải file media). "
+            "Kiểm tra lại quyền share hoặc thử file nhỏ hơn.",
+            400
+        )
 
     def generate():
-        for chunk in r.iter_content(chunk_size=1024 * 256):
-            if chunk:
-                yield chunk
+        try:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):   # 1MB
+                if chunk:
+                    yield chunk
+        finally:
+            r.close()
+            sess.close()
 
-    resp = Response(stream_with_context(generate()), status=r.status_code)
+    resp = Response(
+        stream_with_context(generate()),
+        status=r.status_code,
+        direct_passthrough=True
+    )
 
-    passthrough = ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"]
+    passthrough = [
+        "Content-Type",
+        "Content-Length",
+        "Content-Range",
+        "Accept-Ranges",
+        "Content-Disposition",
+        "ETag",
+        "Last-Modified"
+    ]
     for h in passthrough:
         if h in r.headers:
             resp.headers[h] = r.headers[h]
 
-    # ✅ set header phụ trợ cho UI
+    if "Accept-Ranges" not in resp.headers:
+        resp.headers["Accept-Ranges"] = "bytes"
+
     resp.headers["X-File-Name"] = file_id
     resp.headers["Cache-Control"] = "public, max-age=3600"
-
     return resp
 
 @app.route("/admin/lesson/detail/<slug>")
@@ -7409,10 +7833,577 @@ def load_lessons_by_folder3(folder3_id):
 
 
 
+
+
+
+
+
+
+
+
+
+
+class MemberPlan(db.Model):
+    __tablename__ = "member_plan"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)   # BASIC / PRO / VIP
+    name = db.Column(db.String(100), nullable=False)
+    price_monthly = db.Column(db.Integer, nullable=False, default=0)
+    description = db.Column(db.Text, nullable=True)
+    features_text = db.Column(db.Text, nullable=True)  # mỗi dòng 1 quyền lợi
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(VN_TZ), onupdate=lambda: datetime.now(VN_TZ))
+
+
+class PromotionCampaign(db.Model):
+    __tablename__ = "promotion_campaign"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+
+    # all / selected
+    target_mode = db.Column(db.String(20), nullable=False, default="all")
+
+    # percent / fixed
+    discount_type = db.Column(db.String(20), nullable=False, default="percent")
+    discount_value = db.Column(db.Integer, nullable=False, default=0)
+
+    # áp dụng cho plan nào: BASIC,PRO,VIP hoặc ALL
+    plan_codes = db.Column(db.String(100), nullable=False, default="ALL")
+
+    start_at = db.Column(db.DateTime, nullable=False)
+    end_at = db.Column(db.DateTime, nullable=False)
+
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(VN_TZ), nullable=False)
+
+    code = db.Column(db.String(50), unique=True, nullable=True)
+    promo_kind = db.Column(db.String(20), nullable=False, default="campaign")
+
+
+class PromotionUser(db.Model):
+    __tablename__ = "promotion_user"
+
+    id = db.Column(db.Integer, primary_key=True)
+    promotion_id = db.Column(db.Integer, db.ForeignKey("promotion_campaign.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    promotion = db.relationship("PromotionCampaign", backref="promotion_users")
+    user = db.relationship("User", backref="promotion_links")
+
+    __table_args__ = (
+        db.UniqueConstraint("promotion_id", "user_id", name="uq_promotion_user"),
+    )
+
+class PaymentBankSetting(db.Model):
+    __tablename__ = "payment_bank_setting"
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_name = db.Column(db.String(150), nullable=False)
+    bank_code = db.Column(db.String(50), nullable=False)   # vd: ACB, MBBANK, BIDV...
+    bank_bin = db.Column(db.String(20), nullable=True)     # vd: 970416
+    bank_name = db.Column(db.String(150), nullable=False)
+    account_no = db.Column(db.String(50), nullable=False)
+    note_default = db.Column(db.String(255), nullable=False, default="Theo ghi chú phần thông tin đơn hàng bên trên")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(VN_TZ), onupdate=lambda: datetime.now(VN_TZ))
+
+def seed_member_plans():
+    defaults = [
+        {
+            "code": "BASIC",
+            "name": "Taekwondo Cơ Bản",
+            "price_monthly": 300000,
+            "description": "Nội dung gói cơ bản",
+            "features_text": "+ Kỹ thuật cơ bản",
+            "sort_order": 1,
+        },
+        {
+            "code": "PRO",
+            "name": "Taekwondo Nâng cao",
+            "price_monthly": 500000,
+            "description": "Nội dung gói nâng cao",
+            "features_text": "+ Kỹ thuật cơ bản\n+ Kỹ thuật nâng cao\n+ Nội dung thi đẳng",
+            "sort_order": 2,
+        },
+        {
+            "code": "VIP",
+            "name": "Taekwondo Cao Cấp",
+            "price_monthly": 800000,
+            "description": "Nội dung gói cao cấp",
+            "features_text": "+ Kỹ thuật cơ bản\n+ Kỹ thuật nâng cao\n+ Nội dung thi đẳng\n+ Kỹ thuật cao cấp\n+ Võ nhạc",
+            "sort_order": 3,
+        },
+    ]
+
+    for item in defaults:
+        exists = MemberPlan.query.filter_by(code=item["code"]).first()
+        if not exists:
+            db.session.add(MemberPlan(**item))
+
+    bank = PaymentBankSetting.query.first()
+    if not bank:
+        db.session.add(PaymentBankSetting(
+            account_name="NGUYEN THIEN PHUNG",
+            bank_code="ACB",
+            bank_bin="970416",
+            bank_name="Ngân hàng Á Châu",
+            account_no="682657",
+            note_default="Theo ghi chú phần thông tin đơn hàng bên trên",
+        ))
+
+    db.session.commit()
+
+
+@app.route("/admin/subscription-manager")
+@login_required
+def admin_subscription_manager():
+    if current_user.role != "admin":
+        abort(403)
+
+    plans = MemberPlan.query.order_by(MemberPlan.sort_order.asc()).all()
+    promotions = PromotionCampaign.query.order_by(PromotionCampaign.created_at.desc()).all()
+    bank = PaymentBankSetting.query.filter_by(is_active=True).first()
+
+    users = (
+        User.query
+        .filter(User.role != "admin")
+        .order_by(User.id.asc())
+        .all()
+    )
+
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+
+    return render_template(
+        "admin_subscription_manager.html",
+        plans=plans,
+        promotions=promotions,
+        bank=bank,
+        users=users,
+        now_dt=now,
+    )
+
+@app.post("/admin/subscription-manager/plan/<int:plan_id>/save")
+@login_required
+def admin_save_plan(plan_id):
+    if current_user.role != "admin":
+        abort(403)
+
+    plan = MemberPlan.query.get_or_404(plan_id)
+    plan.name = request.form.get("name", "").strip()
+    plan.price_monthly = int(request.form.get("price_monthly", 0) or 0)
+    plan.description = request.form.get("description", "").strip()
+    plan.features_text = request.form.get("features_text", "").strip()
+
+    db.session.commit()
+    flash(f"Đã lưu gói {plan.code}", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+
+from datetime import datetime
+
+@app.post("/admin/subscription-manager/promotion/create")
+@login_required
+def admin_create_promotion():
+    if current_user.role != "admin":
+        abort(403)
+
+    title = request.form.get("title", "").strip()
+    code = request.form.get("code", "").strip().upper()
+    promo_kind = request.form.get("promo_kind", "campaign").strip().lower()
+    target_mode = request.form.get("target_mode", "all").strip()
+    plan_codes = request.form.get("plan_codes", "ALL").strip().upper()
+    discount_type = request.form.get("discount_type", "percent").strip()
+    discount_value = int(request.form.get("discount_value", 0) or 0)
+
+    start_at = datetime.fromisoformat(request.form.get("start_at"))
+    end_at = datetime.fromisoformat(request.form.get("end_at"))
+
+    if not title:
+        flash("Thiếu tên khuyến mãi", "danger")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if promo_kind not in ("campaign", "voucher"):
+        flash("Loại khuyến mãi không hợp lệ", "danger")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if promo_kind == "voucher" and not code:
+        flash("Phiếu khuyến mãi phải có mã", "danger")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if code:
+        existed = PromotionCampaign.query.filter_by(code=code).first()
+        if existed:
+            flash("Mã khuyến mãi đã tồn tại", "danger")
+            return redirect(url_for("admin_subscription_manager"))
+
+    promo = PromotionCampaign(
+        title=title,
+        code=code if code else None,
+        promo_kind=promo_kind,
+        target_mode=target_mode,
+        plan_codes=plan_codes,
+        discount_type=discount_type,
+        discount_value=discount_value,
+        start_at=start_at,
+        end_at=end_at,
+        is_active=True,
+    )
+    db.session.add(promo)
+    db.session.flush()
+
+    selected_users = []
+    if target_mode == "selected":
+        raw_ids = request.form.get("selected_user_ids", "")
+        user_ids = []
+        for x in raw_ids.split(","):
+            x = x.strip()
+            if x.isdigit():
+                user_ids.append(int(x))
+
+        for uid in set(user_ids):
+            db.session.add(PromotionUser(
+                promotion_id=promo.id,
+                user_id=uid
+            ))
+            selected_users.append(uid)
+
+    db.session.commit()
+
+    # Gửi phiếu giảm giá riêng cho user được chọn
+    if promo_kind == "voucher" and selected_users:
+        send_voucher_to_selected_users(promo.id)
+
+    flash("Đã tạo khuyến mãi", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+@app.route("/admin/update-promotion", methods=["POST"])
+@login_required
+def admin_update_promotion():
+    promo_id = request.form.get("promo_id", type=int)
+    promo = PromotionCampaign.query.get_or_404(promo_id)
+
+    promo.title = (request.form.get("title") or "").strip()
+    promo.code = (request.form.get("code") or "").strip() or None
+    promo.target_mode = (request.form.get("target_mode") or "all").strip()
+    promo.plan_codes = (request.form.get("plan_codes") or "ALL").strip()
+    promo.discount_type = (request.form.get("discount_type") or "fixed").strip()
+
+    discount_value_raw = (request.form.get("discount_value") or "0").replace(",", "").strip()
+    try:
+        promo.discount_value = float(discount_value_raw or 0)
+    except:
+        promo.discount_value = 0
+
+    start_at_raw = request.form.get("start_at") or ""
+    end_at_raw = request.form.get("end_at") or ""
+
+    try:
+        promo.start_at = datetime.strptime(start_at_raw, "%Y-%m-%dT%H:%M") if start_at_raw else None
+        promo.end_at = datetime.strptime(end_at_raw, "%Y-%m-%dT%H:%M") if end_at_raw else None
+    except ValueError:
+        flash("Thời gian khuyến mãi không hợp lệ.", "error")
+        return redirect(url_for("admin_subscription_manager"))
+
+    if promo.discount_type == "percent":
+        if promo.discount_value < 0:
+            promo.discount_value = 0
+        if promo.discount_value > 100:
+            promo.discount_value = 100
+
+    db.session.commit()
+    flash("Đã cập nhật khuyến mãi thành công.", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+@app.post("/admin/subscription-manager/promotion/<int:promo_id>/delete")
+@login_required
+def admin_delete_promotion(promo_id):
+    if current_user.role != "admin":
+        abort(403)
+
+    promo = PromotionCampaign.query.get_or_404(promo_id)
+
+    PromotionUser.query.filter_by(promotion_id=promo.id).delete()
+    db.session.delete(promo)
+    db.session.commit()
+
+    flash("Đã xóa khuyến mãi", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+
+
+@app.post("/admin/subscription-manager/bank/save")
+@login_required
+def admin_save_bank_setting():
+    if current_user.role != "admin":
+        abort(403)
+
+    bank = PaymentBankSetting.query.first()
+    if not bank:
+        bank = PaymentBankSetting()
+        db.session.add(bank)
+
+    bank.account_name = request.form.get("account_name", "").strip()
+    bank.bank_code = request.form.get("bank_code", "").strip()
+    bank.bank_name = request.form.get("bank_name", "").strip()
+    bank.bank_bin = request.form.get("bank_bin", "").strip()
+    bank.account_no = request.form.get("account_no", "").strip()
+    bank.note_default = request.form.get("note_default", "Theo ghi chú phần thông tin đơn hàng bên trên").strip()
+
+    db.session.commit()
+    flash("Đã cập nhật thông tin ngân hàng", "success")
+    return redirect(url_for("admin_subscription_manager"))
+
+def get_active_promotion_for_user(user, plan_code):
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+
+    promos = PromotionCampaign.query.filter(
+        PromotionCampaign.is_active == True,
+        PromotionCampaign.promo_kind == "campaign",
+        PromotionCampaign.start_at <= now,
+        PromotionCampaign.end_at >= now
+    ).all()
+
+    matched = []
+    for p in promos:
+        if p.plan_codes not in ("ALL", plan_code):
+            continue
+
+        if p.target_mode == "all":
+            matched.append(p)
+            continue
+
+        has_user = PromotionUser.query.filter_by(
+            promotion_id=p.id,
+            user_id=user.id
+        ).first()
+        if has_user:
+            matched.append(p)
+
+    if not matched:
+        return None
+
+    matched.sort(key=lambda x: x.discount_value, reverse=True)
+    return matched[0]
+
+def get_promotion_by_code_for_user(user, code, plan_code):
+    code = (code or "").strip().upper()
+    if not code:
+        return None, "Không có mã khuyến mãi."
+
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+
+    promo = PromotionCampaign.query.filter(
+        PromotionCampaign.is_active == True,
+        PromotionCampaign.promo_kind == "voucher",
+        PromotionCampaign.code == code,
+        PromotionCampaign.start_at <= now,
+        PromotionCampaign.end_at >= now
+    ).first()
+
+    if not promo:
+        return None, "Mã khuyến mãi không hợp lệ hoặc đã hết hạn."
+
+    if promo.plan_codes not in ("ALL", plan_code):
+        return None, "Khuyến mãi không dành cho gói này."
+
+    if promo.target_mode == "selected":
+        has_user = PromotionUser.query.filter_by(
+            promotion_id=promo.id,
+            user_id=user.id
+        ).first()
+        if not has_user:
+            return None, "Khuyến mãi này không áp dụng cho tài khoản của bạn."
+
+    return promo, ""
+
+@app.post("/renew/check-promo")
+def renew_check_promo():
+    try:
+        data = request.get_json(silent=True) or request.form or {}
+
+        username = (data.get("username") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+
+        user = None
+        if username:
+            user = User.query.filter_by(username=username).first()
+        if not user and email:
+            user = User.query.filter_by(email=email).first()
+
+        if not user:
+            return jsonify({"ok": False, "message": "Không tìm thấy user."}), 400
+
+        plan_code = norm_plan(data.get("plan_code"))
+        if plan_code == "FREE":
+            return jsonify({"ok": False, "message": "Gói đăng ký không hợp lệ."}), 400
+
+        promo_code = (data.get("promo_code") or "").strip().upper()
+        if not promo_code:
+            return jsonify({"ok": False, "message": "Vui lòng nhập mã khuyến mãi."}), 400
+
+        try:
+            raw_total = int(data.get("raw_total", 0) or 0)
+        except Exception:
+            raw_total = 0
+
+        try:
+            discount = int(data.get("discount", 0) or 0)
+        except Exception:
+            discount = 0
+
+        promo, promo_msg = get_promotion_by_code_for_user(user, promo_code, plan_code)
+        if not promo:
+            return jsonify({"ok": False, "message": promo_msg}), 400
+
+        after_month_discount = max(raw_total - discount, 0)
+
+        if str(promo.discount_type or "").lower() == "percent":
+            promo_discount = int(after_month_discount * float(promo.discount_value or 0) / 100)
+        else:
+            promo_discount = int(promo.discount_value or 0)
+
+        promo_discount = max(promo_discount, 0)
+
+        return jsonify({
+            "ok": True,
+            "promo_code": promo.code,
+            "promo_title": promo.title,
+            "promo_discount": promo_discount
+        })
+
+    except Exception as e:
+        print("[renew_check_promo] ERROR:", e)
+        return jsonify({"ok": False, "message": "Lỗi kiểm tra mã khuyến mãi."}), 500
+
+def calc_discounted_price(base_price, promo):
+    if not promo:
+        return base_price
+
+    if promo.discount_type == "percent":
+        final_price = base_price - int(base_price * promo.discount_value / 100)
+    else:
+        final_price = base_price - promo.discount_value
+
+    return max(final_price, 0)
+
+def build_member_plan_cards_for_user(user=None):
+    plans = (
+        MemberPlan.query
+        .filter_by(is_active=True)
+        .order_by(MemberPlan.sort_order.asc())
+        .all()
+    )
+
+    # Nếu chưa có gói nào thì tự seed lại
+    if not plans:
+        try:
+            seed_member_plans()
+            plans = (
+                MemberPlan.query
+                .filter_by(is_active=True)
+                .order_by(MemberPlan.sort_order.asc())
+                .all()
+            )
+        except Exception as e:
+            print("[build_member_plan_cards_for_user] seed failed:", e)
+            return []
+
+    cards = []
+    for p in plans:
+        promo = get_active_promotion_for_user(user, p.code) if user else None
+        final_price = calc_discounted_price(p.price_monthly, promo)
+
+        cards.append({
+            "code": p.code,
+            "name": p.name,
+            "price_monthly": int(p.price_monthly or 0),
+            "final_price": int(final_price or 0),
+            "description": p.description or "",
+            "features": [x.strip() for x in (p.features_text or "").splitlines() if x.strip()],
+            "promo": promo,
+        })
+    return cards
+
+
+def get_active_bank_setting():
+    return PaymentBankSetting.query.filter_by(is_active=True).first()
+
+
+def calc_plan_checkout_for_user(user, plan_code: str, months: int):
+    plan_code = norm_plan(plan_code)
+    months = max(1, int(months or 1))
+
+    plan = MemberPlan.query.filter_by(code=plan_code, is_active=True).first()
+    if not plan:
+        raise ValueError("Gói không tồn tại hoặc đang tắt.")
+
+    promo = get_active_promotion_for_user(user, plan_code) if user else None
+
+    unit_price = int(plan.price_monthly or 0)
+    promo_price = int(calc_discounted_price(unit_price, promo) or 0)
+
+    raw_total = unit_price * months
+    final_total = promo_price * months
+    discount = max(raw_total - final_total, 0)
+
+    return {
+        "plan": plan,
+        "promo": promo,
+        "unit_price": unit_price,
+        "promo_price": promo_price,
+        "raw_total": raw_total,
+        "discount": discount,
+        "final_total": final_total,
+    }
+
+
+from urllib.parse import quote
+
+
+def build_vietqr_url(bank_code, account_no, amount, add_info, account_name):
+    bank_code = (bank_code or "").strip()
+    account_no = (account_no or "").strip()
+    account_name = (account_name or "").strip()
+    add_info = (add_info or "").strip()
+
+    return (
+        f"https://img.vietqr.io/image/{bank_code}-{account_no}-compact2.png"
+        f"?amount={int(amount)}"
+        f"&addInfo={quote(add_info)}"
+        f"&accountName={quote(account_name)}"
+    )
+
+
+def make_qr_for_checkout(user, plan_code, months):
+    bank = get_active_bank_setting()
+    if not bank:
+        return ""
+
+    checkout = calc_plan_checkout_for_user(user, plan_code, months)
+    transfer_note = f"{user.username} - {norm_plan(plan_code)} - {months}m"
+
+    return build_vietqr_url(
+        bank_code=bank.bank_code,
+        account_no=bank.account_no,
+        amount=checkout["final_total"],
+        add_info=transfer_note,
+        account_name=bank.account_name
+    )
+
+
+
+
+
+
+
 if __name__ == "__main__":
     with app.app_context():
         print("APP FILE =", __file__)
         print("TEST FOLDER 24 =", Folder.query.filter_by(id=24).first())
+
         db.create_all()
         ensure_schema()
         ensure_user_pref_columns()
@@ -7421,9 +8412,13 @@ if __name__ == "__main__":
         ensure_lesson_member_plans_column()
         ensure_folder_member_plans_column()
         ensure_question_member_plans_column()
+        ensure_promotion_code_column()   # <- THÊM DÒNG NÀY
+        ensure_promotion_kind_column()
         migrate_user_table()
         migrate_notification_table()
         seed_admin()
+        seed_member_plans()
+
     app.run(debug=True, use_reloader=False)
 
 
