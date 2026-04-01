@@ -1,12 +1,9 @@
 /* static/js/lesson-review.js
-   PDF lesson review controller (sidebar sections + pagination)
+   Image lesson review controller
 */
 (function () {
   "use strict";
 
-  // ===============================
-  // Utils
-  // ===============================
   function clamp(n, a, b) {
     return Math.max(a, Math.min(b, n));
   }
@@ -20,12 +17,6 @@
   }
 
   function parsePages(raw) {
-    // Hỗ trợ:
-    // "1"
-    // "2-5"
-    // "2:5"
-    // "1,3,5"
-    // "1-3,7,9-10"
     if (!raw) return [];
 
     const cleaned = String(raw).replace(/\s+/g, "");
@@ -59,69 +50,23 @@
       .sort((x, y) => x - y);
   }
 
-  function pickPdfUrl(lessonData) {
-    const u = (lessonData?.pdf_url || "").trim();
-    if (u) return u;
-
-    const p = (lessonData?.pdf || "").trim();
-    if (!p) return "/static/Bai_hoc.pdf";
-
-    if (
-      p.startsWith("http://") ||
-      p.startsWith("https://") ||
-      p.startsWith("/")
-    ) {
-      return p;
-    }
-
-    return "/static/" + p.replace(/^\/+/, "");
-  }
-
-  // ===============================
-  // Main
-  // ===============================
-  document.addEventListener("DOMContentLoaded", async function () {
-    const lessonData = window.LESSON_DATA;
-    console.log("[lesson review] LESSON_DATA =", lessonData);
-
-    if (!lessonData) {
-      console.warn("[lesson review] missing LESSON_DATA");
-      return;
-    }
-
-    if (!window.pdfjsLib || !window.pdfjsLib.GlobalWorkerOptions) {
-      console.warn("[lesson review] pdfjsLib not found.");
-      return;
-    }
-
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-
-    const pdfUrl = pickPdfUrl(lessonData);
+  document.addEventListener("DOMContentLoaded", function () {
+    const lessonData = window.LESSON_DATA || {};
     const sections = Array.isArray(lessonData.sections) ? lessonData.sections : [];
+    const imagePages = Array.isArray(lessonData.image_pages) ? lessonData.image_pages : [];
 
-    console.log("[lesson review] pdfUrl =", pdfUrl);
-    console.log("[lesson review] sections =", sections);
-
-    const canvas = document.getElementById("pdfCanvas");
+    const imageEl = document.getElementById("lessonImage");
     const pageInfo = document.getElementById("pageInfo");
-    const contentEl =
-      document.querySelector(".lesson-content") || canvas?.parentElement;
 
-    if (!canvas || !contentEl) {
-      console.warn("[lesson review] canvas or content element missing.");
+    if (!imageEl) {
+      console.warn("[lesson review] lessonImage not found.");
       return;
     }
 
-    let pdfDoc = null;
     let currentSection = 0;
     let currentIndex = 0;
     let allPagesMode = false;
-    let renderToken = 0;
 
-    // ===============================
-    // UI helpers
-    // ===============================
     function setPageInfo(now, total) {
       const nowEl = document.getElementById("pageNow");
       const totalEl = document.getElementById("pageTotal");
@@ -134,10 +79,8 @@
       }
     }
 
-    function clearCanvas() {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function clearImage() {
+      imageEl.removeAttribute("src");
     }
 
     function highlightSection(idx) {
@@ -160,9 +103,6 @@
       sidebar.classList.add("collapsed");
     }
 
-    // ===============================
-    // Section/page helpers
-    // ===============================
     function getSectionPages(idx) {
       const sec = sections[idx];
       if (!sec) return [];
@@ -203,75 +143,21 @@
       return getSectionPages(currentSection);
     }
 
-    // ===============================
-    // Render
-    // ===============================
-    async function renderPage(pdfPageNumber, total) {
-      if (!pdfDoc || !canvas || !contentEl) return;
+    function renderPage(pageNumber, total) {
+      const safePage = clamp(parseInt(pageNumber, 10) || 1, 1, imagePages.length || 1);
+      const src = imagePages[safePage - 1];
 
-      const myToken = ++renderToken;
-
-      try {
-        const safePage = clamp(
-          parseInt(pdfPageNumber, 10) || 1,
-          1,
-          pdfDoc.numPages || 1
-        );
-
-        const page = await pdfDoc.getPage(safePage);
-
-        if (myToken !== renderToken) return;
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const availW = Math.max(200, contentEl.clientWidth - 24);
-        const availH = Math.max(200, contentEl.clientHeight - 24);
-
-        const pageRotation = page.rotate || 0;
-
-        const vp0 = page.getViewport({
-          scale: 1,
-          rotation: pageRotation
-        });
-
-        let scale = Math.min(availW / vp0.width, availH / vp0.height);
-        scale *= 0.98;
-
-        const viewport = page.getViewport({
-          scale,
-          rotation: pageRotation
-        });
-
-        const rawDpr = window.devicePixelRatio || 1;
-        const isMobile = window.innerWidth <= 768;
-        const dpr = isMobile ? 1 : (window.devicePixelRatio || 1);
-
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const renderTask = page.render({
-          canvasContext: ctx,
-          viewport
-        });
-
-        await renderTask.promise;
-
-        if (myToken !== renderToken) return;
-
-        currentIndex = clamp(currentIndex, 0, Math.max(0, total - 1));
-        setPageInfo(currentIndex + 1, total);
-        updateNavButtons(total);
-      } catch (err) {
-        if (myToken !== renderToken) return;
-        console.error("[lesson review] renderPage error:", err);
+      if (!src) {
+        clearImage();
+        setPageInfo(0, 0);
+        updateNavButtons(0);
+        return;
       }
+
+      imageEl.src = src;
+      currentIndex = clamp(currentIndex, 0, Math.max(0, total - 1));
+      setPageInfo(currentIndex + 1, total);
+      updateNavButtons(total);
     }
 
     function loadSection(idx) {
@@ -287,14 +173,12 @@
 
       if (!pages.length) {
         setPageInfo(0, 0);
-        clearCanvas();
+        clearImage();
         updateNavButtons(0);
         return;
       }
 
-      requestAnimationFrame(() => {
-        renderPage(pages[currentIndex], pages.length);
-      });
+      renderPage(pages[currentIndex], pages.length);
     }
 
     function updateNavButtons(total) {
@@ -328,9 +212,6 @@
       }
     }
 
-    // ===============================
-    // Navigation
-    // ===============================
     function prevPage() {
       const pages = getCurrentPages();
       if (!pages.length) return;
@@ -359,23 +240,14 @@
 
     function prevSection() {
       if (!sections.length || allPagesMode) return;
-
-      if (currentSection > 0) {
-        loadSection(currentSection - 1);
-      }
+      if (currentSection > 0) loadSection(currentSection - 1);
     }
 
     function nextSection() {
       if (!sections.length || allPagesMode) return;
-
-      if (currentSection < sections.length - 1) {
-        loadSection(currentSection + 1);
-      }
+      if (currentSection < sections.length - 1) loadSection(currentSection + 1);
     }
 
-    // ===============================
-    // Fullscreen
-    // ===============================
     function toggleFullscreen() {
       const el = document.getElementById("lessonContent");
       if (!el) return;
@@ -396,17 +268,6 @@
       }
     }
 
-    document.addEventListener("fullscreenchange", () => {
-      const pages = getCurrentPages();
-      if (!pages.length) return;
-
-      const pageNumber = pages[currentIndex] || pages[0];
-      renderPage(pageNumber, pages.length);
-    });
-
-    // ===============================
-    // Keyboard
-    // ===============================
     document.addEventListener("keydown", (e) => {
       const tag = document.activeElement?.tagName || "";
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -416,37 +277,29 @@
           e.preventDefault();
           prevPage();
           break;
-
         case "ArrowRight":
           e.preventDefault();
           nextPage();
           break;
-
         case "ArrowUp":
           e.preventDefault();
           prevSection();
           break;
-
         case "ArrowDown":
           e.preventDefault();
           nextSection();
           break;
-
         case "f":
         case "F":
           e.preventDefault();
           toggleFullscreen();
           break;
-
         case "Escape":
           closeSidebar();
           break;
       }
     });
 
-    // ===============================
-    // Expose for inline onclick
-    // ===============================
     window.loadSection = loadSection;
     window.prevPage = prevPage;
     window.nextPage = nextPage;
@@ -464,54 +317,27 @@
       }
     };
 
-    // ===============================
-    // Load PDF
-    // ===============================
-    try {
-      pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-      console.log("[lesson review] PDF loaded. pages =", pdfDoc.numPages);
-
-      if (!sections.length) {
-        const totalPages = pdfDoc.numPages || 0;
-
-        if (totalPages > 0) {
-          window.__lessonAllPages = Array.from(
-            { length: totalPages },
-            (_, i) => i + 1
-          );
-
-          allPagesMode = true;
-          currentSection = -1;
-          currentIndex = 0;
-
-          highlightSection(-1);
-          setPageInfo(1, totalPages);
-
-          requestAnimationFrame(() => {
-            renderPage(1, totalPages);
-          });
-        } else {
-          setPageInfo(0, 0);
-          highlightSection(-1);
-          clearCanvas();
-          updateNavButtons(0);
-        }
-        return;
-      }
-
-      // Có section => mở section đầu, chỉ render 1 lần
-      loadSection(0);
-    } catch (err) {
-      console.error("[lesson review] PDF load error:", err);
+    if (!imagePages.length) {
+      clearImage();
       setPageInfo(0, 0);
-      clearCanvas();
-      highlightSection(-1);
       updateNavButtons(0);
+      return;
     }
 
-    // ===============================
-    // Resize
-    // ===============================
+    if (!sections.length) {
+      const totalPages = imagePages.length;
+      window.__lessonAllPages = Array.from({ length: totalPages }, (_, i) => i + 1);
+      allPagesMode = true;
+      currentSection = -1;
+      currentIndex = 0;
+
+      highlightSection(-1);
+      renderPage(1, totalPages);
+      return;
+    }
+
+    loadSection(0);
+
     window.addEventListener(
       "resize",
       debounce(() => {
