@@ -1,0 +1,1128 @@
+{% extends "base.html" %}
+{% block title %}Quản lý Gia Hạn Gói{% endblock %}
+
+{% block page_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_subscription.css', v=APP_VERSION) }}">
+{% endblock %}
+
+{% block content %}
+<div class="sub-admin-page">
+
+  <div class="sub-hero">
+    <div class="sub-hero__left">
+      <h2 class="admin-page-title">🧾 Quản lý Gia Hạn Gói 🧾</h2>
+    </div>
+
+    <div class="sub-hero__right">
+      <button type="button" class="sub-hero-btn sub-hero-btn--soft" id="btnOpenPromoPopup">
+        🗓️ Danh sách khuyến mãi
+      </button>
+    </div>
+  </div>
+
+  <div class="sub-tabs" id="subTabs">
+    <button type="button" class="sub-tab is-active" data-tab="plans">📦 Gói thành viên</button>
+    <button type="button" class="sub-tab" data-tab="campaign">💸 Khuyến mãi tự động</button>
+    <button type="button" class="sub-tab" data-tab="voucher">🎟️ Phiếu khuyến mãi</button>
+    <button type="button" class="sub-tab" data-tab="bank">🏦 Ngân hàng</button>
+  </div>
+
+  <div class="sub-panels">
+
+    <!-- ================= TAB 1: GÓI CƯỚC ================= -->
+    <section class="sub-panel is-active" data-panel="plans">
+      <div class="sub-card sub-card--blue">
+        <div class="sub-card-head">
+          <div>
+            <div class="sub-section-kicker">Membership Plan</div>
+            <h3>📦 Thông tin gói thành viên 📦</h3>
+          </div>
+        </div>
+
+        <div class="sub-highlight-box">
+          <div class="sub-form">
+            <div class="sub-row">
+              <label for="planSwitcher">Chọn gói thành viên để chỉnh sửa</label>
+              <select id="planSwitcher" class="plan-switcher">
+                {% for p in plans %}
+                  {% set code_upper = (p.code or '')|upper %}
+                  {% if code_upper in ['BASIC', 'PRO', 'VIP'] %}
+                    <option value="{{ code_upper }}">
+                      {{ 'Basic' if code_upper == 'BASIC' else 'Pro' if code_upper == 'PRO' else 'Vip' }}
+                    </option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="plan-panels">
+          {% for p in plans %}
+            {% set code_upper = (p.code or '')|upper %}
+            {% if code_upper in ['BASIC', 'PRO', 'VIP'] %}
+            <form method="post"
+                  action="{{ url_for('admin_save_plan', plan_id=p.id) }}"
+                  class="sub-form plan-panel"
+                  data-plan-code="{{ code_upper }}"
+                  {% if not loop.first %}style="display:none;"{% endif %}>
+
+              <div class="sub-panel-grid">
+                <div class="sub-row">
+                  <label>Tên gói</label>
+                  <input type="text" name="name" value="{{ p.name }}">
+                </div>
+
+                <div class="sub-row">
+                  <label>Giá / tháng</label>
+                  <input type="text"
+                         name="price_monthly_display"
+                         value="{{ "{:,}".format(p.price_monthly) if p.price_monthly else '' }}"
+                         class="price-input">
+                  <input type="hidden"
+                         name="price_monthly"
+                         value="{{ p.price_monthly }}">
+                </div>
+              </div>
+
+              <div class="sub-row">
+                <label>Mô tả</label>
+                <textarea name="description" rows="3">{{ p.description or '' }}</textarea>
+              </div>
+
+              <div class="sub-row">
+                <label>Quyền lợi (mỗi dòng 1 mục)</label>
+                <textarea name="features_text" rows="7">{{ p.features_text or '' }}</textarea>
+              </div>
+
+              <div class="sub-actions">
+                <button class="ui-btn ui-btn--primary sub-btn-save" type="submit">
+                  Lưu {{ 'Basic' if code_upper == 'BASIC' else 'Pro' if code_upper == 'PRO' else 'Vip' }}
+                </button>
+              </div>
+            </form>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: KHUYẾN MÃI TỰ ĐỘNG ================= -->
+    <section class="sub-panel" data-panel="campaign">
+      <div class="sub-card sub-card--purple">
+        <div class="sub-card-head">
+          <div>
+            <div class="sub-section-kicker">Campaign Promotion</div>
+            <h3>💸 Khuyến mãi tự động 💸</h3>
+          </div>
+        </div>
+
+        <div class="sub-highlight-box sub-highlight-box--purple">
+          <div class="sub-note">
+            Khuyến mãi tự động áp dụng theo thời gian và theo gói, user không cần nhập mã.
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('admin_create_promotion') }}" class="sub-form">
+          <input type="hidden" name="promo_kind" value="campaign">
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Tên khuyến mãi</label>
+              <input type="text" name="title" placeholder="VD: Giảm hè Basic" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Áp dụng cho</label>
+              <select name="target_mode">
+                <option value="all">Tất cả user</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sub-panel-grid sub-panel-grid--four">
+            <div class="sub-row">
+              <label>Gói áp dụng</label>
+              <select name="plan_codes" id="campaignPlanCodes">
+                <option value="ALL">Tất cả gói</option>
+                <option value="BASIC">Basic</option>
+                <option value="PRO">Pro</option>
+                <option value="VIP">Vip</option>
+              </select>
+            </div>
+
+            <div class="sub-row">
+              <label>Kiểu giảm</label>
+              <select name="discount_type" id="campaignDiscountType">
+                <option value="percent">Giảm theo %</option>
+                <option value="fixed">Giảm tiền cố định</option>
+              </select>
+            </div>
+
+            <div class="sub-row">
+              <label>Giá trị giảm</label>
+              <div class="sub-input-affix">
+                <input type="text"
+                       name="discount_value_display"
+                       id="campaignDiscountValueDisplay"
+                       autocomplete="off"
+                       inputmode="numeric"
+                       placeholder="0 - 100">
+                <span class="sub-input-affix__end" id="campaignDiscountSuffix">%</span>
+              </div>
+              <input type="hidden" name="discount_value" id="campaignDiscountValue" value="">
+            </div>
+
+            <div class="sub-row">
+              <label>Ước tính</label>
+              <div class="estimate-wrap">
+                <div class="estimate-chip" id="wrapBasic">
+                  <span>Basic</span>
+                  <b id="estimateBasic">--</b>
+                </div>
+
+                <div class="estimate-chip" id="wrapPro">
+                  <span>Pro</span>
+                  <b id="estimatePro">--</b>
+                </div>
+
+                <div class="estimate-chip" id="wrapVip">
+                  <span>Vip</span>
+                  <b id="estimateVip">--</b>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Bắt đầu</label>
+              <input type="datetime-local" name="start_at" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Kết thúc</label>
+              <input type="datetime-local" name="end_at" required>
+            </div>
+          </div>
+
+          <div class="sub-actions">
+            <button class="ui-btn ui-btn--primary sub-btn-save sub-btn-save--purple" type="submit">
+              Tạo khuyến mãi tự động
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: PHIẾU KHUYẾN MÃI ================= -->
+    <section class="sub-panel" data-panel="voucher">
+      <div class="sub-card sub-card--orange">
+        <div class="sub-card-head">
+          <div>
+            <div class="sub-section-kicker">Voucher Promotion</div>
+            <h3>🎟️ Phiếu khuyến mãi 🎟️</h3>
+          </div>
+        </div>
+
+        <div class="sub-highlight-box sub-highlight-box--orange">
+          <div class="sub-note">
+            Phiếu khuyến mãi yêu cầu user nhập mã để được áp dụng giảm giá.
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('admin_create_promotion') }}" class="sub-form">
+          <input type="hidden" name="promo_kind" value="voucher">
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Tên phiếu khuyến mãi</label>
+              <input type="text" name="title" placeholder="VD: Voucher thành viên VIP" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Mã khuyến mãi</label>
+              <input type="text" name="code" placeholder="VD: VIP50000" required>
+            </div>
+          </div>
+
+          <div class="sub-row">
+            <label>Áp dụng cho</label>
+            <select name="target_mode" class="target-mode-select" data-target-box="selectedUsersBoxVoucher">
+              <option value="all">Tất cả user</option>
+              <option value="selected">User được chọn</option>
+            </select>
+          </div>
+
+          <div class="sub-row selected-users-box" id="selectedUsersBoxVoucher" style="display:none;">
+            <label>User áp dụng</label>
+
+            <div class="selected-user-wrap">
+              <input type="text"
+                     id="selectedUsersPreviewVoucher"
+                     placeholder="Chưa chọn user nào"
+                     readonly
+                     class="selected-user-input">
+
+              <button type="button"
+                      class="ui-btn ui-btn--primary btn-open-user-picker"
+                      data-picker-key="voucher">
+                Chọn user
+              </button>
+            </div>
+
+            <input type="hidden" name="selected_user_ids" id="selectedUserIdsVoucher">
+          </div>
+
+          <div class="sub-panel-grid sub-panel-grid--triple">
+            <div class="sub-row">
+              <label>Gói áp dụng</label>
+              <select name="plan_codes">
+                <option value="ALL">Tất cả gói</option>
+                <option value="BASIC">Basic</option>
+                <option value="PRO">Pro</option>
+                <option value="VIP">Vip</option>
+              </select>
+            </div>
+
+            <div class="sub-row">
+              <label>Kiểu giảm</label>
+              <select name="discount_type">
+                <option value="percent">Giảm theo %</option>
+                <option value="fixed">Giảm tiền cố định</option>
+              </select>
+            </div>
+
+            <div class="sub-row">
+              <label>Giá trị giảm</label>
+              <input type="text" name="discount_value_display" class="price-input" autocomplete="off">
+              <input type="hidden" name="discount_value" value="">
+            </div>
+          </div>
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Bắt đầu</label>
+              <input type="datetime-local" name="start_at" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Kết thúc</label>
+              <input type="datetime-local" name="end_at" required>
+            </div>
+          </div>
+
+          <div class="sub-actions">
+            <button class="ui-btn ui-btn--primary sub-btn-save sub-btn-save--orange" type="submit">
+              Tạo phiếu khuyến mãi
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: NGÂN HÀNG ================= -->
+    <section class="sub-panel" data-panel="bank">
+      <div class="sub-card sub-card--green">
+        <div class="sub-card-head">
+          <div>
+            <div class="sub-section-kicker">Bank Setting</div>
+            <h3>🏦 Thông tin người nhận 🏦</h3>
+          </div>
+        </div>
+
+        <div class="sub-highlight-box sub-highlight-box--green">
+          <div class="sub-note">
+            Thiết lập thông tin ngân hàng để user quét QR và thanh toán gia hạn gói.
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('admin_save_bank_setting') }}" class="sub-form" id="bankSettingForm">
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Họ tên người nhận</label>
+              <input type="text" name="account_name" value="{{ bank.account_name if bank else '' }}" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Ngân hàng</label>
+              <select name="bank_code" id="bank_code" required>
+                <option value="ACB" {{ 'selected' if bank and bank.bank_code == 'ACB' else '' }}>ACB</option>
+                <option value="BIDV" {{ 'selected' if bank and bank.bank_code == 'BIDV' else '' }}>BIDV</option>
+                <option value="VCB" {{ 'selected' if bank and bank.bank_code == 'VCB' else '' }}>Vietcombank</option>
+                <option value="MBBANK" {{ 'selected' if bank and bank.bank_code == 'MBBANK' else '' }}>MB Bank</option>
+                <option value="TCB" {{ 'selected' if bank and bank.bank_code == 'TCB' else '' }}>Techcombank</option>
+                <option value="VPB" {{ 'selected' if bank and bank.bank_code == 'VPB' else '' }}>VPBank</option>
+                <option value="TPB" {{ 'selected' if bank and bank.bank_code == 'TPB' else '' }}>TPBank</option>
+                <option value="STB" {{ 'selected' if bank and bank.bank_code == 'STB' else '' }}>Sacombank</option>
+                <option value="HDB" {{ 'selected' if bank and bank.bank_code == 'HDB' else '' }}>HDBank</option>
+                <option value="OCB" {{ 'selected' if bank and bank.bank_code == 'OCB' else '' }}>OCB</option>
+                <option value="VIB" {{ 'selected' if bank and bank.bank_code == 'VIB' else '' }}>VIB</option>
+                <option value="SHB" {{ 'selected' if bank and bank.bank_code == 'SHB' else '' }}>SHB</option>
+                <option value="SCB" {{ 'selected' if bank and bank.bank_code == 'SCB' else '' }}>SCB</option>
+                <option value="EXB" {{ 'selected' if bank and bank.bank_code == 'EXB' else '' }}>Eximbank</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Tên ngân hàng hiển thị</label>
+              <input type="text" name="bank_name" id="bank_name" value="{{ bank.bank_name if bank else '' }}" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Số tài khoản</label>
+              <input type="text" name="account_no" value="{{ bank.account_no if bank else '' }}" required>
+            </div>
+          </div>
+
+          <input type="hidden" name="bank_bin" id="bank_bin" value="{{ bank.bank_bin if bank else '' }}">
+
+          <div class="sub-row">
+            <label>Ghi chú mặc định</label>
+            <input type="text" name="note_default" value="{{ bank.note_default if bank else 'Theo ghi chú phần thông tin đơn hàng bên trên' }}">
+          </div>
+
+          <div class="sub-actions">
+            <button class="ui-btn ui-btn--primary sub-btn-save sub-btn-save--green" type="submit">
+              Lưu thông tin ngân hàng
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ===== Modal chọn user ===== -->
+  <div class="sub-modal-backdrop" id="userPickerModal" style="display:none;">
+    <div class="sub-modal">
+      <div class="sub-modal-head sub-modal-head--violet">
+        <h4>Chọn user áp dụng</h4>
+        <button type="button" class="ui-close" id="btnCloseUserPicker">❌</button>
+      </div>
+
+      <div class="sub-modal-body">
+        <div class="user-pick-table-wrap">
+          <table class="user-pick-table">
+            <thead>
+              <tr>
+                <th style="width:70px;">Chọn</th>
+                <th style="width:90px;">ID</th>
+                <th style="width:180px;">Username</th>
+                <th>Email</th>
+                <th style="width:150px;">Gói hiện tại</th>
+              </tr>
+              <tr class="user-filter-row">
+                <th></th>
+                <th><input type="text" id="filterUserId" class="sub-table-filter" placeholder="Tìm ID"></th>
+                <th><input type="text" id="filterUsername" class="sub-table-filter" placeholder="Tìm username"></th>
+                <th><input type="text" id="filterEmail" class="sub-table-filter" placeholder="Tìm email"></th>
+                <th><input type="text" id="filterPlan" class="sub-table-filter" placeholder="Tìm gói"></th>
+              </tr>
+            </thead>
+
+            <tbody id="userPickTableBody">
+              {% for u in users %}
+              {% set current_plan = (u.member or 'Free') %}
+              <tr
+                data-id="{{ u.id }}"
+                data-username="{{ (u.username or '')|lower }}"
+                data-email="{{ (u.email or '')|lower }}"
+                data-plan="{{ current_plan|lower }}"
+              >
+                <td>
+                  <input type="checkbox"
+                         class="user-pick-check"
+                         value="{{ u.id }}"
+                         data-name="{{ u.username or '' }}">
+                </td>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username or '' }}</td>
+                <td>{{ u.email or '' }}</td>
+                <td>
+                  <span class="plan-badge plan-badge--mini plan-{{ current_plan|lower }}">
+                    {{ current_plan }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sub-modal-foot">
+        <button type="button" class="ui-btn ui-btn--primary" id="btnApplyUserPicker">Chọn user</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal danh sách khuyến mãi ===== -->
+  <div class="sub-modal-backdrop" id="promoListModal" style="display:none;">
+    <div class="sub-modal sub-modal--wide">
+      <div class="sub-modal-head sub-modal-head--orange">
+        <h4>Danh sách khuyến mãi</h4>
+        <button type="button" class="ui-close" id="btnClosePromoPopup" title="Thoát">❌</button>
+      </div>
+
+      <div class="sub-modal-body">
+        <div class="promo-table-wrap">
+          <table class="promo-table">
+            <thead>
+              <tr>
+                <th>Loại</th>
+                <th>Mã</th>
+                <th>Tên</th>
+                <th>Áp dụng</th>
+                <th>Gói</th>
+                <th>Giảm</th>
+                <th>Từ</th>
+                <th>Đến</th>
+                <th>Trạng thái</th>
+                <th>Sửa</th>
+                <th>Xóa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for promo in promotions %}
+                {% set promo_status = 'Sắp diễn ra' if promo.start_at and promo.start_at > now_dt else 'Đã hết hạn' if promo.end_at and promo.end_at < now_dt else 'Đang khuyến mãi' %}
+                <tr>
+                  <td>
+                    <span class="promo-kind-badge {{ 'is-campaign' if promo.promo_kind == 'campaign' else 'is-voucher' }}">
+                      {{ 'Tự động' if promo.promo_kind == 'campaign' else 'Voucher' }}
+                    </span>
+                  </td>
+                  <td><strong>{{ promo.code or '' }}</strong></td>
+                  <td>{{ promo.title }}</td>
+                  <td>{{ 'User được chọn' if promo.target_mode == 'selected' else 'Tất cả user' }}</td>
+                  <td>{{ promo.plan_codes }}</td>
+                  <td>
+                    {% if promo.discount_type == 'percent' %}
+                      {{ promo.discount_value or 0 }}%
+                    {% else %}
+                      {{ "{:,.0f}".format(promo.discount_value or 0) }} VND
+                    {% endif %}
+                  </td>
+                  <td>{{ promo.start_at.strftime('%d/%m/%Y %H:%M') if promo.start_at else '' }}</td>
+                  <td>{{ promo.end_at.strftime('%d/%m/%Y %H:%M') if promo.end_at else '' }}</td>
+                  <td>
+                    <span class="promo-status {% if promo_status == 'Đang khuyến mãi' %}is-active{% elif promo_status == 'Sắp diễn ra' %}is-upcoming{% else %}is-expired{% endif %}">
+                      {{ promo_status }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <button type="button"
+                            class="ui-icon-btn ui-icon-btn--warn promo-edit-btn"
+                            title="Sửa khuyến mãi"
+                            data-promo-id="{{ promo.id }}"
+                            data-promo-kind="{{ promo.promo_kind or '' }}"
+                            data-title="{{ promo.title or '' }}"
+                            data-code="{{ promo.code or '' }}"
+                            data-target-mode="{{ promo.target_mode or 'all' }}"
+                            data-plan-codes="{{ promo.plan_codes or 'ALL' }}"
+                            data-discount-type="{{ promo.discount_type or 'fixed' }}"
+                            data-discount-value="{{ promo.discount_value or 0 }}"
+                            data-start-at="{{ promo.start_at.strftime('%Y-%m-%dT%H:%M') if promo.start_at else '' }}"
+                            data-end-at="{{ promo.end_at.strftime('%Y-%m-%dT%H:%M') if promo.end_at else '' }}">
+                      ✏️
+                    </button>
+                  </td>
+
+                  <td>
+                    <form method="post"
+                          action="{{ url_for('admin_delete_promotion', promo_id=promo.id) }}"
+                          onsubmit="return confirm('Xóa khuyến mãi này?');"
+                          style="margin:0;">
+                      <button type="submit" class="promo-trash-btn" title="Xóa khuyến mãi">🗑️</button>
+                    </form>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="11" class="promo-empty-cell">Chưa có khuyến mãi nào.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal sửa khuyến mãi ===== -->
+  <div class="sub-modal-backdrop" id="promoEditModal" style="display:none;">
+    <div class="sub-modal">
+      <div class="sub-modal-head sub-modal-head--orange">
+        <h4>Chỉnh sửa khuyến mãi</h4>
+        <button type="button" class="ui-close" id="btnClosePromoEditModal" title="Thoát">❌</button>
+      </div>
+
+      <form method="post" action="{{ url_for('admin_update_promotion') }}" class="sub-form" id="promoEditForm">
+        <div class="sub-modal-body">
+          <input type="hidden" name="promo_id" id="editPromoId">
+          <input type="hidden" name="promo_kind" id="editPromoKind">
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Tên khuyến mãi</label>
+              <input type="text" name="title" id="editPromoTitle" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Mã khuyến mãi</label>
+              <input type="text" name="code" id="editPromoCode" placeholder="Để trống nếu là khuyến mãi tự động">
+            </div>
+          </div>
+
+          <div class="sub-panel-grid sub-panel-grid--triple">
+            <div class="sub-row">
+              <label>Áp dụng cho</label>
+              <select name="target_mode" id="editPromoTargetMode">
+                <option value="all">Tất cả user</option>
+                <option value="selected">User được chọn</option>
+              </select>
+            </div>
+
+            <div class="sub-row">
+              <label>Gói áp dụng</label>
+              <select name="plan_codes" id="editPromoPlanCodes">
+                <option value="ALL">Tất cả gói</option>
+                <option value="BASIC">Basic</option>
+                <option value="PRO">Pro</option>
+                <option value="VIP">Vip</option>
+              </select>
+            </div>
+
+            <div class="sub-row">
+              <label>Kiểu giảm</label>
+              <select name="discount_type" id="editPromoDiscountType">
+                <option value="percent">Giảm theo %</option>
+                <option value="fixed">Giảm tiền cố định</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sub-row">
+            <label>Giá trị giảm</label>
+            <div class="sub-input-affix">
+              <input type="text"
+                     name="discount_value_display"
+                     id="editPromoDiscountValueDisplay"
+                     autocomplete="off"
+                     inputmode="numeric">
+              <span class="sub-input-affix__end" id="editPromoDiscountSuffix">VND</span>
+            </div>
+            <input type="hidden" name="discount_value" id="editPromoDiscountValue">
+          </div>
+
+          <div class="sub-panel-grid">
+            <div class="sub-row">
+              <label>Bắt đầu</label>
+              <input type="datetime-local" name="start_at" id="editPromoStartAt" required>
+            </div>
+
+            <div class="sub-row">
+              <label>Kết thúc</label>
+              <input type="datetime-local" name="end_at" id="editPromoEndAt" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-modal-foot">
+          <button type="submit" class="ui-btn ui-btn--primary sub-btn-save sub-btn-save--orange">
+            Lưu
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const PLAN_PRICE_MAP = {
+    ALL: 0,
+    {% for p in plans %}
+      {% set code_upper = (p.code or '')|upper %}
+      {% if code_upper in ['BASIC', 'PRO', 'VIP'] %}
+      "{{ code_upper }}": {{ p.price_monthly or 0 }},
+      {% endif %}
+    {% endfor %}
+  };
+
+  const BANK_INFO_MAP = {
+    "ACB":    { bin: "970416", name: "Ngân hàng Á Châu" },
+    "BIDV":   { bin: "970418", name: "Ngân hàng BIDV" },
+    "VCB":    { bin: "970436", name: "Ngân hàng Vietcombank" },
+    "MBBANK": { bin: "970422", name: "Ngân hàng MB Bank" },
+    "TCB":    { bin: "970407", name: "Ngân hàng Techcombank" },
+    "VPB":    { bin: "970432", name: "Ngân hàng VPBank" },
+    "TPB":    { bin: "970423", name: "Ngân hàng TPBank" },
+    "STB":    { bin: "970403", name: "Ngân hàng Sacombank" },
+    "HDB":    { bin: "970437", name: "Ngân hàng HDBank" },
+    "OCB":    { bin: "970448", name: "Ngân hàng OCB" },
+    "VIB":    { bin: "970441", name: "Ngân hàng VIB" },
+    "SHB":    { bin: "970443", name: "Ngân hàng SHB" },
+    "SCB":    { bin: "970429", name: "Ngân hàng SCB" },
+    "EXB":    { bin: "970431", name: "Ngân hàng Eximbank" }
+  };
+
+  const bankSelect = document.getElementById("bank_code");
+  const bankBinInput = document.getElementById("bank_bin");
+  const bankNameInput = document.getElementById("bank_name");
+
+  function syncBankInfo() {
+    if (!bankSelect) return;
+    const code = bankSelect.value;
+    const info = BANK_INFO_MAP[code] || { bin: "", name: "" };
+
+    if (bankBinInput) bankBinInput.value = info.bin || "";
+
+    if (bankNameInput && (!bankNameInput.value.trim() || bankNameInput.dataset.autoFill !== "manual")) {
+      bankNameInput.value = info.name || "";
+      bankNameInput.dataset.autoFill = "auto";
+    }
+  }
+
+  if (bankNameInput) {
+    bankNameInput.addEventListener("input", function () {
+      this.dataset.autoFill = "manual";
+    });
+  }
+
+  if (bankSelect) {
+    bankSelect.addEventListener("change", function () {
+      if (bankNameInput) bankNameInput.dataset.autoFill = "auto";
+      syncBankInfo();
+    });
+    syncBankInfo();
+  }
+
+  const planSwitcher = document.getElementById("planSwitcher");
+  const planPanels = document.querySelectorAll(".plan-panel");
+
+  function showSelectedPlan(code) {
+    planPanels.forEach(panel => {
+      panel.style.display = panel.dataset.planCode === code ? "block" : "none";
+    });
+  }
+
+  if (planSwitcher) {
+    showSelectedPlan(planSwitcher.value);
+    planSwitcher.addEventListener("change", function () {
+      showSelectedPlan(this.value);
+    });
+  }
+
+  function formatNumber(value){
+    return value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  function unformatNumber(value){
+    return value.replace(/,/g, "");
+  }
+
+  function formatCurrencyNumber(value){
+    const num = String(value || "").replace(/\D/g, "");
+    if (!num) return "";
+    return num.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  function clampPercent(value){
+    let num = parseInt(String(value || "").replace(/\D/g, ""), 10);
+    if (isNaN(num)) return "";
+    if (num < 0) num = 0;
+    if (num > 100) num = 100;
+    return String(num);
+  }
+
+  function formatVND(value){
+    const num = Math.max(0, Math.round(Number(value || 0)));
+    return num.toLocaleString("en-US") + " VND";
+  }
+
+  document.querySelectorAll(".price-input").forEach(input => {
+    input.addEventListener("input", function(){
+      let raw = unformatNumber(this.value).replace(/\D/g, "");
+
+      if (!raw) {
+        this.value = "";
+        const hidden = this.parentElement.querySelector('input[type="hidden"]');
+        if (hidden) hidden.value = "";
+        return;
+      }
+
+      this.value = formatNumber(raw);
+      const hidden = this.parentElement.querySelector('input[type="hidden"]');
+      if (hidden) hidden.value = raw;
+    });
+
+    if (input.value) {
+      let raw = unformatNumber(input.value).replace(/\D/g, "");
+      if (raw) input.value = formatNumber(raw);
+    }
+  });
+
+  const campaignPlanCodes = document.getElementById("campaignPlanCodes");
+  const campaignDiscountType = document.getElementById("campaignDiscountType");
+  const campaignDiscountValueDisplay = document.getElementById("campaignDiscountValueDisplay");
+  const campaignDiscountValue = document.getElementById("campaignDiscountValue");
+  const campaignDiscountSuffix = document.getElementById("campaignDiscountSuffix");
+
+  const wrapBasic = document.getElementById("wrapBasic");
+  const wrapPro = document.getElementById("wrapPro");
+  const wrapVip = document.getElementById("wrapVip");
+
+  const estimateBasic = document.getElementById("estimateBasic");
+  const estimatePro = document.getElementById("estimatePro");
+  const estimateVip = document.getElementById("estimateVip");
+
+  function updateEstimateVisibility(){
+    if (!campaignPlanCodes) return;
+
+    const val = campaignPlanCodes.value;
+
+    if (wrapBasic) wrapBasic.style.display = "none";
+    if (wrapPro) wrapPro.style.display = "none";
+    if (wrapVip) wrapVip.style.display = "none";
+
+    if (val === "ALL") {
+      if (wrapBasic) wrapBasic.style.display = "flex";
+      if (wrapPro) wrapPro.style.display = "flex";
+      if (wrapVip) wrapVip.style.display = "flex";
+    } else if (val === "BASIC") {
+      if (wrapBasic) wrapBasic.style.display = "flex";
+    } else if (val === "PRO") {
+      if (wrapPro) wrapPro.style.display = "flex";
+    } else if (val === "VIP") {
+      if (wrapVip) wrapVip.style.display = "flex";
+    }
+  }
+
+  function updateCampaignEstimate(){
+    if (!campaignDiscountType || !campaignDiscountValue) return;
+
+    const discountType = campaignDiscountType.value || "percent";
+    const discountValue = Number(campaignDiscountValue.value || 0);
+
+    function calc(price){
+      if (!price) return "--";
+
+      let finalPrice = price;
+      if (discountType === "percent") {
+        const percent = Math.max(0, Math.min(100, discountValue));
+        finalPrice = price * (1 - percent / 100);
+      } else {
+        finalPrice = price - Math.max(0, discountValue);
+      }
+      return formatVND(finalPrice);
+    }
+
+    if (estimateBasic) estimateBasic.textContent = calc(PLAN_PRICE_MAP.BASIC || 0);
+    if (estimatePro) estimatePro.textContent = calc(PLAN_PRICE_MAP.PRO || 0);
+    if (estimateVip) estimateVip.textContent = calc(PLAN_PRICE_MAP.VIP || 0);
+
+    updateEstimateVisibility();
+  }
+
+  function updateCampaignDiscountUI(){
+    if (!campaignDiscountType || !campaignDiscountValueDisplay || !campaignDiscountValue || !campaignDiscountSuffix) return;
+
+    const type = campaignDiscountType.value || "percent";
+    const raw = campaignDiscountValueDisplay.value || "";
+
+    if (type === "percent") {
+      const clean = clampPercent(raw);
+      campaignDiscountSuffix.textContent = "%";
+      campaignDiscountValueDisplay.value = clean;
+      campaignDiscountValue.value = clean;
+      campaignDiscountValueDisplay.placeholder = "0 - 100";
+      campaignDiscountValueDisplay.setAttribute("inputmode", "numeric");
+    } else {
+      const clean = String(raw).replace(/\D/g, "");
+      campaignDiscountSuffix.textContent = "VND";
+      campaignDiscountValueDisplay.value = formatCurrencyNumber(clean);
+      campaignDiscountValue.value = clean;
+      campaignDiscountValueDisplay.placeholder = "Nhập số tiền giảm";
+      campaignDiscountValueDisplay.setAttribute("inputmode", "numeric");
+    }
+
+    updateCampaignEstimate();
+  }
+
+  if (campaignDiscountType) {
+    campaignDiscountType.addEventListener("change", function(){
+      if (campaignDiscountValueDisplay) campaignDiscountValueDisplay.value = "";
+      if (campaignDiscountValue) campaignDiscountValue.value = "";
+      updateCampaignDiscountUI();
+    });
+  }
+
+  if (campaignDiscountValueDisplay) {
+    campaignDiscountValueDisplay.addEventListener("input", function(){
+      updateCampaignDiscountUI();
+    });
+  }
+
+  if (campaignPlanCodes) {
+    campaignPlanCodes.addEventListener("change", function(){
+      updateEstimateVisibility();
+      updateCampaignEstimate();
+    });
+  }
+
+  updateCampaignDiscountUI();
+  updateEstimateVisibility();
+  updateCampaignEstimate();
+
+  const tabs = document.querySelectorAll(".sub-tab");
+  const panels = document.querySelectorAll(".sub-panel");
+
+  function activateTab(key){
+    tabs.forEach(tab => {
+      tab.classList.toggle("is-active", tab.dataset.tab === key);
+    });
+
+    panels.forEach(panel => {
+      panel.classList.toggle("is-active", panel.dataset.panel === key);
+    });
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", function(){
+      activateTab(this.dataset.tab);
+    });
+  });
+});
+</script>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function openModal(id){
+    const el = $(id);
+    if (el) el.style.display = "flex";
+  }
+
+  function closeModal(id){
+    const el = $(id);
+    if (el) el.style.display = "none";
+  }
+
+  let activePickerKey = "voucher";
+
+  const btnCloseUserPicker = $("btnCloseUserPicker");
+  const btnApplyUserPicker = $("btnApplyUserPicker");
+
+  const filterUserId = $("filterUserId");
+  const filterUsername = $("filterUsername");
+  const filterEmail = $("filterEmail");
+  const filterPlan = $("filterPlan");
+
+  const pickerTargets = {
+    voucher: {
+      idsInput: $("selectedUserIdsVoucher"),
+      previewInput: $("selectedUsersPreviewVoucher")
+    }
+  };
+
+  function getCheckedUsers(){
+    const checks = Array.from(document.querySelectorAll(".user-pick-check:checked"));
+    return {
+      ids: checks.map(x => x.value),
+      names: checks.map(x => x.dataset.name).filter(Boolean)
+    };
+  }
+
+  function setCheckedUsersFromTarget(key){
+    const target = pickerTargets[key];
+    if (!target || !target.idsInput) return;
+
+    const selectedIds = (target.idsInput.value || "")
+      .split(",")
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    document.querySelectorAll(".user-pick-check").forEach(chk => {
+      chk.checked = selectedIds.includes(chk.value);
+    });
+  }
+
+  document.querySelectorAll(".btn-open-user-picker").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activePickerKey = btn.dataset.pickerKey || "voucher";
+      setCheckedUsersFromTarget(activePickerKey);
+      openModal("userPickerModal");
+    });
+  });
+
+  if (btnCloseUserPicker) {
+    btnCloseUserPicker.addEventListener("click", () => closeModal("userPickerModal"));
+  }
+
+  if (btnApplyUserPicker) {
+    btnApplyUserPicker.addEventListener("click", () => {
+      const data = getCheckedUsers();
+      const target = pickerTargets[activePickerKey];
+
+      if (target && target.idsInput) target.idsInput.value = data.ids.join(",");
+      if (target && target.previewInput) {
+        target.previewInput.value = data.names.length
+          ? data.names.join(", ")
+          : (data.ids.length ? data.ids.join(", ") : "Chưa chọn user nào");
+      }
+
+      closeModal("userPickerModal");
+    });
+  }
+
+  function filterUserTable(){
+    const kwId = (filterUserId?.value || "").trim().toLowerCase();
+    const kwUsername = (filterUsername?.value || "").trim().toLowerCase();
+    const kwEmail = (filterEmail?.value || "").trim().toLowerCase();
+    const kwPlan = (filterPlan?.value || "").trim().toLowerCase();
+
+    document.querySelectorAll("#userPickTableBody tr").forEach(tr => {
+      const rowId = String(tr.dataset.id || "").toLowerCase();
+      const rowUsername = String(tr.dataset.username || "").toLowerCase();
+      const rowEmail = String(tr.dataset.email || "").toLowerCase();
+      const rowPlan = String(tr.dataset.plan || "").toLowerCase();
+
+      const matchId = !kwId || rowId.includes(kwId);
+      const matchUsername = !kwUsername || rowUsername.includes(kwUsername);
+      const matchEmail = !kwEmail || rowEmail.includes(kwEmail);
+      const matchPlan = !kwPlan || rowPlan.includes(kwPlan);
+
+      tr.style.display = (matchId && matchUsername && matchEmail && matchPlan) ? "" : "none";
+    });
+  }
+
+  [filterUserId, filterUsername, filterEmail, filterPlan].forEach(input => {
+    if (input) input.addEventListener("input", filterUserTable);
+  });
+
+  document.querySelectorAll(".target-mode-select").forEach(select => {
+    const boxId = select.dataset.targetBox;
+    const box = boxId ? $(boxId) : null;
+
+    function syncTargetMode(){
+      if (!box) return;
+      box.style.display = select.value === "selected" ? "" : "none";
+    }
+
+    select.addEventListener("change", syncTargetMode);
+    syncTargetMode();
+  });
+
+  const btnOpenPromoPopup = $("btnOpenPromoPopup");
+  const btnClosePromoPopup = $("btnClosePromoPopup");
+
+  if (btnOpenPromoPopup) {
+    btnOpenPromoPopup.addEventListener("click", () => openModal("promoListModal"));
+  }
+
+  if (btnClosePromoPopup) {
+    btnClosePromoPopup.addEventListener("click", () => closeModal("promoListModal"));
+  }
+
+  ["userPickerModal", "promoListModal"].forEach(id => {
+    const modal = $(id);
+    if (modal) {
+      modal.addEventListener("click", function(e){
+        if (e.target === modal) closeModal(id);
+      });
+    }
+  });
+
+  const btnClosePromoEditModal = $("btnClosePromoEditModal");
+  const btnCancelPromoEdit = $("btnCancelPromoEdit");
+
+  const editPromoId = $("editPromoId");
+  const editPromoKind = $("editPromoKind");
+  const editPromoTitle = $("editPromoTitle");
+  const editPromoCode = $("editPromoCode");
+  const editPromoTargetMode = $("editPromoTargetMode");
+  const editPromoPlanCodes = $("editPromoPlanCodes");
+  const editPromoDiscountType = $("editPromoDiscountType");
+  const editPromoDiscountValueDisplay = $("editPromoDiscountValueDisplay");
+  const editPromoDiscountValue = $("editPromoDiscountValue");
+  const editPromoDiscountSuffix = $("editPromoDiscountSuffix");
+  const editPromoStartAt = $("editPromoStartAt");
+  const editPromoEndAt = $("editPromoEndAt");
+
+  function formatEditPromoDiscount() {
+    if (!editPromoDiscountType || !editPromoDiscountValueDisplay || !editPromoDiscountValue) return;
+
+    const type = editPromoDiscountType.value || "fixed";
+    let raw = editPromoDiscountValueDisplay.value || "";
+
+    if (type === "percent") {
+      let num = parseInt(String(raw).replace(/\D/g, ""), 10);
+      if (isNaN(num)) num = 0;
+      if (num < 0) num = 0;
+      if (num > 100) num = 100;
+      editPromoDiscountValueDisplay.value = num ? String(num) : "";
+      editPromoDiscountValue.value = num ? String(num) : "";
+      if (editPromoDiscountSuffix) editPromoDiscountSuffix.textContent = "%";
+    } else {
+      raw = String(raw).replace(/\D/g, "");
+      editPromoDiscountValueDisplay.value = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+      editPromoDiscountValue.value = raw;
+      if (editPromoDiscountSuffix) editPromoDiscountSuffix.textContent = "VND";
+    }
+  }
+
+  if (editPromoDiscountType) {
+    editPromoDiscountType.addEventListener("change", formatEditPromoDiscount);
+  }
+
+  if (editPromoDiscountValueDisplay) {
+    editPromoDiscountValueDisplay.addEventListener("input", formatEditPromoDiscount);
+  }
+
+  document.querySelectorAll(".promo-edit-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      if (editPromoId) editPromoId.value = this.dataset.promoId || "";
+      if (editPromoKind) editPromoKind.value = this.dataset.promoKind || "";
+      if (editPromoTitle) editPromoTitle.value = this.dataset.title || "";
+      if (editPromoCode) editPromoCode.value = this.dataset.code || "";
+      if (editPromoTargetMode) editPromoTargetMode.value = this.dataset.targetMode || "all";
+      if (editPromoPlanCodes) editPromoPlanCodes.value = this.dataset.planCodes || "ALL";
+      if (editPromoDiscountType) editPromoDiscountType.value = this.dataset.discountType || "fixed";
+      if (editPromoDiscountValueDisplay) editPromoDiscountValueDisplay.value = this.dataset.discountValue || "";
+      if (editPromoStartAt) editPromoStartAt.value = this.dataset.startAt || "";
+      if (editPromoEndAt) editPromoEndAt.value = this.dataset.endAt || "";
+
+      formatEditPromoDiscount();
+
+      if (editPromoKind && editPromoCode) {
+        if ((this.dataset.promoKind || "") === "campaign") {
+          editPromoCode.closest(".sub-row").style.opacity = ".55";
+          editPromoCode.closest(".sub-row").style.pointerEvents = "none";
+        } else {
+          editPromoCode.closest(".sub-row").style.opacity = "1";
+          editPromoCode.closest(".sub-row").style.pointerEvents = "auto";
+        }
+      }
+
+      openModal("promoEditModal");
+    });
+  });
+
+  if (btnClosePromoEditModal) {
+    btnClosePromoEditModal.addEventListener("click", () => closeModal("promoEditModal"));
+  }
+
+  if (btnCancelPromoEdit) {
+    btnCancelPromoEdit.addEventListener("click", () => closeModal("promoEditModal"));
+  }
+})();
+</script>
+{% endblock %}

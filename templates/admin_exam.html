@@ -101,6 +101,8 @@
   const btnRandom = $("btnRandom");
   const btnCheck  = $("btnCheck");
   const btnCloseExam = $("btnCloseExam");
+  const CORRECT_IMG = "{{ url_for('static', filename='Correct.png') }}";
+  const INCORRECT_IMG = "{{ url_for('static', filename='Uncorrect.png') }}";
 
   function show(el){
     el?.classList.add("show");
@@ -231,9 +233,9 @@
 
       if(d.correct){
         try{ new Audio("/static/sounds/Correct.mp3").play(); }catch(_){}
-        examIcon.textContent = "✔";
+        examIcon.innerHTML = `<img src="${CORRECT_IMG}" alt="Đúng" class="exam-result-image">`;
         examIcon.className = "exam-result-icon ok";
-        examMsg.textContent = "ĐÚNG RỒI!";
+        examMsg.textContent = "";
         examSub.textContent = "";
 
         examExtraActions.classList.add("two-btns");
@@ -252,9 +254,9 @@
         examAction.onclick = closeResult;
       }else{
         try{ new Audio("/static/sounds/Incorrect.mp3").play(); }catch(_){}
-        examIcon.textContent = "❌";
+        examIcon.innerHTML = `<img src="${INCORRECT_IMG}" alt="Sai" class="exam-result-image">`;
         examIcon.className = "exam-result-icon fail";
-        examMsg.textContent = "SAI RỒI!";
+        examMsg.textContent = "";
         examSub.textContent = currentQuestionType === "multi"
           ? "Câu nhiều đáp án phải chọn đúng đầy đủ tất cả đáp án đúng."
           : "";

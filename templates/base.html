@@ -14,6 +14,7 @@
   <!-- Global CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/edu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ui.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson.css') }}?v=20260227_4">
@@ -203,9 +204,7 @@
             </button>
 
             <div class="admin-preview-dropdown" id="adminPreviewDropdown" hidden>
-              <div class="admin-preview-title">Xem thử gói user</div>
-
-              <label class="admin-preview-label" for="previewMemberSelect">Chọn gói</label>
+              <div class="admin-preview-title">Hãy chọn gói</div>
               <select id="previewMemberSelect" class="admin-preview-select">
                 <option value="free"  {% if admin_preview_member == 'free' %}selected{% endif %}>Free</option>
                 <option value="basic" {% if admin_preview_member == 'basic' %}selected{% endif %}>Basic</option>
@@ -303,7 +302,14 @@
 
               {% if current_user.role == "user" and trial_remain_days is not none %}
                 <div class="trial-box" data-days="{{ trial_remain_days }}">
-                  <div class="trial-title">⏳ Thời gian sử dụng</div>
+                  
+                  <div class="trial-head">
+                    <div class="trial-title">⏳ Thời gian sử dụng</div>
+                    <div class="trial-plan">
+                      {{ (current_user.member or 'Free')|upper }}
+                    </div>
+                  </div>
+
                   <div class="trial-days">
                     <div class="menu-remain">
                       <span class="trial-remain {{ trial_remain_class }}">
@@ -334,6 +340,9 @@
                 <a href="{{ url_for('admin_educations') }}">📖 Quản lý bài học</a>
                 <a href="{{ url_for('admin_questions') }}">❓ Quản lý câu hỏi</a>
                 <a href="{{ url_for('admin_users') }}">👥 Quản lý user</a>
+                <a href="{{ url_for('admin_subscription_manager') }}" class="admin-menu-link">
+                  🧾 Quản lý Gia Hạn Gói
+                </a>
               {% endif %}
 
               <div class="menu-divider"></div>
@@ -420,8 +429,22 @@
         </div>
       </div>
 
-      <div class="ui-modal-footer" style="display:flex;justify-content:space-between;gap:10px;">
-        <button class="ui-btn ui-btn--primary" type="button" id="btnContinueMemberRule">Tôi đã hiểu</button>
+      <div class="ui-modal-footer"
+           style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+
+        <label for="agreeMemberRule"
+               style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="agreeMemberRule" style="width:18px;height:18px;cursor:pointer;">
+          <span>Tôi đã hiểu và đồng ý</span>
+        </label>
+
+        <button class="ui-btn"
+                type="button"
+                id="btnContinueMemberRule"
+                disabled
+                style="background:#9ca3af;color:#fff;border:none;opacity:.85;cursor:not-allowed;">
+          Tiếp theo
+        </button>
       </div>
     </div>
   </div>
@@ -439,52 +462,47 @@
 
       <div class="ui-modal-body" style="padding-top:14px;">
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+          {% for p in member_plan_cards %}
+          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff,#ffffff);">
+            <div style="font-weight:900;font-size:16px;">{{ p.name }}</div>
 
-          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff7ed,#ffffff);">
-            <div style="font-weight:900;font-size:16px;">Taekwondo Cơ Bản</div>
-            <div style="margin-top:6px;font-weight:900;color:#2563eb;">300.000 VNĐ / tháng</div>
+            {% if p.promo %}
+              <div style="margin-top:6px;font-weight:700;color:#94a3b8;text-decoration:line-through;">
+                {{ "{:,.0f}".format(p.price_monthly).replace(",", ".") }} VNĐ / tháng
+              </div>
+              <div style="margin-top:4px;font-weight:900;color:#2563eb;">
+                {{ "{:,.0f}".format(p.final_price).replace(",", ".") }} VNĐ / tháng
+              </div>
+            {% else %}
+              <div style="margin-top:6px;font-weight:900;color:#2563eb;">
+                {{ "{:,.0f}".format(p.price_monthly).replace(",", ".") }} VNĐ / tháng
+              </div>
+            {% endif %}
+
             <div style="margin-top:10px;color:#374151;line-height:1.55;">
               Nội dung:
-              <br>+ Kỹ thuật cơ bản
+              {% for ft in p.features %}
+                <br>{{ ft }}
+              {% endfor %}
             </div>
+
+            {% if p.promo %}
+            <div class="promo-countdown"
+                 data-end="{{ p.promo.end_at.isoformat() }}"
+                 style="margin-top:10px;font-size:12px;font-weight:800;color:#dc2626;">
+              --
+            </div>
+            {% endif %}
+
             <div style="margin-top:12px;">
-              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
-                      onclick="selectPlan('BASIC', 300000)">Đăng ký</button>
+              <button type="button"
+                      class="ui-btn ui-btn--primary ui-btn--block"
+                      onclick="selectPlan('{{ p.code }}', {{ p.final_price }}, {{ p.price_monthly }})">
+                Đăng ký
+              </button>
             </div>
           </div>
-
-          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#eff6ff,#ffffff);">
-            <div style="font-weight:900;font-size:16px;">Taekwondo Nâng cao</div>
-            <div style="margin-top:6px;font-weight:900;color:#2563eb;">500.000 VNĐ / tháng</div>
-            <div style="margin-top:10px;color:#374151;line-height:1.55;">
-              Nội dung:
-              <br>+ Kỹ thuật cơ bản
-              <br>+ Kỹ thuật nâng cao
-              <br>+ Nội dung thi đẳng
-            </div>
-            <div style="margin-top:12px;">
-              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
-                      onclick="selectPlan('PRO', 500000)">Đăng ký</button>
-            </div>
-          </div>
-
-          <div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:linear-gradient(180deg,#fdf2f8,#ffffff);">
-            <div style="font-weight:900;font-size:16px;">Taekwondo Cao Cấp</div>
-            <div style="margin-top:6px;font-weight:900;color:#2563eb;">800.000 VNĐ / tháng</div>
-            <div style="margin-top:10px;color:#374151;line-height:1.55;">
-              Nội dung:
-              <br>+ Kỹ thuật cơ bản
-              <br>+ Kỹ thuật nâng cao
-              <br>+ Nội dung thi đẳng
-              <br>+ Kỹ thuật cao cấp
-              <br>+ Võ nhạc
-            </div>
-            <div style="margin-top:12px;">
-              <button type="button" class="ui-btn ui-btn--primary ui-btn--block"
-                      onclick="selectPlan('VIP', 800000)">Đăng ký</button>
-            </div>
-          </div>
-
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -522,13 +540,30 @@
         </div>
 
         <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#f8fafc;">
+
+          <div style="margin-bottom:12px;">
+            <label class="ui-label" style="margin-bottom:6px;">Mã khuyến mãi</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="promoCodeInput" class="ui-input" placeholder="Nhập mã khuyến mãi" style="flex:1;">
+              <button type="button" class="ui-btn ui-btn--primary" id="btnApplyPromo">Áp dụng</button>
+            </div>
+            <div id="promoMessage" style="margin-top:6px;font-size:13px;font-weight:700;color:#dc2626;"></div>
+          </div>
+
           <div style="display:flex;justify-content:space-between;gap:10px;">
             <span>Số tiền</span><b id="rawTotal">0</b>
           </div>
+
           <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
             <span>Giảm giá</span><b id="discount">0</b>
           </div>
+
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+            <span>Khuyến mãi</span><b id="promoDiscount">0</b>
+          </div>
+
           <div style="height:1px;background:#e5e7eb;margin:10px 0;"></div>
+
           <div style="display:flex;justify-content:space-between;gap:10px;">
             <span style="font-weight:900;">Thành tiền</span><b id="finalTotal" style="font-size:18px;">0</b>
           </div>
@@ -630,17 +665,17 @@
             </div>
 
             <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;font-size:14px;line-height:1.45;">
-              <div style="color:#6b7280;font-weight:900;">Tên</div>
-              <div><b>Nguyễn Thiên Phụng</b></div>
+              <div style="color:#6b7280;font-weight:900;">Họ Tên Người Nhận</div>
+              <div><b>{{ payment_bank_setting.account_name if payment_bank_setting else '-' }}</b></div>
 
               <div style="color:#6b7280;font-weight:900;">STK</div>
-              <div><b>682657</b></div>
+              <div><b>{{ payment_bank_setting.account_no if payment_bank_setting else '-' }}</b></div>
 
               <div style="color:#6b7280;font-weight:900;">Ngân hàng</div>
-              <div><b>ACB</b></div>
+              <div><b>{{ payment_bank_setting.bank_name if payment_bank_setting else '-' }}</b></div>
 
               <div style="color:#6b7280;font-weight:900;">Ghi chú:</div>
-              <div><b>Theo ghi chú phần thông tin đơn hàng bên trên</b></div>
+              <div><b>{{ payment_bank_setting.note_default if payment_bank_setting else 'Theo ghi chú phần thông tin đơn hàng bên trên' }}</b></div>
             </div>
 
           </div>
@@ -683,9 +718,12 @@
           ← Quay lại
         </button>
 
-        <button class="ui-btn ui-btn--primary ui-btn--lg" type="button" id="btnPaid"
+        <button type="button"
+                class="pay-btn-confirm"
+                id="btnPaidConfirm"
+                disabled
                 style="min-width:210px;border-radius:14px;font-weight:900;">
-          Tôi đã thanh toán
+          Tôi đã thanh toán (30s)
         </button>
       </div>
 
@@ -921,6 +959,85 @@
     (function(){
       const $ = (id) => document.getElementById(id);
 
+      let payCountdownTimer = null;
+
+      function resetPaidButton(){
+        const btn = $("btnPaidConfirm");
+        if(!btn) return;
+
+        if(payCountdownTimer){
+          clearInterval(payCountdownTimer);
+          payCountdownTimer = null;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Tôi đã thanh toán (30s)";
+      }
+
+      function startPaidButtonCountdown(){
+        const btn = $("btnPaidConfirm");
+        if(!btn) return;
+
+        let seconds = 30;
+
+        if(payCountdownTimer){
+          clearInterval(payCountdownTimer);
+          payCountdownTimer = null;
+        }
+
+        btn.disabled = true;
+        btn.textContent = `Tôi đã thanh toán (${seconds}s)`;
+
+        payCountdownTimer = setInterval(() => {
+          seconds--;
+
+          if(seconds <= 0){
+            clearInterval(payCountdownTimer);
+            payCountdownTimer = null;
+            btn.disabled = false;
+            btn.textContent = "Tôi đã thanh toán";
+            return;
+          }
+
+          btn.textContent = `Tôi đã thanh toán (${seconds}s)`;
+        }, 1000);
+      }
+
+      const PROMOTIONS = [
+        {% for p in member_plan_cards %}
+          {% if p.promo %}
+          {
+            code: {{ (p.promo.code or '')|tojson }},
+            title: {{ (p.promo.title or '')|tojson }},
+            plan_codes: {{ (p.promo.plan_codes or 'ALL')|tojson }},
+            discount_type: {{ (p.promo.discount_type or 'fixed')|tojson }},
+            discount_value: {{ p.promo.discount_value or 0 }}
+          },
+          {% endif %}
+        {% endfor %}
+      ];
+
+      function normalizePromoCode(v){
+        return String(v || "").trim().toUpperCase();
+      }
+
+      function clearPromotionState(clearInput=true){
+        const s = window.__pickedPlan;
+        s.promoOff = 0;
+        s.promoCode = "";
+        s.promoTitle = "";
+
+        const msg = $("promoMessage");
+        if(msg){
+          msg.textContent = "";
+          msg.style.color = "#dc2626";
+        }
+
+        if(clearInput && $("promoCodeInput")){
+          $("promoCodeInput").value = "";
+        }
+      }
+
       function openBackdrop(id){
         const m = $(id);
         if(!m) return;
@@ -937,7 +1054,18 @@
         document.body.style.overflow = "";
       }
 
-      window.__pickedPlan = { name:"", price:0, months:1, discountRate:0, raw:0, off:0, final:0 };
+      window.__pickedPlan = {
+        name: "",
+        price: 0,
+        months: 1,
+        discountRate: 0,
+        raw: 0,
+        off: 0,
+        promoOff: 0,
+        final: 0,
+        promoCode: "",
+        promoTitle: ""
+      };
 
       function formatVND(x){
         x = Math.max(0, Math.round(x || 0));
@@ -945,8 +1073,8 @@
       }
 
       function calc(){
-        const s = window.__pickedPlan;
-        const months = parseInt(($("monthsSelect")?.value || "1"), 10);
+        const s = window.__pickedPlan || {};
+        const months = parseInt(($("monthsSelect")?.value || "1"), 10) || 1;
         s.months = months;
 
         let rate = 0;
@@ -955,25 +1083,51 @@
         else if(months === 12) rate = 0.20;
 
         s.discountRate = rate;
-        s.raw = s.price * months;
+
+        const unitPrice = Number(s.price || 0);
+        s.raw = unitPrice * months;
         s.off = Math.round(s.raw * rate);
-        s.final = s.raw - s.off;
+
+        const afterMonthDiscount = Math.max(s.raw - s.off, 0);
+
+        if(!s.promoOff || s.promoOff < 0){
+          s.promoOff = 0;
+        }
+
+        s.final = Math.max(afterMonthDiscount - Number(s.promoOff || 0), 0);
 
         if($("rawTotal")) $("rawTotal").textContent = formatVND(s.raw);
         if($("discount")) $("discount").textContent = "-" + formatVND(s.off);
+        if($("promoDiscount")) $("promoDiscount").textContent = "-" + formatVND(s.promoOff || 0);
         if($("finalTotal")) $("finalTotal").textContent = formatVND(s.final);
       }
 
-      window.selectPlan = function(planName, planPrice){
-        window.__pickedPlan.name = planName;
-        window.__pickedPlan.price = planPrice;
+      window.selectPlan = function(planCode, finalPrice, originalPrice){
+        window.__pickedPlan.name = planCode;
+        window.__pickedPlan.price = Number(finalPrice || 0);
+        window.__pickedPlan.originalPrice = Number(originalPrice || finalPrice || 0);
+        window.__pickedPlan.months = 1;
+        window.__pickedPlan.discountRate = 0;
+        window.__pickedPlan.raw = 0;
+        window.__pickedPlan.off = 0;
+        window.__pickedPlan.promoOff = 0;
+        window.__pickedPlan.final = 0;
+        window.__pickedPlan.promoCode = "";
+        window.__pickedPlan.promoTitle = "";
 
-        if($("pickedPlanName")) $("pickedPlanName").textContent = planName;
-        if($("pickedPlanPrice")) $("pickedPlanPrice").textContent =
-          planPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        if($("promoCodeInput")) $("promoCodeInput").value = "";
+        if($("promoMessage")) $("promoMessage").textContent = "";
+
+        if($("monthsSelect")) $("monthsSelect").value = "1";
+
+        if($("pickedPlanName")) $("pickedPlanName").textContent = planCode;
+        if($("pickedPlanPrice")) {
+          $("pickedPlanPrice").textContent = formatVND(finalPrice) + " / tháng";
+        }
 
         closeBackdrop("planModal");
         openBackdrop("durationModal");
+
         calc();
       };
 
@@ -981,37 +1135,83 @@
       const btnCloseMemberRule = $("btnCloseMemberRule");
       const btnCancelMemberRule = $("btnCancelMemberRule");
       const btnContinueMemberRule = $("btnContinueMemberRule");
+      const agreeMemberRule = $("agreeMemberRule");
+
+      function setMemberRuleAgreeState(){
+        if(!btnContinueMemberRule || !agreeMemberRule) return;
+
+        if(agreeMemberRule.checked){
+          btnContinueMemberRule.disabled = false;
+          btnContinueMemberRule.style.background = "";
+          btnContinueMemberRule.style.color = "";
+          btnContinueMemberRule.style.border = "";
+          btnContinueMemberRule.style.opacity = "1";
+          btnContinueMemberRule.style.cursor = "pointer";
+        }else{
+          btnContinueMemberRule.disabled = true;
+          btnContinueMemberRule.style.background = "#9ca3af";
+          btnContinueMemberRule.style.color = "#fff";
+          btnContinueMemberRule.style.border = "none";
+          btnContinueMemberRule.style.opacity = ".85";
+          btnContinueMemberRule.style.cursor = "not-allowed";
+        }
+      }
 
       if(btnOpenMemberPlansFromMenu){
         btnOpenMemberPlansFromMenu.addEventListener("click", function(e){
           e.preventDefault();
           const userPanel = $("userPanel");
           if(userPanel) userPanel.classList.remove("show");
+
+          if(agreeMemberRule){
+            agreeMemberRule.checked = false;
+          }
+          setMemberRuleAgreeState();
+
           openBackdrop("memberRuleModal");
         });
       }
 
+      if(agreeMemberRule){
+        agreeMemberRule.addEventListener("change", setMemberRuleAgreeState);
+      }
+
       if(btnCloseMemberRule){
-        btnCloseMemberRule.addEventListener("click", ()=> closeBackdrop("memberRuleModal"));
+        btnCloseMemberRule.addEventListener("click", ()=>{
+          if(agreeMemberRule) agreeMemberRule.checked = false;
+          setMemberRuleAgreeState();
+          closeBackdrop("memberRuleModal");
+        });
       }
+
       if(btnCancelMemberRule){
-        btnCancelMemberRule.addEventListener("click", ()=> closeBackdrop("memberRuleModal"));
+        btnCancelMemberRule.addEventListener("click", ()=>{
+          if(agreeMemberRule) agreeMemberRule.checked = false;
+          setMemberRuleAgreeState();
+          closeBackdrop("memberRuleModal");
+        });
       }
+
       if(btnContinueMemberRule){
         btnContinueMemberRule.addEventListener("click", ()=>{
+          if(btnContinueMemberRule.disabled) return;
           closeBackdrop("memberRuleModal");
           openBackdrop("planModal");
         });
       }
 
+      setMemberRuleAgreeState();
+
       const btnClosePlan = $("btnClosePlan");
       if(btnClosePlan){
         btnClosePlan.addEventListener("click", ()=> closeBackdrop("planModal"));
+        resetPaidButton();
       }
 
       const btnCloseDuration = $("btnCloseDuration");
       if(btnCloseDuration){
         btnCloseDuration.addEventListener("click", ()=> closeBackdrop("durationModal"));
+        resetPaidButton();
       }
 
       const btnBackPlans = $("btnBackPlans");
@@ -1022,9 +1222,108 @@
         });
       }
 
+      const btnApplyPromo = $("btnApplyPromo");
+      if(btnApplyPromo){
+        btnApplyPromo.addEventListener("click", async ()=>{
+          const s = window.__pickedPlan || {};
+          const input = $("promoCodeInput");
+          const msg = $("promoMessage");
+
+          if(!input || !msg) return;
+
+          const code = normalizePromoCode(input.value);
+
+          if(!code){
+            s.promoCode = "";
+            s.promoTitle = "";
+            s.promoOff = 0;
+            msg.style.color = "#dc2626";
+            msg.textContent = "Vui lòng nhập mã khuyến mãi.";
+            calc();
+            return;
+          }
+
+          const months = parseInt(($("monthsSelect")?.value || "1"), 10) || 1;
+          let rate = 0;
+          if(months === 3) rate = 0.10;
+          else if(months === 6) rate = 0.15;
+          else if(months === 12) rate = 0.20;
+
+          const rawTotal = Number(s.price || 0) * months;
+          const monthDiscount = Math.round(rawTotal * rate);
+
+          try{
+            const res = await fetch("/renew/check-promo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                username: "{{ current_user.username }}",
+                email: "{{ current_user.email or '' }}",
+                plan_code: s.name || "",
+                months: months,
+                promo_code: code,
+                raw_total: rawTotal,
+                discount: monthDiscount
+              })
+            });
+
+            const data = await res.json();
+
+            if(!data.ok){
+              s.promoCode = "";
+              s.promoTitle = "";
+              s.promoOff = 0;
+              msg.style.color = "#dc2626";
+              msg.textContent = data.message || "Mã khuyến mãi không hợp lệ hoặc đã hết hạn.";
+              calc();
+              return;
+            }
+
+            s.promoCode = code;
+            s.promoTitle = data.promo_title || "";
+            s.promoOff = Number(data.promo_discount || 0);
+
+            msg.style.color = "#16a34a";
+            msg.textContent = `Đã áp dụng: ${code}${s.promoTitle ? " - " + s.promoTitle : ""}`;
+
+            calc();
+
+          }catch(err){
+            s.promoCode = "";
+            s.promoTitle = "";
+            s.promoOff = 0;
+            msg.style.color = "#dc2626";
+            msg.textContent = "Không kiểm tra được mã khuyến mãi.";
+            calc();
+          }
+        });
+      }
+
+      const promoCodeInput = $("promoCodeInput");
+      if(promoCodeInput){
+        promoCodeInput.addEventListener("input", function(){
+          const s = window.__pickedPlan || {};
+          const msg = $("promoMessage");
+
+          if(!this.value.trim()){
+            s.promoCode = "";
+            s.promoTitle = "";
+            s.promoOff = 0;
+            if(msg) msg.textContent = "";
+            calc();
+          }
+        });
+      }
+
       const monthsSelect = $("monthsSelect");
       if(monthsSelect){
-        monthsSelect.addEventListener("change", calc);
+        monthsSelect.addEventListener("change", function(){
+          calc();
+        });
+
+        monthsSelect.addEventListener("input", function(){
+          calc();
+        });
       }
 
       const btnGoPay = $("btnGoPay");
@@ -1048,19 +1347,26 @@
           setText("payNote", note);
 
           const amount = Math.max(0, Math.round(final || 0));
-          const accountName = "Nguyen Thien Phung";
+          const bankCode = "{{ payment_bank_setting.bank_code if payment_bank_setting else '' }}";
+          const accountNo = "{{ payment_bank_setting.account_no if payment_bank_setting else '' }}";
+          const accountName = "{{ payment_bank_setting.account_name if payment_bank_setting else '' }}";
 
-          const qrUrl =
-            "https://img.vietqr.io/image/ACB-682657-compact2.png"
-            + "?amount=" + encodeURIComponent(String(amount))
-            + "&addInfo=" + encodeURIComponent(note)
-            + "&accountName=" + encodeURIComponent(accountName);
+          let qrUrl = "";
+          if (bankCode && accountNo) {
+            qrUrl =
+              "https://img.vietqr.io/image/" + encodeURIComponent(bankCode) + "-" + encodeURIComponent(accountNo) + "-compact2.png"
+              + "?amount=" + encodeURIComponent(String(amount))
+              + "&addInfo=" + encodeURIComponent(note)
+              + "&accountName=" + encodeURIComponent(accountName);
+          }
 
           const img = $("payQrImg");
-          if(img) img.src = qrUrl;
+          if (img) img.src = qrUrl;
 
           closeBackdrop("durationModal");
           openBackdrop("payModal");
+          resetPaidButton();
+          startPaidButtonCountdown();
         });
       }
 
@@ -1077,7 +1383,7 @@
         });
       }
 
-      const btnPaid = $("btnPaid");
+      const btnPaid = $("btnPaidConfirm");
       if(btnPaid){
         btnPaid.addEventListener("click", async ()=>{
           const s = window.__pickedPlan || {};
@@ -1106,6 +1412,8 @@
                 months: months,
                 raw_total: raw_total,
                 discount: discount,
+                promo_code: s.promoCode || "",
+                promo_discount: s.promoOff || 0,
                 final_total: final_total,
                 note: note
               })
@@ -1265,6 +1573,37 @@
         }
       });
     })();
+  </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".promo-countdown").forEach(el => {
+      const endStr = el.dataset.end;
+      if (!endStr) return;
+
+      const end = new Date(endStr);
+
+      function tick() {
+        const now = new Date();
+        const diff = end - now;
+
+        if (diff <= 0) {
+          el.textContent = "Hết khuyến mãi";
+          return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const mins = Math.floor((diff / (1000 * 60)) % 60);
+        const secs = Math.floor((diff / 1000) % 60);
+
+        el.textContent = `Khuyến mãi còn ${days} ngày ${hours} giờ ${mins} phút ${secs} giây`;
+      }
+
+      tick();
+      setInterval(tick, 1000);
+    });
+  });
   </script>
 
   {% block scripts %}{% endblock %}
