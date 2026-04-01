@@ -294,3 +294,129 @@ body.modal-open{ overflow:hidden; }
     width:100% !important;
   }
 }
+
+.pay-btn-confirm:disabled{
+  background: linear-gradient(135deg, #9ec5ff, #7cb8ff);
+  color: #ffffff;
+  opacity: 1;
+  cursor: not-allowed;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.14);
+  position: relative;
+}
+
+.pay-btn-confirm{
+  min-width: 260px;
+  height: 54px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+
+.pay-btn-confirm:hover:not(:disabled){
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.34);
+}
+
+.pay-btn-confirm:active:not(:disabled){
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+
+.pay-btn-confirm:disabled{
+  background: linear-gradient(135deg, #93c5fd, #60a5fa);
+  color: #ffffff;
+  opacity: 1;
+  cursor: not-allowed;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.16);
+}
+
+
+
+.intro-overlay{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0,0,0,0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: introFadeIn .35s ease;
+}
+
+.intro-video{
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;   /* desktop giữ nguyên video ngang */
+  background: #fff;
+  display: block;
+}
+
+.intro-skip{
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 100000;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #000;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.intro-skip:hover{
+  background: rgba(255,255,255,0.24);
+}
+
+@keyframes introFadeIn{
+  from{ opacity:0; }
+  to{ opacity:1; }
+}
+
+/* Mobile: cắt thành dọc */
+@media (max-width: 768px){
+  .intro-overlay{
+    padding: 0 !important;
+  }
+
+  .intro-overlay video.intro-video{
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 100vw !important;
+    min-height: 100vh !important;
+    display: block !important;
+  }
+}
+
+.intro-start{
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 100000;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 22px;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.intro-start:hover{
+  background: rgba(255,255,255,0.28);
+}

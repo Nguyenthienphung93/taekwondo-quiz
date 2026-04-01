@@ -656,3 +656,17 @@
   border: 2px solid #3b82f6;
   background: #eaf2ff;
 }
+
+.exam-result-icon{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.exam-result-image{
+  width: 400px;
+  max-width: 80vw;
+  height: auto;
+  display: block;
+}

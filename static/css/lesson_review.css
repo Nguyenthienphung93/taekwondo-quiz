@@ -198,16 +198,19 @@ body {
   background: #eef2f7;
 }
 
-#pdfCanvas {
+.lesson-image {
   display: block;
   margin: 0 auto;
   max-width: 100%;
   max-height: 100%;
   width: auto;
   height: auto;
+  object-fit: contain;
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.10);
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* =====================================================
@@ -379,7 +382,7 @@ body {
   background: #e9edf4;
 }
 
-.lesson-content:fullscreen #pdfCanvas {
+.lesson-content:fullscreen .lesson-image {
   max-width: 100%;
   max-height: 100%;
   border-radius: 18px;

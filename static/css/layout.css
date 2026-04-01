@@ -320,6 +320,7 @@
 
   /* ✅ BỎ z-index để modal fixed đè được lên header sticky */
   z-index: auto;
+  padding: 10px 12px;
 
   flex: 1;
   overflow-y: auto;
@@ -457,9 +458,9 @@
 
 .trial-title{
   font-weight: 900;
-  font-size: 12.5px;
+  font-size: 13px;
   color: rgba(17,24,39,.75);
-  margin-bottom: 8px;
+  margin-bottom: 0px;
 }
 
 /* số ngày to bự */

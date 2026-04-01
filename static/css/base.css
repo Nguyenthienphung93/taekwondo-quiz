@@ -279,3 +279,29 @@ svg, svg *{
   padding: 9px 14px;
   font-weight: 950;
 }
+
+.trial-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.trial-title{
+  font-weight: 800;
+  color: #4b5563;
+}
+
+.trial-plan{
+  min-width: 72px;
+  text-align: right;
+  font-weight: 900;
+  font-size: 13px;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 5px 10px;
+  border-radius: 999px;
+  line-height: 1;
+}
