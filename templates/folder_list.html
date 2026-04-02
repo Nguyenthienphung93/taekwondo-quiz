@@ -29,53 +29,53 @@
     <div class="sets-scroll">
 
       {% if mode in ["home", "edu"] %}
-      <section class="topic-section">
-        <div class="topic-title">🧠 - Học Taekwondo</div>
+        <section class="topic-section">
+          <div class="topic-title">🧠 - Học Taekwondo</div>
 
-        {% if lessons and lessons|length > 0 %}
-          <div class="lesson-grid">
-            {% for l in lessons %}
-              <a class="ui-card card-btn lesson-card" href="/lesson/{{ l.slug }}">
-                <div class="folder-thumb">
-                  {% if l.image %}
-                    {% if l.image.startswith('http://') or l.image.startswith('https://') %}
-                      <img src="{{ l.image }}" alt="{{ l.title }}">
+          {% if lessons and lessons|length > 0 %}
+            <div class="lesson-grid">
+              {% for l in lessons %}
+                <a class="ui-card card-btn lesson-card" href="{{ url_for('lesson_view', slug=l.slug) }}">
+                  <div class="folder-thumb">
+                    {% if l.image %}
+                      {% if l.image.startswith('http://') or l.image.startswith('https://') %}
+                        <img src="{{ l.image }}" alt="{{ l.title }}">
+                      {% else %}
+                        <img src="{{ url_for('static', filename=l.image) }}" alt="{{ l.title }}">
+                      {% endif %}
                     {% else %}
-                      <img src="{{ url_for('static', filename=l.image) }}" alt="{{ l.title }}">
+                      <div class="img-placeholder">📘</div>
                     {% endif %}
-                  {% else %}
-                    <div class="img-placeholder">📘</div>
-                  {% endif %}
-                </div>
-                <div class="card-title">{{ l.title }}</div>
-              </a>
-            {% endfor %}
-          </div>
+                  </div>
+                  <div class="card-title">{{ l.title }}</div>
+                </a>
+              {% endfor %}
+            </div>
 
-        {% elif edu_folders and edu_folders|length > 0 %}
-          <div class="folder-grid">
-            {% for folder in edu_folders %}
-              <a class="ui-card card-btn folder-card" href="{{ url_for('sets', edu_id=folder.id) }}">
-                <div class="folder-thumb">
-                  {% if folder.image %}
-                    {% if folder.image.startswith('http://') or folder.image.startswith('https://') %}
-                      <img src="{{ folder.image }}" alt="{{ folder.name }}">
+          {% elif edu_folders and edu_folders|length > 0 %}
+            <div class="folder-grid">
+              {% for folder in edu_folders %}
+                <a class="ui-card card-btn folder-card" href="{{ folder.url }}">
+                  <div class="folder-thumb">
+                    {% if folder.image %}
+                      {% if folder.image.startswith('http://') or folder.image.startswith('https://') %}
+                        <img src="{{ folder.image }}" alt="{{ folder.name }}">
+                      {% else %}
+                        <img src="{{ url_for('static', filename=folder.image) }}" alt="{{ folder.name }}">
+                      {% endif %}
                     {% else %}
-                      <img src="{{ url_for('static', filename=folder.image) }}" alt="{{ folder.name }}">
+                      <div class="img-placeholder">📁</div>
                     {% endif %}
-                  {% else %}
-                    <div class="img-placeholder">📁</div>
-                  {% endif %}
-                </div>
-                <div class="card-title">{{ folder.name }}</div>
-              </a>
-            {% endfor %}
-          </div>
+                  </div>
+                  <div class="card-title">{{ folder.name }}</div>
+                </a>
+              {% endfor %}
+            </div>
 
-        {% else %}
-          <div class="sets-empty">Chủ đề này chưa có bài học.</div>
-        {% endif %}
-      </section>
+          {% else %}
+            <div class="sets-empty">Chủ đề này chưa có bài học.</div>
+          {% endif %}
+        </section>
       {% endif %}
 
       {% if mode in ["home", "practice"] %}
