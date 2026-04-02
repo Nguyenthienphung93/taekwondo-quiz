@@ -1096,7 +1096,7 @@
     });
   });
   </script>
-  <div id="introOverlay" class="intro-overlay" style="display:none;" aria-hidden="true">
+  <div id="introOverlay" class="intro-overlay" aria-hidden="true">
     <video
       id="introVideo"
       class="intro-video"
@@ -1124,6 +1124,7 @@
     function goNext() {
       if (moved) return;
       moved = true;
+      document.body.style.overflow = "";
       window.location.href = "{{ url_for('main') }}";
     }
 
@@ -1179,6 +1180,7 @@
 
         overlay.style.display = "flex";
         overlay.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
 
         try {
           video.currentTime = 0;
