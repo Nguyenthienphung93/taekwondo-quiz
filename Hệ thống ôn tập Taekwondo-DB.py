@@ -408,7 +408,7 @@ def send_voucher_to_selected_users(promo_id: int):
                     f"Đến: {promo.end_at.strftime('%d/%m/%Y %H:%M') if promo.end_at else ''}\n\n"
                     f"Hãy nhập mã này tại ô 'Mã khuyến mãi' khi thanh toán."
                 ),
-                target_url=url_for("sets"),
+                target_url=url_for("main"),
                 icon="🎁",
                 is_read=False,
                 action_type="voucher_notice",
@@ -1292,7 +1292,7 @@ def account():
         current_user.nickname = nickname
         db.session.commit()
         flash("✅ Đã lưu tên hiển thị!", "success")
-        return redirect(url_for("sets"))
+        return redirect(url_for("main"))
 
     return render_template("account.html", force_pw=current_user.must_change_password)
 
@@ -1330,7 +1330,7 @@ def account_change_password():
 
     # 5️⃣ báo thành công + cho vào hệ thống
     flash("✅ Đổi mật khẩu thành công!", "success_pw")
-    return redirect(url_for("sets"))             # ✅ C.2
+    return redirect(url_for("main"))             # ✅ C.2
 
 
 def write_login_log_summary(username, ip, status):
@@ -2363,7 +2363,7 @@ def notification_create():
             user_id=u.id,
             title=title,
             message=message,
-            target_url=url_for("sets"),
+            target_url=url_for("main"),
             icon="📢",
             is_read=False,
             action_type="general_notice",
@@ -2430,7 +2430,7 @@ def check_access_permission(user):
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("sets"))
+        return redirect(url_for("main"))
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -3367,12 +3367,301 @@ def change_email():
 
 @app.route("/")
 def home():
-    return redirect(url_for("page_root"))
+    return redirect(url_for("main"))
 
+# =====================================================
+# MAIN ROUTES MỚI – URL ĐẸP
+# =====================================================
+
+def get_active_edu_folder_by_slug(level, slug, parent_id=None):
+    slug = slugify(slug or "")
+
+    q = EduFolder.query.filter_by(level=level, is_active=1)
+
+    if parent_id is None:
+        q = q.filter(EduFolder.parent_id.is_(None))
+    else:
+        q = q.filter_by(parent_id=parent_id)
+
+    for f in q.order_by(EduFolder.order.asc(), EduFolder.id.asc()).all():
+        if slugify(f.name) == slug:
+            return f
+    return None
+
+
+def get_active_practice_folder_by_slug(level, slug, parent_id=None):
+    slug = slugify(slug or "")
+
+    q = Folder.query.filter_by(level=level)
+
+    if parent_id is None:
+        q = q.filter(Folder.parent_id.is_(None))
+    else:
+        q = q.filter_by(parent_id=parent_id)
+
+    for f in q.order_by(Folder.order_index.asc()).all():
+        if slugify(f.name) == slug:
+            return f
+    return None
+
+
+@app.route("/main/hoc/<edu1_slug>")
+@login_required
+def main_edu_level1(edu1_slug):
+    edu1 = get_active_edu_folder_by_slug(level=1, slug=edu1_slug)
+    if not edu1:
+        abort(404)
+
+    raw_children = (
+        EduFolder.query
+        .filter_by(parent_id=edu1.id, is_active=1)
+        .order_by(EduFolder.order.asc(), EduFolder.id.asc())
+        .all()
+    )
+
+    edu_folders = []
+    for f in raw_children:
+        edu_folders.append({
+            "id": f.id,
+            "name": f.name,
+            "image": f.image,
+            "level": f.level,
+            "url": url_for(
+                "main_edu_level2",
+                edu1_slug=slugify(edu1.name),
+                edu2_slug=slugify(f.name)
+            )
+        })
+
+    breadcrumbs = [
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Học Taekwondo", "url": url_for("main")},
+        {"name": edu1.name, "url": None},
+    ]
+
+    return render_template(
+        "folder_list.html",
+        page_title=edu1.name,
+        edu_folders=edu_folders,
+        lessons=[],
+        items=[],
+        breadcrumbs=breadcrumbs,
+        mode="edu"
+    )
+
+
+@app.route("/main/hoc/<edu1_slug>/<edu2_slug>")
+@login_required
+def main_edu_level2(edu1_slug, edu2_slug):
+    edu1 = get_active_edu_folder_by_slug(level=1, slug=edu1_slug)
+    if not edu1:
+        abort(404)
+
+    edu2 = get_active_edu_folder_by_slug(level=2, slug=edu2_slug, parent_id=edu1.id)
+    if not edu2:
+        abort(404)
+
+    raw_children = (
+        EduFolder.query
+        .filter_by(parent_id=edu2.id, is_active=1)
+        .order_by(EduFolder.order.asc(), EduFolder.id.asc())
+        .all()
+    )
+
+    edu_folders = []
+    for f in raw_children:
+        edu_folders.append({
+            "id": f.id,
+            "name": f.name,
+            "image": f.image,
+            "level": f.level,
+            "url": url_for(
+                "main_edu_level3",
+                edu1_slug=slugify(edu1.name),
+                edu2_slug=slugify(edu2.name),
+                edu3_slug=slugify(f.name)
+            )
+        })
+
+    breadcrumbs = [
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Học Taekwondo", "url": url_for("main")},
+        {"name": edu1.name, "url": url_for("main_edu_level1", edu1_slug=edu1_slug)},
+        {"name": edu2.name, "url": None},
+    ]
+
+    return render_template(
+        "folder_list.html",
+        page_title=edu2.name,
+        edu_folders=edu_folders,
+        lessons=[],
+        items=[],
+        breadcrumbs=breadcrumbs,
+        mode="edu"
+    )
+
+
+@app.route("/main/hoc/<edu1_slug>/<edu2_slug>/<edu3_slug>")
+@login_required
+def main_edu_level3(edu1_slug, edu2_slug, edu3_slug):
+    edu1 = get_active_edu_folder_by_slug(level=1, slug=edu1_slug)
+    if not edu1:
+        abort(404)
+
+    edu2 = get_active_edu_folder_by_slug(level=2, slug=edu2_slug, parent_id=edu1.id)
+    if not edu2:
+        abort(404)
+
+    edu3 = get_active_edu_folder_by_slug(level=3, slug=edu3_slug, parent_id=edu2.id)
+    if not edu3:
+        abort(404)
+
+    lessons = load_lessons_by_folder3(edu3.id)
+
+    breadcrumbs = [
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Học Taekwondo", "url": url_for("main")},
+        {"name": edu1.name, "url": url_for("main_edu_level1", edu1_slug=edu1_slug)},
+        {"name": edu2.name, "url": url_for("main_edu_level2", edu1_slug=edu1_slug, edu2_slug=edu2_slug)},
+        {"name": edu3.name, "url": None},
+    ]
+
+    return render_template(
+        "folder_list.html",
+        page_title=edu3.name,
+        edu_folders=[],
+        lessons=lessons,
+        items=[],
+        breadcrumbs=breadcrumbs,
+        mode="edu"
+    )
+
+
+@app.route("/main/on-tap/<slug1>")
+@login_required
+def practice_level1(slug1):
+    f1 = get_active_practice_folder_by_slug(level=1, slug=slug1)
+    if not f1:
+        abort(404)
+
+    if not has_accessible_folder3_under_folder1(f1.id):
+        abort(404)
+
+    all_folder2 = (
+        Folder.query
+        .filter_by(level=2, parent_id=f1.id)
+        .order_by(Folder.order_index.asc())
+        .all()
+    )
+
+    folder2_list = [f2 for f2 in all_folder2 if has_accessible_folder3_under_folder2(f2.id)]
+
+    items = [{
+        "name": f.name,
+        "image": url_for("static", filename=f.image) if f.image else None,
+        "url": url_for("practice_level2", slug1=slug1, slug2=slugify(f.name))
+    } for f in folder2_list]
+
+    breadcrumbs = [
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Ôn tập", "url": url_for("main")},
+        {"name": f1.name, "url": None},
+    ]
+
+    return render_template(
+        "folder_list.html",
+        page_title=f1.name,
+        items=items,
+        breadcrumbs=breadcrumbs,
+        mode="practice",
+        edu_folders=[],
+        lessons=[]
+    )
+
+
+@app.route("/main/on-tap/<slug1>/<slug2>")
+@login_required
+def practice_level2(slug1, slug2):
+    f1 = get_active_practice_folder_by_slug(level=1, slug=slug1)
+    if not f1:
+        abort(404)
+
+    f2 = get_active_practice_folder_by_slug(level=2, slug=slug2, parent_id=f1.id)
+    if not f2:
+        abort(404)
+
+    if not has_accessible_folder3_under_folder2(f2.id):
+        abort(404)
+
+    all_folder3 = (
+        Folder.query
+        .filter_by(level=3, parent_id=f2.id, is_active_practice=1)
+        .order_by(Folder.order_index.asc())
+        .all()
+    )
+
+    folder3_list = [f3 for f3 in all_folder3 if can_access_plans(f3.member_plans)]
+
+    items = [{
+        "name": f.name,
+        "image": url_for("static", filename=f.image) if f.image else None,
+        "url": url_for("practice_level3", slug1=slug1, slug2=slug2, slug3=slugify(f.name))
+    } for f in folder3_list]
+
+    breadcrumbs = [
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Ôn tập", "url": url_for("main")},
+        {"name": f1.name, "url": url_for("practice_level1", slug1=slug1)},
+        {"name": f2.name, "url": None},
+    ]
+
+    return render_template(
+        "folder_list.html",
+        page_title=f2.name,
+        items=items,
+        breadcrumbs=breadcrumbs,
+        mode="practice",
+        edu_folders=[],
+        lessons=[]
+    )
+
+
+@app.route("/main/on-tap/<slug1>/<slug2>/<slug3>")
+@login_required
+def practice_level3(slug1, slug2, slug3):
+    f1 = get_active_practice_folder_by_slug(level=1, slug=slug1)
+    if not f1:
+        abort(404)
+
+    f2 = get_active_practice_folder_by_slug(level=2, slug=slug2, parent_id=f1.id)
+    if not f2:
+        abort(404)
+
+    f3 = get_active_practice_folder_by_slug(level=3, slug=slug3, parent_id=f2.id)
+    if not f3:
+        abort(404)
+
+    if not f3.is_active_practice:
+        abort(404)
+
+    if not can_access_plans(f3.member_plans):
+        abort(404)
+
+    return render_template(
+        "quiz_prepare.html",
+        topic_name=f3.name,
+        start_url=url_for("quiz_start_folder", folder3_id=f3.id)
+    )
 
 @app.route("/sets")
 @login_required
-def sets():
+def sets_redirect():
+    return redirect(url_for("main"))
+
+
+@app.route("/main")
+@login_required
+def main():
     mode = "home"   # home | edu | practice
 
     # ===============================
@@ -3412,7 +3701,7 @@ def sets():
     # LOAD EDU FOLDER (CẤP CON)
     # ===============================
     if edu_parent_id:
-        edu_folders = (
+        raw_edu_folders = (
             EduFolder.query
             .filter(
                 EduFolder.parent_id == edu_parent_id,
@@ -3422,7 +3711,7 @@ def sets():
             .all()
         )
     else:
-        edu_folders = (
+        raw_edu_folders = (
             EduFolder.query
             .filter(
                 EduFolder.level == 1,
@@ -3431,6 +3720,47 @@ def sets():
             .order_by(EduFolder.order.asc(), EduFolder.id.asc())
             .all()
         )
+
+    # ===============================
+    # BUILD EDU URL ĐẸP CHO TEMPLATE
+    # ===============================
+    edu_folders = []
+
+    for f in raw_edu_folders:
+        item = {
+            "id": f.id,
+            "name": f.name,
+            "image": f.image,
+            "level": f.level,
+            "url": url_for("main", edu_id=f.id)  # fallback
+        }
+
+        # Trang chủ -> cấp 1
+        if not edu_parent_id and f.level == 1:
+            item["url"] = url_for(
+                "main_edu_level1",
+                edu1_slug=slugify(f.name)
+            )
+
+        # Đang đứng ở cấp 1 -> đi cấp 2
+        elif edu_current and edu_current.level == 1 and f.level == 2:
+            item["url"] = url_for(
+                "main_edu_level2",
+                edu1_slug=slugify(edu_current.name),
+                edu2_slug=slugify(f.name)
+            )
+
+        # Đang đứng ở cấp 2 -> đi cấp 3
+        elif edu_current and edu_current.level == 2 and f.level == 3:
+            if edu_current.parent:
+                item["url"] = url_for(
+                    "main_edu_level3",
+                    edu1_slug=slugify(edu_current.parent.name),
+                    edu2_slug=slugify(edu_current.name),
+                    edu3_slug=slugify(f.name)
+                )
+
+        edu_folders.append(item)
 
     # ===============================
     # ÔN TẬP – FOLDER CẤP 1
@@ -3451,7 +3781,7 @@ def sets():
     items = [{
         "name": f.name,
         "image": url_for("static", filename=f.image) if f.image else None,
-        "url": url_for("view_set", folder1_id=f.id)
+        "url": url_for("practice_level1", slug1=slugify(f.name))
     } for f in folder1_list]
 
     # ===============================
@@ -3649,8 +3979,8 @@ def build_home_breadcrumb():
 
 def build_edu_breadcrumb(edu_root=None, edu_parent=None, edu_current=None):
     breadcrumbs = [
-        {"name": "Trang chủ", "url": url_for("sets")},
-        {"name": "Học Taekwondo", "url": url_for("sets")}
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Học Taekwondo", "url": url_for("main")}
     ]
 
     # Nếu đang ở cấp 1
@@ -3687,8 +4017,8 @@ def build_edu_breadcrumb(edu_root=None, edu_parent=None, edu_current=None):
 
 def build_practice_breadcrumb(folder1=None, folder2=None):
     breadcrumbs = [
-        {"name": "Trang chủ", "url": url_for("sets")},
-        {"name": "Ôn tập", "url": url_for("sets")}
+        {"name": "Trang chủ", "url": url_for("main")},
+        {"name": "Ôn tập", "url": url_for("main")}
     ]
 
     if folder1:
@@ -4061,7 +4391,7 @@ def quiz_result(attempt_id):
         replay_url=url_for(
             "quiz_start_folder",
             folder3_id=folder3.id
-        ) if folder3 else url_for("sets")
+        ) if folder3 else url_for("main")
     )
 
 
@@ -8401,8 +8731,6 @@ def make_qr_for_checkout(user, plan_code, months):
 
 if __name__ == "__main__":
     with app.app_context():
-        print("APP FILE =", __file__)
-        print("TEST FOLDER 24 =", Folder.query.filter_by(id=24).first())
 
         db.create_all()
         ensure_schema()
