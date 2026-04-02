@@ -2364,3 +2364,96 @@ canvas{
   }
 }
 
+
+
+/* =====================================================
+   LOGIN PAGE – FINAL MOBILE FIX
+   DÁN CUỐI CÙNG mobile.css
+===================================================== */
+@media (max-width: 480px){
+
+  html,
+  body,
+  body.login-page{
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  body.login-page .login-wrapper{
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    padding: 14px 10px 24px !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    place-items: center;
+  }
+
+  body.login-page .login-container{
+    width: 100% !important;
+    max-width: 420px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-sizing: border-box;
+  }
+
+  body.login-page .login-card{
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+    box-sizing: border-box;
+  }
+
+  body.login-page .login-form,
+  body.login-page .login-actions,
+  body.login-page .ui-input-wrap{
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body.login-page .ui-input,
+  body.login-page .ui-input--with-icon,
+  body.login-page .ui-btn,
+  body.login-page .login-forgot{
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  body.login-page .ui-input-wrap--icon{
+    position: relative;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.login-page .ui-input-wrap--icon .ui-input{
+    padding-right: 52px !important;
+  }
+
+  body.login-page .ui-input-icon{
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+  }
+
+  body.login-page .login-actions .ui-btn--block{
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.login-page .app-title{
+    font-size: clamp(24px, 7vw, 34px) !important;
+    line-height: 1.12 !important;
+    margin: 0 0 18px !important;
+  }
+}

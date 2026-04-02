@@ -9,6 +9,12 @@ body.login-page{
   background: #0b1220;
 }
 
+*,
+*::before,
+*::after{
+  box-sizing: border-box;
+}
+
 /* Background */
 .bg-layer{
   position: fixed;
@@ -32,12 +38,19 @@ body.login-page{
   flex: 1;
   display: grid;
   place-items: center;
+  width: 100%;
+  max-width: 100%;
   padding: 28px 14px 18px;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .login-container{
-  width: min(980px, 96vw);
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .app-title{
@@ -51,10 +64,13 @@ body.login-page{
 }
 
 /* Card */
+/* Card */
 .login-card{
-  width: min(520px, 94vw);          /* ✅ rộng hơn */
+  width: 100%;
+  max-width: 520px;
   margin: 0 auto;
 
+  box-sizing: border-box;
   border-radius: 22px;
   padding: 22px 22px 20px;
 
@@ -340,87 +356,6 @@ body.modal-open{ overflow:hidden; }
 
 
 
-.intro-overlay{
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(0,0,0,0.96);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  animation: introFadeIn .35s ease;
-}
-
-.intro-video{
-  width: 100vw;
-  height: 100vh;
-  object-fit: contain;   /* desktop giữ nguyên video ngang */
-  background: #fff;
-  display: block;
-}
-
-.intro-skip{
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 100000;
-  border: 0;
-  border-radius: 999px;
-  padding: 10px 16px;
-  background: #000;
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-
-.intro-skip:hover{
-  background: rgba(255,255,255,0.24);
-}
-
-@keyframes introFadeIn{
-  from{ opacity:0; }
-  to{ opacity:1; }
-}
-
-/* Mobile: cắt thành dọc */
-@media (max-width: 768px){
-  .intro-overlay{
-    padding: 0 !important;
-  }
-
-  .intro-overlay video.intro-video{
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: none !important;
-    max-height: none !important;
-    min-width: 100vw !important;
-    min-height: 100vh !important;
-    display: block !important;
-  }
-}
-
-.intro-start{
-  position: absolute;
-  left: 50%;
-  bottom: 28px;
-  transform: translateX(-50%);
-  z-index: 100000;
-  border: 0;
-  border-radius: 999px;
-  padding: 12px 22px;
-  background: rgba(255,255,255,0.18);
-  color: #fff;
-  font-weight: 800;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-
-.intro-start:hover{
-  background: rgba(255,255,255,0.28);
-}
-
 /* ================= INTRO OVERLAY ================= */
 .intro-overlay{
   position: fixed;
@@ -447,7 +382,6 @@ body.modal-open{ overflow:hidden; }
   top: 24px;
   right: 24px;
   z-index: 3;
-
   border: none;
   border-radius: 999px;
   background: #000;
@@ -460,7 +394,6 @@ body.modal-open{ overflow:hidden; }
   box-shadow: 0 8px 20px rgba(0,0,0,.18);
 }
 
-/* Laptop / desktop: ưu tiên fill kín màn hình, không dư viền trắng */
 @media (min-width: 1024px){
   .intro-video{
     width: 100vw;
@@ -474,6 +407,39 @@ body.modal-open{ overflow:hidden; }
     right: 28px;
     padding: 14px 20px;
     font-size: 17px;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait){
+  .intro-video{
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    object-position: center center;
+    transform: scale(1.04);
+  }
+
+  .intro-skip{
+    top: 18px;
+    right: 18px;
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 932px) and (orientation: landscape){
+  .intro-video{
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    object-position: center center;
+  }
+
+  .intro-skip{
+    top: 14px;
+    right: 14px;
+    padding: 10px 14px;
+    font-size: 14px;
   }
 }
 
