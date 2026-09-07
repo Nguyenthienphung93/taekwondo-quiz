@@ -924,6 +924,87 @@
         font-size: 22px;
     }
 }
+
+/* =========================================================
+   FIX HÓA ĐƠN STUDENT PORTAL
+   - Ghi chú dùng toàn bộ chiều rộng
+   - Dấu ĐÃ THU TIỀN là layer nổi
+   - Ép dấu nằm bên PHẢI trên desktop + iPhone
+========================================================= */
+
+.receipt-note-row {
+    position: relative !important;
+    min-height: 85px !important;
+
+    padding-right: 0 !important;
+    align-items: start !important;
+}
+
+.receipt-note-row .receipt-value {
+    min-width: 0 !important;
+
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+
+    line-height: 1.45 !important;
+    padding-right: 0 !important;
+}
+
+
+/* DẤU NỔI - KHÔNG CHIẾM CỘT */
+.receipt-note-row > .receipt-paid-stamp {
+    position: absolute !important;
+
+    left: auto !important;
+    right: 6px !important;
+
+    top: 8px !important;
+
+    width: 190px !important;
+    height: 62px !important;
+
+    box-sizing: border-box !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 3px solid #dc2626 !important;
+    border-radius: 10px !important;
+
+    color: #dc2626 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    font-size: 23px !important;
+    font-weight: 950 !important;
+
+    line-height: 1 !important;
+    white-space: nowrap !important;
+
+    transform: rotate(-4deg) !important;
+    transform-origin: center center !important;
+
+    background: rgba(255,255,255,.74) !important;
+
+    opacity: .92 !important;
+
+    z-index: 50 !important;
+    pointer-events: none !important;
+}
+
+
+/* Mobile vẫn lấy vị trí theo tờ A5 gốc.
+   Không đổi left/right khi scale. */
+@media(max-width: 560px) {
+    .receipt-note-row > .receipt-paid-stamp {
+        left: auto !important;
+        right: 6px !important;
+        top: 8px !important;
+    }
+}
 </style>
 {% endblock %}
 
@@ -1289,10 +1370,27 @@ function openPortalReceipt(btn) {
     setReceiptText("rcNote", card.dataset.note || "—");
     setReceiptText("rcPayer", card.dataset.name || "");
 
-    const modal = document.getElementById("portalReceiptModal");
+    const modal =
+        document.getElementById(
+            "portalReceiptModal"
+        );
 
     if (modal) {
         modal.style.display = "flex";
+
+        /*
+            Reset file cũ rồi chuẩn bị trước ảnh mới.
+            Đặc biệt quan trọng với Safari iPhone.
+        */
+        portalReceiptCachedPNGBlob = null;
+        portalReceiptCachedPNGFile = null;
+
+        window.setTimeout(
+            function() {
+                preparePortalReceiptPNG();
+            },
+            80
+        );
     }
 }
 
@@ -1382,151 +1480,505 @@ function getPortalReceiptFileName(ext) {
     return `bien_lai_${studentName}_${timeText}.${ext}`;
 }
 
+/* =========================================================
+   TẢI HÓA ĐƠN - FIX iPHONE / iPAD / ANDROID / DESKTOP
+========================================================= */
+
+let portalReceiptCachedPNGBlob = null;
+let portalReceiptCachedPNGFile = null;
+let portalReceiptPreparing = false;
+
+
 function isIOSDevice() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    return /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+        (
+            navigator.platform === "MacIntel" &&
+            navigator.maxTouchPoints > 1
+        );
 }
 
-async function buildPortalReceiptCanvas() {
-    const receipt = document.getElementById("portalReceiptA5");
 
-    if (!receipt) {
-        alert("Không tìm thấy khung hóa đơn.");
-        return null;
-    }
-
-    return await html2canvas(receipt, {
-        scale: 3,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: true,
-        scrollX: 0,
-        scrollY: -window.scrollY
+/* Chuyển Canvas -> Blob bằng Promise */
+function canvasToBlobPortal(canvas, type = "image/png", quality = 1) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            function(blob) {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(
+                        new Error("Không tạo được Blob từ hóa đơn.")
+                    );
+                }
+            },
+            type,
+            quality
+        );
     });
 }
 
-async function downloadBlobPortal(blob, filename) {
 
-    /* =========================================
-       iPHONE / iPAD
-       Dùng Share Sheet chuẩn của iOS.
-       Không dùng popup nữa.
-    ========================================= */
-    if (isIOSDevice()) {
-        try {
-            const file = new File(
-                [blob],
-                filename,
-                {
-                    type: blob.type || "application/octet-stream"
+/* =========================================================
+   TẠO CANVAS HÓA ĐƠN
+
+   QUAN TRỌNG:
+   Trên mobile tờ hóa đơn đang bị CSS transform scale().
+   Trước khi chụp, clone phải render ở kích thước A5 gốc,
+   tránh vị trí chữ / con dấu bị lệch.
+========================================================= */
+async function buildPortalReceiptCanvas() {
+    const receipt =
+        document.getElementById("portalReceiptA5");
+
+    if (!receipt) {
+        throw new Error(
+            "Không tìm thấy khung hóa đơn."
+        );
+    }
+
+    const canvas = await html2canvas(
+        receipt,
+        {
+            scale: 3,
+            backgroundColor: "#ffffff",
+
+            useCORS: true,
+            allowTaint: false,
+
+            scrollX: 0,
+            scrollY: 0,
+
+            logging: false,
+
+            onclone: function(clonedDocument) {
+                const clonedReceipt =
+                    clonedDocument.getElementById(
+                        "portalReceiptA5"
+                    );
+
+                if (!clonedReceipt) {
+                    return;
                 }
-            );
 
-            if (
-                navigator.share &&
-                navigator.canShare &&
-                navigator.canShare({ files: [file] })
-            ) {
-                await navigator.share({
-                    files: [file],
-                    title: filename
-                });
+                /*
+                    Bỏ toàn bộ transform mobile
+                    khi xuất file.
+                */
+                clonedReceipt.style.transform = "none";
+                clonedReceipt.style.position = "relative";
+                clonedReceipt.style.left = "auto";
+                clonedReceipt.style.top = "auto";
 
-                return;
+                clonedReceipt.style.width = "559px";
+                clonedReceipt.style.minHeight = "794px";
+                clonedReceipt.style.margin = "0";
+
+                /*
+                    Ép dấu về đúng bên phải.
+                */
+                const stamp =
+                    clonedReceipt.querySelector(
+                        ".receipt-paid-stamp"
+                    );
+
+                if (stamp) {
+                    stamp.style.position = "absolute";
+                    stamp.style.left = "auto";
+                    stamp.style.right = "6px";
+                    stamp.style.top = "8px";
+
+                    stamp.style.width = "190px";
+                    stamp.style.height = "62px";
+
+                    stamp.style.transform =
+                        "rotate(-4deg)";
+                }
             }
-
-        } catch (err) {
-            /*
-                Nếu người dùng tự đóng bảng Share
-                thì không coi là lỗi.
-            */
-            if (
-                err &&
-                err.name === "AbortError"
-            ) {
-                return;
-            }
-
-            console.error(
-                "iOS Share Error:",
-                err
-            );
         }
+    );
 
-        /* =====================================
-           DỰ PHÒNG CHO SAFARI CŨ
-        ===================================== */
-        const url = URL.createObjectURL(blob);
+    return canvas;
+}
 
-        window.location.href = url;
 
-        setTimeout(() => {
-            URL.revokeObjectURL(url);
-        }, 60000);
+/* =========================================================
+   CHUẨN BỊ ẢNH NGAY KHI MỞ HÓA ĐƠN
 
+   Lợi ích:
+   Khi iPhone bấm "Tải ảnh", file đã được tạo sẵn.
+   navigator.share() được gọi ngay từ cú bấm,
+   giảm lỗi Safari chặn thao tác.
+========================================================= */
+async function preparePortalReceiptPNG() {
+
+    if (portalReceiptPreparing) {
         return;
     }
 
+    portalReceiptPreparing = true;
 
-    /* =========================================
-       LAPTOP / ANDROID
-       Giữ cách download thông thường
-    ========================================= */
-    const url = URL.createObjectURL(blob);
+    portalReceiptCachedPNGBlob = null;
+    portalReceiptCachedPNGFile = null;
 
-    const link = document.createElement("a");
+    try {
+        const canvas =
+            await buildPortalReceiptCanvas();
+
+        const blob =
+            await canvasToBlobPortal(
+                canvas,
+                "image/png",
+                1
+            );
+
+        portalReceiptCachedPNGBlob = blob;
+
+        const filename =
+            getPortalReceiptFileName("png");
+
+        try {
+            portalReceiptCachedPNGFile =
+                new File(
+                    [blob],
+                    filename,
+                    {
+                        type: "image/png"
+                    }
+                );
+        } catch (e) {
+            portalReceiptCachedPNGFile = null;
+        }
+
+    } catch (err) {
+        console.error(
+            "[PREPARE RECEIPT PNG ERROR]",
+            err
+        );
+
+        portalReceiptCachedPNGBlob = null;
+        portalReceiptCachedPNGFile = null;
+
+    } finally {
+        portalReceiptPreparing = false;
+    }
+}
+
+
+/* =========================================================
+   DOWNLOAD BLOB THÔNG THƯỜNG
+   KHÔNG DÙNG window.open()
+========================================================= */
+function forceDownloadBlobPortal(
+    blob,
+    filename
+) {
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement("a");
 
     link.href = url;
     link.download = filename;
+
     link.style.display = "none";
 
     document.body.appendChild(link);
 
     link.click();
 
-    document.body.removeChild(link);
+    link.remove();
 
-    setTimeout(() => {
-        URL.revokeObjectURL(url);
-    }, 3000);
+    window.setTimeout(
+        function() {
+            URL.revokeObjectURL(url);
+        },
+        10000
+    );
 }
 
-async function downloadPortalReceiptPNG() {
-    try {
-        const canvas = await buildPortalReceiptCanvas();
 
-        if (!canvas) {
-            return;
+/* =========================================================
+   iOS SHARE
+
+   Chỉ dùng Share Sheet nếu Safari hỗ trợ share file.
+   Tuyệt đối không mở popup/tab mới.
+========================================================= */
+async function shareFileOnIOS(
+    file,
+    fallbackBlob,
+    filename
+) {
+
+    if (
+        file &&
+        navigator.share &&
+        navigator.canShare
+    ) {
+        try {
+            const canShare =
+                navigator.canShare({
+                    files: [file]
+                });
+
+            if (canShare) {
+                await navigator.share({
+                    files: [file],
+                    title: filename
+                });
+
+                return true;
+            }
+
+        } catch (err) {
+
+            /*
+                Người dùng bấm Hủy bảng Share.
+            */
+            if (
+                err &&
+                err.name === "AbortError"
+            ) {
+                return true;
+            }
+
+            console.error(
+                "[IOS SHARE ERROR]",
+                err
+            );
         }
+    }
+
+    /*
+        Safari không hỗ trợ Web Share file:
+        dùng download trực tiếp.
+        KHÔNG window.open().
+    */
+    if (fallbackBlob) {
+        forceDownloadBlobPortal(
+            fallbackBlob,
+            filename
+        );
+
+        return true;
+    }
+
+    return false;
+}
+
+
+/* =========================================================
+   TẢI ẢNH PNG
+========================================================= */
+async function downloadPortalReceiptPNG() {
+
+    try {
 
         const filename =
             getPortalReceiptFileName("png");
 
-        canvas.toBlob(
-            async function(blob) {
 
-                if (!blob) {
-                    alert(
-                        "Không tạo được file ảnh hóa đơn."
-                    );
-                    return;
-                }
+        /* =====================================
+           iPHONE / iPAD
+        ===================================== */
+        if (isIOSDevice()) {
 
-                await downloadBlobPortal(
-                    blob,
+            /*
+                Nếu ảnh đã chuẩn bị sẵn,
+                gọi Share ngay.
+            */
+            if (
+                portalReceiptCachedPNGBlob
+            ) {
+                await shareFileOnIOS(
+                    portalReceiptCachedPNGFile,
+                    portalReceiptCachedPNGBlob,
                     filename
                 );
 
-            },
-            "image/png",
-            1.0
+                return;
+            }
+
+
+            /*
+                Trường hợp file chưa tạo xong,
+                tạo ngay rồi download.
+                Không dùng popup.
+            */
+            const canvas =
+                await buildPortalReceiptCanvas();
+
+            const blob =
+                await canvasToBlobPortal(
+                    canvas,
+                    "image/png",
+                    1
+                );
+
+            let file = null;
+
+            try {
+                file = new File(
+                    [blob],
+                    filename,
+                    {
+                        type: "image/png"
+                    }
+                );
+            } catch (e) {}
+
+            await shareFileOnIOS(
+                file,
+                blob,
+                filename
+            );
+
+            return;
+        }
+
+
+        /* =====================================
+           ANDROID / LAPTOP
+        ===================================== */
+
+        const canvas =
+            await buildPortalReceiptCanvas();
+
+        const blob =
+            await canvasToBlobPortal(
+                canvas,
+                "image/png",
+                1
+            );
+
+        forceDownloadBlobPortal(
+            blob,
+            filename
         );
 
+
     } catch (err) {
-        console.error(err);
+
+        console.error(
+            "[DOWNLOAD PNG ERROR]",
+            err
+        );
 
         alert(
-            "Lỗi tạo ảnh hóa đơn. Ken thử lại nhé."
+            "Không tạo được ảnh hóa đơn. Ken thử lại nhé."
+        );
+    }
+}
+
+
+/* =========================================================
+   TẢI PDF
+========================================================= */
+async function downloadPortalReceiptPDF() {
+
+    try {
+
+        if (
+            !window.jspdf ||
+            !window.jspdf.jsPDF
+        ) {
+            alert(
+                "Chưa tải được thư viện PDF. Ken reload lại trang rồi thử lại."
+            );
+
+            return;
+        }
+
+
+        const canvas =
+            await buildPortalReceiptCanvas();
+
+
+        const imgData =
+            canvas.toDataURL(
+                "image/png",
+                1
+            );
+
+
+        const { jsPDF } =
+            window.jspdf;
+
+
+        const pdf =
+            new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a5"
+            });
+
+
+        pdf.addImage(
+            imgData,
+            "PNG",
+            0,
+            0,
+            148,
+            210
+        );
+
+
+        const pdfBlob =
+            pdf.output("blob");
+
+
+        const filename =
+            getPortalReceiptFileName("pdf");
+
+
+        /* =====================================
+           iPHONE / iPAD
+        ===================================== */
+        if (isIOSDevice()) {
+
+            let pdfFile = null;
+
+            try {
+                pdfFile =
+                    new File(
+                        [pdfBlob],
+                        filename,
+                        {
+                            type: "application/pdf"
+                        }
+                    );
+            } catch (e) {}
+
+
+            await shareFileOnIOS(
+                pdfFile,
+                pdfBlob,
+                filename
+            );
+
+            return;
+        }
+
+
+        /* =====================================
+           ANDROID / LAPTOP
+        ===================================== */
+
+        forceDownloadBlobPortal(
+            pdfBlob,
+            filename
+        );
+
+
+    } catch (err) {
+
+        console.error(
+            "[DOWNLOAD PDF ERROR]",
+            err
+        );
+
+        alert(
+            "Không tạo được PDF hóa đơn. Ken thử lại nhé."
         );
     }
 }
