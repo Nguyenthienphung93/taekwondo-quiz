@@ -1,0 +1,2416 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Nhập học phí</h1>
+
+<section class="fee-card">
+<form method="post" action="/fees/add" class="fee-split-form">
+
+    <div class="fee-full student-top-row">
+        <div class="field-box student-search-box">
+            <label>Thông tin hội viên</label>
+
+            <div class="student-search-input-wrap">
+                <span class="student-search-icon">🔎</span>
+                <input
+                    type="text"
+                    id="studentSearchInput"
+                    placeholder="Gõ tên / mã HV / ngày sinh / SĐT..."
+                    autocomplete="off"
+                    required
+                >
+            </div>
+
+            <input type="hidden" name="ma_hv" id="studentLicenseHidden" required>
+
+            <div id="studentSuggestBox" class="student-suggest-box"></div>
+        </div>
+
+        <div id="studentFamilyNotice" class="student-family-notice family-muted">
+            <div class="family-icon">👨‍👩‍👧</div>
+            <div>
+                <div class="family-title">Giảm gia đình</div>
+                <div class="family-text">Chưa áp dụng</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fee-panels fee-panels-top">
+
+        <!-- BÊN TRÁI: HỌC PHÍ -->
+        <div class="fee-panel fee-tuition-panel">
+            <div class="panel-title">Học phí</div>
+
+            <div class="month-grid-wrap">
+                <div id="monthGrid" class="month-grid"></div>
+
+                <button type="button" class="plus-btn month-add-btn" onclick="addMonthRow()">+</button>
+            </div>
+
+            <div class="discount-line">
+                <div class="field-box">
+                    <label>Phương thức giảm</label>
+                    <select name="discount_type" id="discountType" onchange="onDiscountTypeChange()">
+                        <option value="">Không giảm</option>
+                        <option value="half_month">Đóng nửa tháng</option>
+                        <option value="percent">Giảm %</option>
+                        <option value="money">Giảm số tiền</option>
+                    </select>
+                </div>
+
+                <div class="field-box">
+                    <label>Giá trị giảm</label>
+                    <div class="suffix-wrap">
+                        <input name="discount_value" id="discountValue" value="0">
+                        <span id="discountSuffix">đ</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field-box total-box">
+                <label>Tổng tiền học phí</label>
+                <input name="tuition_total" id="tuitionTotal" readonly>
+            </div>
+
+            <div id="autoFeeNoteBox" class="auto-fee-note" style="display:none;"></div>
+            <input type="hidden" name="auto_fee_note" id="autoFeeNoteInput">
+        </div>
+
+        <!-- BÊN PHẢI: THI CẤP / THI ĐẲNG -->
+        <div class="fee-panel fee-exam-panel">
+            <div class="panel-title">Thi cấp / Thi đẳng</div>
+
+            <div class="exam-line">
+                <div class="field-box">
+                    <label>Thi cấp</label>
+                    <select name="exam_quarter" id="examQuarter">
+                        <option value="">Không thi cấp</option>
+                        <option value="Q1">Q1</option>
+                        <option value="Q2">Q2</option>
+                        <option value="Q3">Q3</option>
+                        <option value="Q4">Q4</option>
+                    </select>
+                </div>
+
+                <div class="field-box">
+                    <label>Số tiền thi cấp</label>
+                    <input name="exam_amount" id="examAmount" value="0 đ" readonly>
+                </div>
+            </div>
+
+            <div class="exam-line dan-line dan-session-line">
+                <div class="field-box">
+                    <label>Kỳ thi đẳng</label>
+                    <select name="dan_quarter" id="danQuarter" onchange="updateTotal()">
+                        <option value="">Không thi đẳng</option>
+                        <option value="L1">Lần 1</option>
+                        <option value="L2">Lần 2</option>
+                        <option value="MN">KV miền nam</option>
+                        <option value="MT">KV miền trung</option>
+                        <option value="MB">KV miền bắc</option>
+                        <option value="QG">Quốc Gia</option>
+                    </select>
+                </div>
+
+                <div class="field-box">
+                    <label>Thi đẳng</label>
+                    <select name="dan_level" id="danLevel" onchange="updateTotal()">
+                        <option value="">Không thi đẳng</option>
+                        {% for dan_name, dan_price in dan_fees.items() %}
+                        <option value="{{ dan_name }}">{{ dan_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field-box">
+                    <label>Số tiền thi đẳng</label>
+                    <input name="dan_amount" id="danAmount" value="0 đ" readonly>
+                </div>
+            </div>
+
+            <div class="field-box total-box exam-total-box">
+                <label>Tổng tiền thi cấp / thi đẳng</label>
+                <input name="exam_dan_total" id="examDanTotal" readonly>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- KHUNG DƯỚI: THANH TOÁN -->
+    <div class="fee-bottom-panel">
+        <div class="field-box total-box grand-box">
+            <label>Tổng tiền học và thi cấp đẳng</label>
+            <input name="grand_total" id="grandTotal" readonly>
+        </div>
+
+        <div class="payment-toggle-box">
+            <input
+                type="checkbox"
+                name="chuyen_khoan"
+                id="paymentMethodToggle"
+                class="payment-toggle-input"
+                checked
+            >
+
+            <label for="paymentMethodToggle" class="payment-toggle-label">
+                <span class="payment-toggle-track">
+                    <span class="payment-toggle-thumb"></span>
+                </span>
+
+                <span class="payment-toggle-text">
+                    <b id="paymentMethodText">Tiền mặt</b>
+                    <small id="paymentMethodSubText">TM</small>
+                </span>
+            </label>
+        </div>
+
+        <div class="field-box">
+            <label>Ghi chú</label>
+            <input name="note" placeholder="Ghi chú">
+        </div>
+
+        <button class="fee-save-btn">💾 Lưu học phí</button>
+    </div>
+</form>
+</section>
+
+<div class="list-toolbar">
+<form method="get" action="/fees" class="list-search-form">
+    <div class="list-search-input-wrap">
+        <span class="list-search-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+        </span>
+
+        <input
+            type="text"
+            name="q"
+            value="{{ q or '' }}"
+            placeholder="Tìm mã hội viên hoặc họ tên"
+        >
+    </div>
+
+    <button type="submit" class="list-search-btn">Tìm</button>
+</form>
+
+    <div class="pagination-control" data-pagination="feesTable">
+        <label>Hiển thị</label>
+        <select class="page-size-select" onchange="setTablePageSize('feesTable', this.value)">
+            <option value="50">50 HV</option>
+            <option value="100">100 HV</option>
+            <option value="150">150 HV</option>
+            <option value="200">200 HV</option>
+        </select>
+        <button type="button" class="page-nav-btn" onclick="changeTablePage('feesTable', -1)">&lt;&lt;</button>
+        <span class="page-info" id="feesTablePageInfo">1 / 1</span>
+        <button type="button" class="page-nav-btn" onclick="changeTablePage('feesTable', 1)">&gt;&gt;</button>
+    </div>
+</div>
+
+<div class="fees-table-wrap">
+    <table
+        class="fees-list-table"
+        data-paginated-table="feesTable"
+    >
+        <colgroup>
+            <col class="fee-col-time">
+            <col class="fee-col-license">
+            <col class="fee-col-name">
+            <col class="fee-col-amount">
+            <col class="fee-col-content">
+            <col class="fee-col-note">
+        </colgroup>
+
+        <thead>
+            <tr>
+                <th>Thời gian</th>
+                <th>Mã HV</th>
+                <th>Họ tên</th>
+                <th>Số tiền</th>
+                <th>Đóng phí</th>
+                <th>Ghi chú</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for r in rows %}
+            <tr
+                oncontextmenu="openFeeMenu(event, '{{ r.id }}', this)"
+                data-id="{{ r.id }}"
+                data-time="{{ r.thoi_gian }}"
+                data-ma-hv="{{ r.ma_hv }}"
+                data-name="{{ r.ho_ten }}"
+                data-amount="{{ r.tong_tien }}"
+                data-month-label="{{ r.thang_dong_phi }}"
+                data-note="{{ r.ghi_chu }}"
+                data-month-code="{{ r.ma_thang }}"
+                data-quarter-code="{{ r.ma_quy }}"
+                data-method="{{ r.chuyen_khoan }}"
+                data-classroom="{{ r.lop }}"
+                data-timeclass="{{ r.ca }}"
+            >
+                <td
+                    class="fee-time-cell"
+                    title="{{ r.thoi_gian }}"
+                >
+                    {{ r.thoi_gian }}
+                </td>
+
+                <td
+                    class="fee-license-cell"
+                    title="{{ r.ma_hv }}"
+                >
+                    {{ r.ma_hv }}
+                </td>
+
+                <td
+                    class="fee-name-cell"
+                    title="{{ r.ho_ten }}"
+                >
+                    {{ r.ho_ten }}
+                </td>
+
+                <td class="fee-amount-cell">
+                    {{ r.tong_tien|money }}
+                </td>
+
+                <td class="fee-content-cell">
+                    {{ r.thang_dong_phi }}
+                </td>
+
+                <td class="fee-note-cell">
+                    {{ r.ghi_chu }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="feeContextMenu" class="context-menu">
+    <div onclick="openReceiptPopup()">🧾 Tạo hóa đơn</div>
+    <div onclick="deleteFee()">🗑️ Xóa phiếu thu</div>
+</div>
+
+<div id="receiptModal" class="receipt-modal">
+    <div class="receipt-modal-inner">
+
+        <div id="receiptA5" class="receipt-a5">
+            <div class="receipt-header">
+                <div class="receipt-logo-box">
+                    <img src="{{ app_settings.header.logo_url }}" class="receipt-logo">
+                </div>
+
+                <div class="receipt-company">
+                    <div class="receipt-company-name">
+                        <div>CÔNG TY CỔ PHẦN TDTT</div>
+                        <div>HOA HƯỚNG DƯƠNG</div>
+                    </div>
+                    <div class="receipt-club-name">Câu Lạc Bộ Hoa Hướng Dương Diên Hồng</div>
+                </div>
+            </div>
+
+            <div class="receipt-title">BIÊN LAI THU TIỀN</div>
+
+            <div class="receipt-date-line">
+                Ngày <span id="rcDay">...</span>
+                tháng <span id="rcMonth">...</span>
+                năm <span id="rcYear">...</span>
+            </div>
+
+            <div class="receipt-body">
+                <div class="receipt-row">
+                    <div class="receipt-label">Họ và tên:</div>
+                    <div class="receipt-value" id="rcName">...</div>
+                </div>
+
+                <div class="receipt-row two-cols">
+                    <div>
+                        <span class="receipt-label">Lớp:</span>
+                        <span class="receipt-value" id="rcClass">...</span>
+                    </div>
+
+                    <div>
+                        <span class="receipt-label">Ca:</span>
+                        <span class="receipt-value" id="rcTimeClass">...</span>
+                    </div>
+                </div>
+
+                <div class="receipt-row">
+                    <div class="receipt-label">Số tiền:</div>
+                    <div class="receipt-value" id="rcAmount">...</div>
+                </div>
+
+                <div class="receipt-row">
+                    <div class="receipt-label">Nội dung thu:</div>
+                    <div class="receipt-value" id="rcContent">...</div>
+                </div>
+
+                <div class="receipt-row receipt-note-row">
+                    <div class="receipt-label">Ghi chú:</div>
+                    <div class="receipt-value" id="rcNote">...</div>
+
+                    <div class="receipt-paid-stamp">ĐÃ THU TIỀN</div>
+                </div>
+            </div>
+
+            <div class="receipt-signatures">
+                <div class="receipt-sign-box">
+                    <div class="sign-title">Người nộp tiền</div>
+                    <div class="sign-note">(Ký, Họ tên)</div>
+                    <div class="sign-space"></div>
+                    <div class="sign-name" id="rcPayer">...</div>
+                </div>
+
+                <div class="receipt-sign-box">
+                    <div class="sign-title">Người thu tiền</div>
+                    <div class="sign-note">(Ký, Họ tên)</div>
+                    <div class="sign-space sign-image-wrap">
+                        <img src="https://hbmqqvrhjnhxgrxvlthm.supabase.co/storage/v1/object/public/system-assets/chuky.png" class="signature-img" alt="Chữ ký">
+                    </div>
+                    <div class="sign-name">Lê Tri Tâm</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="receipt-actions">
+            <button type="button" onclick="exportReceiptImage()">🖼 ảnh PNG</button>
+            <button type="button" onclick="exportReceiptPDF()">📄 PDF</button>
+            <button type="button" onclick="closeReceiptPopup()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+{% if fee_error_popup %}
+<div id="feeErrorModal" class="fee-error-modal">
+    <div class="fee-error-dialog" role="alertdialog" aria-modal="true">
+        <div class="fee-error-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+
+        <div class="fee-error-title">
+            Không thể lưu học phí
+        </div>
+
+        <div
+            id="feeErrorMessage"
+            class="fee-error-message"
+        >{{ fee_error_popup }}</div>
+
+        <button
+            type="button"
+            class="fee-error-close-btn"
+            onclick="closeFeeErrorModal()"
+            autofocus
+        >
+            Đã hiểu
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<script>
+function closeFeeErrorModal() {
+    const modal = document.getElementById("feeErrorModal");
+
+    if (!modal) return;
+
+    modal.classList.add("fee-error-closing");
+
+    window.setTimeout(() => {
+        modal.remove();
+    }, 180);
+}
+
+document.addEventListener("keydown", function (event) {
+    const modal = document.getElementById("feeErrorModal");
+
+    if (!modal) return;
+
+    if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        closeFeeErrorModal();
+    }
+});
+
+const currentMonth = {{ current_month }};
+const currentYear = {{ current_year }};
+const EXAM_FEE = {{ exam_fee|int }};
+const DAN_FEES = {{ dan_fees|default({})|tojson }};
+
+const STUDENTS = [
+    {% for s in students %}
+    {
+        license: {{ s.license|tojson }},
+        name: {{ s.name|tojson }},
+        birthdate: {{ s.birthdate|tojson }},
+        gender: {{ s.gender|tojson }},
+        classroom: {{ s.classroom|tojson }},
+        timeclass: {{ s.timeclass|tojson }},
+        phone: {{ s.phonenumber|tojson }},
+        family: {{ s.family|tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+let monthIndex = 0;
+let selectedStudent = null;
+let studentSearchTimer = null;
+
+
+
+function onlyNumber(v) {
+    return parseInt(String(v || "0").replace(/\D/g, "")) || 0;
+}
+
+function formatNumberInputValue(input) {
+    if (!input) return;
+
+    const raw = onlyNumber(input.value);
+
+    if (!raw) {
+        input.value = "0";
+        return;
+    }
+
+    input.value = raw.toLocaleString("vi-VN");
+}
+
+function initDiscountMoneyFormat() {
+    const discountValueEl = document.getElementById("discountValue");
+    const discountTypeEl = document.getElementById("discountType");
+
+    if (!discountValueEl || !discountTypeEl) return;
+
+    discountValueEl.addEventListener("input", function () {
+        if (discountTypeEl.value === "money") {
+            formatNumberInputValue(this);
+        }
+
+        updateTotal();
+    });
+
+    discountValueEl.addEventListener("blur", function () {
+        if (discountTypeEl.value === "money") {
+            formatNumberInputValue(this);
+        }
+    });
+}
+
+function money(v) {
+    return Number(v || 0).toLocaleString("vi-VN") + " đ";
+}
+
+function normalizeSearchText(text) {
+    return String(text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "d")
+        .trim();
+}
+
+function isFamilyStudent(student) {
+    const value = normalizeSearchText(student && student.family);
+    return ["co", "yes", "true", "1"].includes(value);
+}
+
+const STUDENT_SEARCH_INDEX = STUDENTS.map(student => {
+    return {
+        ...student,
+        _searchText: normalizeSearchText(
+            `${student.name || ""} ${student.license || ""} ${student.birthdate || ""} ${student.phone || ""}`
+        ),
+        _isFamily: isFamilyStudent(student)
+    };
+});
+
+function studentLabel(student) {
+    if (!student) return "";
+
+    const parts = [
+        student.name || "",
+        student.license || "",
+        student.birthdate || ""
+    ];
+
+    return parts.filter(Boolean).join(" - ");
+}
+
+function selectStudent(student) {
+    selectedStudent = student || null;
+
+    const input = document.getElementById("studentSearchInput");
+    const hidden = document.getElementById("studentLicenseHidden");
+    const suggestBox = document.getElementById("studentSuggestBox");
+    const familyNotice = document.getElementById("studentFamilyNotice");
+
+    if (input) input.value = studentLabel(student);
+    if (hidden) hidden.value = student ? student.license : "";
+    if (suggestBox) suggestBox.style.display = "none";
+
+    if (familyNotice) {
+        const familyTitle = familyNotice.querySelector(".family-title");
+        const familyText = familyNotice.querySelector(".family-text");
+
+        if (student && isFamilyStudent(student)) {
+            familyNotice.classList.remove("family-muted");
+            familyNotice.classList.add("family-active");
+
+            if (familyTitle) familyTitle.textContent = "Hội viên gia đình";
+            if (familyText) familyText.innerHTML = "Giảm <b>10%</b> học phí";
+        } else {
+            familyNotice.classList.remove("family-active");
+            familyNotice.classList.add("family-muted");
+
+            if (familyTitle) familyTitle.textContent = "Giảm gia đình";
+            if (familyText) familyText.textContent = "Chưa áp dụng";
+        }
+    }
+
+    updateTotal();
+}
+
+function renderStudentSuggestions(keyword) {
+    const suggestBox = document.getElementById("studentSuggestBox");
+    if (!suggestBox) return;
+
+    const q = normalizeSearchText(keyword);
+
+    if (!q) {
+        suggestBox.innerHTML = "";
+        suggestBox.style.display = "none";
+        return;
+    }
+
+    const matched = [];
+
+    for (const student of STUDENT_SEARCH_INDEX) {
+        if (student._searchText.includes(q)) {
+            matched.push(student);
+            if (matched.length >= 20) break;
+        }
+    }
+
+    if (!matched.length) {
+        suggestBox.innerHTML = `
+            <div class="student-suggest-empty">Không tìm thấy hội viên phù hợp</div>
+        `;
+        suggestBox.style.display = "block";
+        return;
+    }
+
+    suggestBox.innerHTML = matched.map(student => `
+        <button
+            type="button"
+            class="student-suggest-item"
+            data-license="${student.license || ""}"
+        >
+            <b>${student.name || ""}</b>
+            <span>${student.license || ""} - ${student.birthdate || ""}</span>
+            ${student._isFamily ? `<em>Gia đình - giảm 10%</em>` : ``}
+        </button>
+    `).join("");
+
+    suggestBox.style.display = "block";
+}
+
+function debounceStudentSuggestions(value) {
+    clearTimeout(studentSearchTimer);
+
+    studentSearchTimer = setTimeout(() => {
+        renderStudentSuggestions(value);
+    }, 120);
+}
+
+function initStudentSearch() {
+    const input = document.getElementById("studentSearchInput");
+    const hidden = document.getElementById("studentLicenseHidden");
+
+    if (!input || !hidden) return;
+
+    input.addEventListener("input", function () {
+        hidden.value = "";
+        selectedStudent = null;
+
+        const familyNotice = document.getElementById("studentFamilyNotice");
+        if (familyNotice) {
+            const familyTitle = familyNotice.querySelector(".family-title");
+            const familyText = familyNotice.querySelector(".family-text");
+
+            familyNotice.classList.remove("family-active");
+            familyNotice.classList.add("family-muted");
+
+            if (familyTitle) familyTitle.textContent = "Giảm gia đình";
+            if (familyText) familyText.textContent = "Chưa áp dụng";
+        }
+
+        debounceStudentSuggestions(this.value);
+    });
+
+    input.addEventListener("focus", function () {
+        renderStudentSuggestions(this.value);
+    });
+
+    const suggestBox = document.getElementById("studentSuggestBox");
+
+    if (suggestBox) {
+        suggestBox.addEventListener("click", function (e) {
+            const btn = e.target.closest(".student-suggest-item");
+            if (!btn) return;
+
+            const license = btn.dataset.license;
+            const student = STUDENTS.find(s => s.license === license);
+
+            if (student) {
+                selectStudent(student);
+            }
+        });
+    }
+
+    document.addEventListener("click", function (e) {
+        const box = document.querySelector(".student-search-box");
+        const suggestBox = document.getElementById("studentSuggestBox");
+
+        if (box && suggestBox && !box.contains(e.target)) {
+            suggestBox.style.display = "none";
+        }
+    });
+
+    const selectedLicense = {{ selected_license|tojson }};
+    let defaultStudent = null;
+
+    if (selectedLicense) {
+        defaultStudent = STUDENTS.find(s => s.license === selectedLicense);
+    }
+
+    if (defaultStudent) {
+        selectStudent(defaultStudent);
+    } else {
+        selectedStudent = null;
+
+        input.value = "";
+        hidden.value = "";
+
+        const familyNotice = document.getElementById("studentFamilyNotice");
+
+        if (familyNotice) {
+            const familyTitle = familyNotice.querySelector(".family-title");
+            const familyText = familyNotice.querySelector(".family-text");
+
+            familyNotice.classList.remove("family-active");
+            familyNotice.classList.add("family-muted");
+
+            if (familyTitle) familyTitle.textContent = "Giảm gia đình";
+            if (familyText) familyText.textContent = "Chưa áp dụng";
+        }
+
+        updateTotal();
+    }
+}
+
+function onDiscountTypeChange() {
+    const discountTypeEl = document.getElementById("discountType");
+    const discountValueEl = document.getElementById("discountValue");
+    const suffixEl = document.getElementById("discountSuffix");
+
+    if (!discountTypeEl || !discountValueEl || !suffixEl) return;
+
+    if (discountTypeEl.value === "half_month") {
+        discountValueEl.value = "50";
+        discountValueEl.readOnly = true;
+        suffixEl.textContent = "%";
+    } else {
+        discountValueEl.readOnly = false;
+
+        if (discountTypeEl.value === "percent") {
+            suffixEl.textContent = "%";
+        } else {
+            suffixEl.textContent = "đ";
+        }
+
+        if (discountTypeEl.value === "") {
+            discountValueEl.value = "0";
+        }
+    }
+
+    updateTotal();
+}
+
+function renderMonthBox(index, monthValue, yearValue) {
+    const box = document.createElement("div");
+    box.className = "month-box";
+
+    box.innerHTML = `
+        <button type="button" class="month-remove-btn" onclick="removeMonthBox(this)">×</button>
+
+        <div class="month-title">Tháng ${index}</div>
+
+        <div class="month-fields">
+            <select name="month${index}" class="month-select">
+                ${Array.from({length:12}, (_,i)=>`
+                    <option value="${i+1}" ${i+1 === monthValue ? "selected" : ""}>
+                        Tháng ${i+1}
+                    </option>
+                `).join("")}
+            </select>
+
+            <select name="year${index}" class="year-select">
+                ${Array.from({length:10}, (_,i)=>`
+                    <option value="${currentYear+i}" ${currentYear+i === yearValue ? "selected" : ""}>
+                        Năm ${currentYear+i}
+                    </option>
+                `).join("")}
+            </select>
+        </div>
+    `;
+
+    box.querySelectorAll("select").forEach(el => {
+        el.addEventListener("change", updateTotal);
+    });
+
+    return box;
+}
+
+function removeMonthBox(btn) {
+    const box = btn.closest(".month-box");
+    if (!box) return;
+
+    box.remove();
+    reindexMonthBoxes();
+    updateTotal();
+}
+
+function reindexMonthBoxes() {
+    const boxes = document.querySelectorAll(".month-box");
+
+    boxes.forEach((box, idx) => {
+        const number = idx + 1;
+
+        const title = box.querySelector(".month-title");
+        const monthSelect = box.querySelector(".month-select");
+        const yearSelect = box.querySelector(".year-select");
+
+        if (title) title.textContent = `${number} tháng`;
+        if (monthSelect) monthSelect.name = `month${number}`;
+        if (yearSelect) yearSelect.name = `year${number}`;
+    });
+
+    monthIndex = boxes.length;
+}
+
+function addMonthRow() {
+    const monthGrid = document.getElementById("monthGrid");
+    if (!monthGrid) return;
+
+    if (monthIndex >= 12) return;
+
+    let nextMonth = currentMonth;
+    let nextYear = currentYear;
+
+    if (monthIndex > 0) {
+        const monthList = document.querySelectorAll(".month-select");
+        const yearList = document.querySelectorAll(".year-select");
+
+        const lastMonth = monthList[monthList.length - 1];
+        const lastYear = yearList[yearList.length - 1];
+
+        nextMonth = parseInt(lastMonth.value || currentMonth) + 1;
+        nextYear = parseInt(lastYear.value || currentYear);
+
+        if (nextMonth > 12) {
+            nextMonth = 1;
+            nextYear++;
+        }
+    }
+
+    monthIndex++;
+
+    monthGrid.appendChild(
+        renderMonthBox(monthIndex, nextMonth, nextYear)
+    );
+
+    updateTotal();
+}
+
+function updateTotal() {
+    const monthCount = document.querySelectorAll(".month-select").length;
+    const tuitionOneMonth = {{ tuition_fee|int }};
+
+    const discountTypeEl = document.getElementById("discountType");
+    const discountValueEl = document.getElementById("discountValue");
+
+    const discountType = discountTypeEl ? discountTypeEl.value : "";
+    const discountValue = discountValueEl ? onlyNumber(discountValueEl.value) : 0;
+
+    const hasFamilyDiscount = selectedStudent && isFamilyStudent(selectedStudent);
+
+    /*
+        QUY TẮC TÍNH HỌC PHÍ
+
+        1) Đóng nửa tháng:
+           1 tháng x 50%, sau đó nếu có gia đình giảm thêm 10%.
+
+        2) Đóng 3 tháng:
+           Tự giảm 10% học phí, không cần chọn phương thức giảm.
+
+        3) Đóng 7 tháng:
+           Chỉ tính tiền 6 tháng, tháng thứ 7 miễn phí.
+
+        4) Giảm % thủ công:
+           Cộng dồn với giảm gia đình và giảm 3 tháng.
+
+        5) Giảm tiền:
+           Tính các giảm % trước, sau đó trừ số tiền.
+    */
+
+    let chargeMonthCount = monthCount;
+    let autoPercent = 0;
+    let autoNote = "";
+
+    if (monthCount === 7) {
+        chargeMonthCount = 6;
+        autoNote = "Đóng 6 tháng tặng 1 tháng miễn phí";
+    } else if (monthCount === 3) {
+        chargeMonthCount = monthCount;
+        autoPercent += 10;
+        autoNote = "Đóng 3 tháng - giảm 10% học phí";
+    } else {
+        chargeMonthCount = monthCount;
+        autoNote = "";
+    }
+
+    let baseTuition = tuitionOneMonth * chargeMonthCount;
+    let tuitionTotal = baseTuition;
+
+    if (discountType === "half_month") {
+        /*
+            Đóng nửa tháng chỉ nên dùng khi chọn 1 tháng.
+            Nếu Ken chọn nhiều tháng mà vẫn chọn nửa tháng,
+            hệ thống vẫn tính 50% trên tổng tháng đang tính.
+        */
+        tuitionTotal = baseTuition * 50 / 100;
+
+        if (hasFamilyDiscount) {
+            tuitionTotal -= tuitionTotal * 10 / 100;
+        }
+
+    } else {
+        let totalPercent = autoPercent;
+
+        if (discountType === "percent") {
+            totalPercent += discountValue;
+        }
+
+        if (hasFamilyDiscount) {
+            totalPercent += 10;
+        }
+
+        if (totalPercent > 100) {
+            totalPercent = 100;
+        }
+
+        tuitionTotal = baseTuition - (baseTuition * totalPercent / 100);
+
+        if (discountType === "money") {
+            tuitionTotal -= discountValue;
+        }
+    }
+
+    if (tuitionTotal < 0) tuitionTotal = 0;
+    tuitionTotal = Math.round(tuitionTotal);
+
+    const examQuarterEl = document.getElementById("examQuarter");
+    const examAmountEl = document.getElementById("examAmount");
+
+    let examAmount = 0;
+
+    if (examQuarterEl && examQuarterEl.value) {
+        examAmount = EXAM_FEE;
+    }
+
+    if (examAmountEl) {
+        examAmountEl.value = money(examAmount);
+    }
+
+    const danLevelEl = document.getElementById("danLevel");
+    const danAmountEl = document.getElementById("danAmount");
+
+    let danAmount = 0;
+
+    if (danLevelEl && danLevelEl.value) {
+        danAmount = Number(DAN_FEES[danLevelEl.value] || 0);
+    }
+
+    if (danAmountEl) {
+        danAmountEl.value = money(danAmount);
+    }
+
+    const examDanTotal = examAmount + danAmount;
+    const grandTotal = tuitionTotal + examDanTotal;
+
+    const tuitionTotalEl = document.getElementById("tuitionTotal");
+    const examDanTotalEl = document.getElementById("examDanTotal");
+    const grandTotalEl = document.getElementById("grandTotal");
+
+    if (tuitionTotalEl) tuitionTotalEl.value = money(tuitionTotal);
+    if (examDanTotalEl) examDanTotalEl.value = money(examDanTotal);
+    if (grandTotalEl) grandTotalEl.value = money(grandTotal);
+
+    const autoFeeNoteBox = document.getElementById("autoFeeNoteBox");
+    const autoFeeNoteInput = document.getElementById("autoFeeNoteInput");
+
+    const noteParts = [];
+
+    if (autoNote) {
+        noteParts.push(autoNote);
+    }
+
+    if (hasFamilyDiscount) {
+        noteParts.push("Gia đình giảm 10%");
+    }
+
+    if (discountType === "percent" && discountValue > 0) {
+        noteParts.push(`Giảm thêm ${discountValue}%`);
+    }
+
+    if (discountType === "money" && discountValue > 0) {
+        noteParts.push(`Giảm thêm ${money(discountValue)}`);
+    }
+
+    if (discountType === "half_month") {
+        noteParts.push("Đóng nửa tháng");
+    }
+
+    const finalAutoNote = noteParts.join(" - ");
+
+    if (autoFeeNoteInput) {
+        autoFeeNoteInput.value = finalAutoNote;
+    }
+
+    if (autoFeeNoteBox) {
+        if (finalAutoNote) {
+            autoFeeNoteBox.textContent = finalAutoNote;
+            autoFeeNoteBox.style.display = "block";
+        } else {
+            autoFeeNoteBox.textContent = "";
+            autoFeeNoteBox.style.display = "none";
+        }
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    initStudentSearch();
+    initDiscountMoneyFormat();
+
+    const monthGrid = document.getElementById("monthGrid");
+
+    if (monthGrid && document.querySelectorAll(".month-select").length === 0) {
+        addMonthRow();
+    }
+
+    document.querySelectorAll(".fee-split-form input, .fee-split-form select").forEach(el => {
+        if (
+            el.id === "studentSearchInput" ||
+            el.id === "studentLicenseHidden" ||
+            el.name === "ma_hv" ||
+            el.name === "note"
+        ) {
+            return;
+        }
+
+        el.addEventListener("input", updateTotal);
+        el.addEventListener("change", updateTotal);
+    });
+
+    onDiscountTypeChange();
+    updateTotal();
+});
+
+let currentFeeId = null;
+let currentFeeRow = null;
+
+function openFeeMenu(e, id, rowEl) {
+    e.preventDefault();
+
+    currentFeeId = id;
+    currentFeeRow = rowEl;
+
+    const menu = document.getElementById("feeContextMenu");
+    if (!menu) return;
+
+    menu.style.display = "block";
+    menu.style.left = e.pageX + "px";
+    menu.style.top = e.pageY + "px";
+}
+
+document.addEventListener("click", function () {
+    const menu = document.getElementById("feeContextMenu");
+    if (menu) menu.style.display = "none";
+});
+
+function deleteFee() {
+    if (!currentFeeId) return;
+
+    if (!confirm("Xóa phiếu thu này?")) return;
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/fees/delete/" + currentFeeId;
+
+    const nextInput = document.createElement("input");
+    nextInput.type = "hidden";
+    nextInput.name = "next";
+    nextInput.value = window.location.pathname + window.location.search;
+    form.appendChild(nextInput);
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function formatReceiptMoney(value) {
+    const n = parseInt(String(value || "0").replace(/\D/g, "")) || 0;
+    return n.toLocaleString("vi-VN") + " đ";
+}
+
+function parseReceiptDate(raw) {
+    let d = new Date(raw);
+
+    if (isNaN(d.getTime())) {
+        d = new Date();
+    }
+
+    return {
+        day: String(d.getDate()).padStart(2, "0"),
+        month: String(d.getMonth() + 1).padStart(2, "0"),
+        year: d.getFullYear()
+    };
+}
+
+function buildReceiptContent(monthLabel, note, quarterCode) {
+    monthLabel = String(monthLabel || "").trim();
+    note = String(note || "").trim();
+    quarterCode = String(quarterCode || "").trim();
+
+    if (monthLabel) {
+        return monthLabel;
+    }
+
+    if (quarterCode) {
+        return "Thi cấp " + quarterCode;
+    }
+
+    if (note) {
+        return note;
+    }
+
+    return "Thu học phí";
+}
+
+function cleanReceiptNote(note) {
+    note = String(note || "").trim();
+
+    if (!note) return "";
+
+    return note
+        .replace(/\s*\|\s*/g, " | ")
+        .replace(/Tháng\s+/gi, "Tháng ")
+        .trim();
+}
+
+function openReceiptPopup() {
+    if (!currentFeeRow) return;
+
+    const d = currentFeeRow.dataset;
+    const dateObj = parseReceiptDate(d.time);
+
+    document.getElementById("rcDay").textContent = dateObj.day;
+    document.getElementById("rcMonth").textContent = dateObj.month;
+    document.getElementById("rcYear").textContent = dateObj.year;
+
+    document.getElementById("rcName").textContent = d.name || "";
+    document.getElementById("rcPayer").textContent = d.name || "";
+
+    document.getElementById("rcClass").textContent = d.classroom || "";
+    document.getElementById("rcTimeClass").textContent = d.timeclass || "";
+
+    document.getElementById("rcAmount").textContent = formatReceiptMoney(d.amount);
+    document.getElementById("rcContent").textContent = buildReceiptContent(
+        d.monthLabel,
+        d.note,
+        d.quarterCode
+    );
+
+    document.getElementById("rcNote").textContent = cleanReceiptNote(d.note);
+
+    document.getElementById("receiptModal").style.display = "flex";
+}
+
+function closeReceiptPopup() {
+    document.getElementById("receiptModal").style.display = "none";
+}
+
+function safeFileName(text) {
+    return String(text || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .toLowerCase();
+}
+
+function getReceiptFileName(ext) {
+    const studentName = safeFileName(document.getElementById("rcName").textContent || "hoc_vien");
+
+    const now = new Date();
+    const timeText =
+        now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        String(now.getDate()).padStart(2, "0") +
+        "_" +
+        String(now.getHours()).padStart(2, "0") +
+        String(now.getMinutes()).padStart(2, "0") +
+        String(now.getSeconds()).padStart(2, "0");
+
+    return `bien_lai_${studentName}_${timeText}.${ext}`;
+}
+
+async function exportReceiptImage() {
+    const receipt = document.getElementById("receiptA5");
+
+    const canvas = await html2canvas(receipt, {
+        scale: 3,
+        backgroundColor: "#ffffff",
+        useCORS: true
+    });
+
+    const link = document.createElement("a");
+    link.download = getReceiptFileName("png");
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
+async function exportReceiptPDF() {
+    const receipt = document.getElementById("receiptA5");
+
+    const canvas = await html2canvas(receipt, {
+        scale: 3,
+        backgroundColor: "#ffffff",
+        useCORS: true
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const { jsPDF } = window.jspdf;
+
+    const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a5"
+    });
+
+    pdf.addImage(imgData, "PNG", 0, 0, 148, 210);
+    pdf.save(getReceiptFileName("pdf"));
+}
+
+/* =========================
+   PHÂN TRANG DANH SÁCH
+   - Có lưu trạng thái trang hiện tại vào sessionStorage.
+   - Sau khi xóa/sửa/lưu rồi reload lại, bảng tự mở lại đúng trang cũ.
+========================= */
+const tablePaginationState = {};
+
+function getTablePageStorageKey(tableId) {
+    return "tkd_table_page:" + window.location.pathname + ":" + window.location.search + ":" + tableId;
+}
+
+function saveTablePageState(tableId) {
+    try {
+        const state = tablePaginationState[tableId];
+
+        if (!state) return;
+
+        sessionStorage.setItem(
+            getTablePageStorageKey(tableId),
+            JSON.stringify({
+                page: state.page || 1,
+                pageSize: state.pageSize || 50
+            })
+        );
+    } catch (e) {}
+}
+
+function shouldRestoreTablePageAfterPost() {
+    try {
+        return typeof window.tkdIsAfterPostReload === "function" && window.tkdIsAfterPostReload();
+    } catch (e) {
+        return false;
+    }
+}
+
+function loadTablePageState(tableId) {
+    try {
+        if (!shouldRestoreTablePageAfterPost()) {
+            return null;
+        }
+
+        const raw = sessionStorage.getItem(getTablePageStorageKey(tableId));
+
+        if (!raw) return null;
+
+        const data = JSON.parse(raw);
+
+        return {
+            page: parseInt(data.page || "1", 10) || 1,
+            pageSize: parseInt(data.pageSize || "50", 10) || 50
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+function getPaginatedRows(tableId) {
+    const table = document.querySelector(`[data-paginated-table="${tableId}"]`);
+    if (!table) return [];
+
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return [];
+
+    return Array.from(tbody.querySelectorAll("tr"));
+}
+
+function initTablePagination(tableId) {
+    const rows = getPaginatedRows(tableId);
+    const saved = loadTablePageState(tableId) || {};
+
+    tablePaginationState[tableId] = {
+        page: saved.page || 1,
+        pageSize: saved.pageSize || 50,
+        totalRows: rows.length
+    };
+
+    const control = document.querySelector(`[data-pagination="${tableId}"]`);
+    const select = control ? control.querySelector(".page-size-select") : null;
+
+    if (select) {
+        select.value = String(tablePaginationState[tableId].pageSize);
+    }
+
+    applyTablePagination(tableId);
+}
+
+function setTablePageSize(tableId, value) {
+    const state = tablePaginationState[tableId] || {
+        page: 1,
+        pageSize: 50,
+        totalRows: 0
+    };
+
+    state.pageSize = parseInt(value || "50", 10) || 50;
+    state.page = 1;
+
+    tablePaginationState[tableId] = state;
+    saveTablePageState(tableId);
+    applyTablePagination(tableId);
+}
+
+function changeTablePage(tableId, direction) {
+    const state = tablePaginationState[tableId];
+    if (!state) return;
+
+    const totalPages = Math.max(1, Math.ceil(state.totalRows / state.pageSize));
+    state.page += direction;
+
+    if (state.page < 1) state.page = 1;
+    if (state.page > totalPages) state.page = totalPages;
+
+    tablePaginationState[tableId] = state;
+    saveTablePageState(tableId);
+    applyTablePagination(tableId);
+}
+
+function applyTablePagination(tableId) {
+    const rows = getPaginatedRows(tableId);
+    const state = tablePaginationState[tableId] || {
+        page: 1,
+        pageSize: 50,
+        totalRows: rows.length
+    };
+
+    state.totalRows = rows.length;
+
+    const totalPages = Math.max(1, Math.ceil(state.totalRows / state.pageSize));
+
+    if (state.page > totalPages) state.page = totalPages;
+    if (state.page < 1) state.page = 1;
+
+    const start = (state.page - 1) * state.pageSize;
+    const end = start + state.pageSize;
+
+    rows.forEach((row, index) => {
+        row.style.display = (index >= start && index < end) ? "" : "none";
+    });
+
+    const info = document.getElementById(`${tableId}PageInfo`);
+    if (info) {
+        info.textContent = `${state.page} / ${totalPages}`;
+    }
+
+    const control = document.querySelector(`[data-pagination="${tableId}"]`);
+    if (control) {
+        const buttons = control.querySelectorAll(".page-nav-btn");
+        buttons.forEach((btn, idx) => {
+            if (idx === 0) btn.disabled = state.page <= 1;
+            if (idx === 1) btn.disabled = state.page >= totalPages;
+        });
+    }
+
+    tablePaginationState[tableId] = state;
+    saveTablePageState(tableId);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("[data-paginated-table]").forEach(table => {
+        initTablePagination(table.dataset.paginatedTable);
+    });
+});
+
+
+document.querySelector(".fee-split-form").addEventListener("submit", function (e) {
+    const danQuarter = document.getElementById("danQuarter")?.value || "";
+    const danLevel = document.getElementById("danLevel")?.value || "";
+    const examQuarter = document.getElementById("examQuarter")?.value || "";
+
+    if (danLevel && !danQuarter) {
+        e.preventDefault();
+        alert("Ken chọn thi đẳng rồi thì phải chọn Kỳ thi đẳng: L1, L2, MN, MT, MB hoặc QG.");
+        return;
+    }
+
+    if (danQuarter && !danLevel) {
+        e.preventDefault();
+        alert("Ken chọn Kỳ thi đẳng rồi thì phải chọn cấp đẳng cần thi.");
+        return;
+    }
+
+    if (examQuarter && danQuarter) {
+        e.preventDefault();
+        alert("Ken chỉ nên chọn một loại: Thi cấp hoặc Thi đẳng. Không chọn cả hai trong cùng một phiếu.");
+        return;
+    }
+});
+
+
+function updatePaymentToggleText() {
+    const toggle = document.getElementById("paymentMethodToggle");
+    const text = document.getElementById("paymentMethodText");
+    const subText = document.getElementById("paymentMethodSubText");
+
+    if (!toggle || !text || !subText) return;
+
+    if (toggle.checked) {
+        text.textContent = "Chuyển khoản";
+        subText.textContent = "CK";
+    } else {
+        text.textContent = "Tiền mặt";
+        subText.textContent = "TM";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const toggle = document.getElementById("paymentMethodToggle");
+
+    if (toggle) {
+        updatePaymentToggleText();
+        toggle.addEventListener("change", updatePaymentToggleText);
+    }
+});
+</script>
+
+<style>
+.receipt-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.receipt-modal-inner {
+    background: #f5f7fb;
+    border-radius: 14px;
+    padding: 18px;
+    max-height: 96vh;
+    overflow: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+
+.receipt-a5 {
+    width: 559px;
+    min-height: 794px;
+    background: #ffffff;
+    color: #000;
+    padding: 22px 32px;
+    box-sizing: border-box;
+    font-family: "Times New Roman", serif;
+    position: relative;
+    border: 1px solid #d8d8d8;
+}
+
+.receipt-header {
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid #1f63ff;
+    padding-bottom: 6px;
+}
+
+.receipt-logo-box {
+    width: 82px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.receipt-logo {
+    width: 62px;
+    height: 62px;
+    object-fit: contain;
+}
+
+.receipt-company {
+    flex: 1;
+    text-align: center;
+}
+
+.receipt-company-name {
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+}
+
+.receipt-club-name {
+    margin-top: 6px;
+    font-size: 18px;
+    color: #e00000;
+    font-weight: bold;
+}
+
+.receipt-title {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 30px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.receipt-date-line {
+    margin-top: 6px;
+    text-align: center;
+    font-size: 18px;
+    font-style: italic;
+}
+
+.receipt-number {
+    margin-top: 2px;
+    text-align: center;
+    font-size: 17px;
+    font-style: italic;
+}
+
+.receipt-body {
+    margin-top: 26px;
+    padding: 0 40px;
+    font-size: 22px;
+}
+
+.receipt-row {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 11px;
+}
+
+.receipt-row.two-cols {
+    justify-content: space-between;
+    gap: 30px;
+}
+
+.receipt-label {
+    min-width: 128px;
+    font-weight: normal;
+}
+
+.receipt-value {
+    font-weight: bold;
+}
+
+/* =========================
+   GHI CHÚ HÓA ĐƠN
+   - Ghi chú dùng toàn bộ chiều rộng còn lại
+   - Hết hàng sẽ tự xuống dòng bình thường
+========================= */
+.receipt-note-row {
+    position: relative;
+    min-height: 85px;
+    padding-right: 0;
+    align-items: flex-start;
+}
+
+.receipt-note-row .receipt-label {
+    flex: 0 0 128px;
+}
+
+.receipt-note-row .receipt-value {
+    flex: 1;
+    min-width: 0;
+
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
+
+    line-height: 1.45;
+    padding-right: 0;
+}
+
+
+/* Dấu là layer nổi, không chiếm chỗ ghi chú */
+.receipt-paid-stamp {
+    position: absolute;
+
+    right: 0;
+    top: 8px;
+
+    border: 4px solid #e53935;
+    color: #e53935;
+
+    font-size: 24px;
+    font-weight: bold;
+
+    padding: 9px 14px;
+
+    transform: rotate(-5deg);
+
+    opacity: 0.88;
+    white-space: nowrap;
+
+    z-index: 20;
+    pointer-events: none;
+
+    background: rgba(255,255,255,0.70);
+}
+
+.receipt-signatures {
+    margin-top: 44px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 54px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.sign-title {
+    font-weight: bold;
+}
+
+.sign-note {
+    font-style: italic;
+}
+
+.sign-space {
+    height: 78px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sign-image-wrap {
+    overflow: hidden;
+}
+
+.signature-img {
+    max-width: 159px;
+    max-height: 110px;
+    object-fit: contain;
+    display: block;
+}
+
+.sign-handwrite {
+    font-family: "Brush Script MT", "Segoe Script", cursive;
+    font-size: 44px;
+    color: #293080;
+    transform: rotate(-8deg);
+}
+
+.sign-name {
+    font-weight: bold;
+}
+
+.receipt-actions {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.receipt-actions button {
+    border: none;
+    border-radius: 9px;
+    padding: 10px 14px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #0d6efd;
+    color: #fff;
+}
+
+.receipt-actions button:last-child {
+    background: #6c757d;
+}
+
+@media (max-width: 700px) {
+    .receipt-a5 {
+        transform: scale(0.72);
+        transform-origin: top center;
+        margin-bottom: -210px;
+    }
+
+    .receipt-actions {
+        flex-wrap: wrap;
+    }
+}
+
+.student-top-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr);
+    gap: 14px;
+    align-items: stretch;
+}
+
+.student-search-box {
+    position: relative;
+    min-width: 0;
+}
+
+.student-search-box label {
+    font-size: 13px;
+    font-weight: 900;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.student-search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.student-search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    opacity: .75;
+    pointer-events: none;
+}
+
+.student-search-input-wrap input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #bfdbfe;
+    border-radius: 13px;
+    background: linear-gradient(180deg, #ffffff, #f8fbff);
+    padding: 0 14px 0 40px;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 800;
+    outline: none;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, .08);
+}
+
+.student-search-input-wrap input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .16);
+}
+
+.student-suggest-box {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 999;
+    display: none;
+    max-height: 280px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    box-shadow: 0 18px 35px rgba(15, 23, 42, .16);
+}
+
+.student-suggest-item {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+    padding: 11px 13px;
+    text-align: left;
+    cursor: pointer;
+    display: grid;
+    gap: 4px;
+}
+
+.student-suggest-item:hover {
+    background: #eff6ff;
+}
+
+.student-suggest-item b {
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.student-suggest-item span {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.student-suggest-item em {
+    width: fit-content;
+    margin-top: 2px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 950;
+}
+
+.student-suggest-empty {
+    padding: 12px;
+    color: #64748b;
+    font-weight: 850;
+}
+
+.student-family-notice {
+    min-height: 64px;
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid transparent;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .06);
+}
+
+.student-family-notice .family-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.72);
+    flex-shrink: 0;
+}
+
+.student-family-notice .family-title {
+    font-size: 13px;
+    font-weight: 950;
+    line-height: 1.2;
+}
+
+.student-family-notice .family-text {
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.student-family-notice.family-active {
+    background: linear-gradient(135deg, #ecfdf5, #dcfce7);
+    color: #166534;
+    border-color: #86efac;
+}
+
+.student-family-notice.family-muted {
+    background: linear-gradient(135deg, #f8fafc, #eef2f7);
+    color: #64748b;
+    border-color: #dbe3ef;
+}
+
+@media (max-width: 900px) {
+    .student-top-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.auto-fee-note {
+    margin-top: 8px;
+    padding: 9px 11px;
+    border-radius: 12px;
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+/* =========================
+   THANH LỌC + PHÂN TRANG
+========================= */
+.list-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0 8px;
+}
+
+.list-toolbar .search-row,
+.list-toolbar .tracking-filter {
+    margin: 0;
+}
+
+.pagination-control {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    padding: 7px 8px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, .06);
+    white-space: nowrap;
+}
+
+.pagination-control label {
+    font-size: 12px;
+    font-weight: 900;
+    color: #475569;
+}
+
+.page-size-select {
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #f8fafc;
+    padding: 0 9px;
+    font-weight: 900;
+    color: #0f172a;
+    outline: none;
+}
+
+.page-nav-btn {
+    height: 34px;
+    min-width: 38px;
+    border: none;
+    border-radius: 9px;
+    background: #0f2a4a;
+    color: #ffffff;
+    font-weight: 950;
+    cursor: pointer;
+}
+
+.page-nav-btn:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.page-info {
+    min-width: 58px;
+    text-align: center;
+    font-weight: 950;
+    color: #0f172a;
+}
+
+@media (max-width: 760px) {
+    .list-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pagination-control {
+        width: 100%;
+        justify-content: flex-end;
+        box-sizing: border-box;
+    }
+}
+
+.dan-session-line {
+    grid-template-columns: 1fr 1fr .7fr;
+}
+
+@media (max-width: 900px) {
+    .dan-session-line {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================
+   NÚT GẠT THANH TOÁN TM / CK
+========================= */
+.payment-toggle-box {
+    height: 48px;
+    display: flex;
+    align-items: center;
+}
+
+.payment-toggle-input {
+    display: none;
+}
+
+.payment-toggle-label {
+    width: 154px;
+    height: 48px;
+    border-radius: 16px;
+    padding: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border: 1px solid #fca5a5;
+    box-shadow: 0 8px 18px rgba(239, 68, 68, .12);
+    transition: .18s ease;
+    user-select: none;
+}
+
+.payment-toggle-track {
+    width: 48px;
+    height: 28px;
+    border-radius: 999px;
+    background: #ef4444;
+    position: relative;
+    flex: 0 0 auto;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, .22);
+    transition: .18s ease;
+}
+
+.payment-toggle-thumb {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    top: 3px;
+    left: 3px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .28);
+    transition: .18s ease;
+}
+
+.payment-toggle-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.05;
+    min-width: 0;
+}
+
+.payment-toggle-text b {
+    font-size: 13px;
+    font-weight: 950;
+    color: #991b1b;
+    white-space: nowrap;
+}
+
+.payment-toggle-text small {
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 950;
+    color: #b91c1c;
+    letter-spacing: .5px;
+}
+
+/* Khi bật: Chuyển khoản */
+.payment-toggle-input:checked + .payment-toggle-label {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    border-color: #86efac;
+    box-shadow: 0 8px 18px rgba(34, 197, 94, .15);
+}
+
+.payment-toggle-input:checked + .payment-toggle-label .payment-toggle-track {
+    background: #16a34a;
+}
+
+.payment-toggle-input:checked + .payment-toggle-label .payment-toggle-thumb {
+    left: 23px;
+}
+
+.payment-toggle-input:checked + .payment-toggle-label .payment-toggle-text b {
+    color: #166534;
+}
+
+.payment-toggle-input:checked + .payment-toggle-label .payment-toggle-text small {
+    color: #15803d;
+}
+
+/* Hover nhẹ */
+.payment-toggle-label:hover {
+    transform: translateY(-1px);
+}
+
+/* Mobile cho gọn */
+@media(max-width: 760px) {
+    .payment-toggle-label {
+        width: 145px;
+    }
+
+    .payment-toggle-text b {
+        font-size: 12px;
+    }
+}
+
+/* =========================
+   Ô TÌM KIẾM DANH SÁCH
+========================= */
+.list-search-form{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.list-search-input-wrap{
+    position:relative;
+    width:340px;
+    max-width:100%;
+}
+
+.list-search-icon{
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#64748b;
+    font-size:14px;
+    pointer-events:none;
+}
+
+.list-search-input-wrap input{
+    width:100%;
+    height:42px;
+    box-sizing:border-box;
+    border:1px solid #cfe0f5;
+    border-radius:14px;
+    background:#fff;
+    padding:0 14px 0 40px;
+    font-size:14px;
+    font-weight:700;
+    color:#0f172a;
+    outline:none;
+    box-shadow:0 6px 16px rgba(15,23,42,.04);
+    transition:.18s ease;
+}
+
+.list-search-input-wrap input::placeholder{
+    color:#94a3b8;
+    font-weight:650;
+}
+
+.list-search-input-wrap input:focus{
+    border-color:#60a5fa;
+    box-shadow:0 0 0 4px rgba(96,165,250,.14);
+}
+
+.list-search-btn{
+    height:42px;
+    min-width:66px;
+    border:0;
+    border-radius:12px;
+    background:linear-gradient(135deg,#facc15,#f59e0b);
+    color:#111827;
+    font-weight:900;
+    padding:0 18px;
+    cursor:pointer;
+    box-shadow:0 8px 18px rgba(245,158,11,.18);
+    transition:.18s ease;
+}
+
+.list-search-btn:hover{
+    transform:translateY(-1px);
+    filter:brightness(.98);
+}
+
+@media(max-width:760px){
+    .list-search-form{
+        width:100%;
+    }
+
+    .list-search-input-wrap{
+        width:100%;
+    }
+
+    .list-search-btn{
+        width:100%;
+    }
+}
+
+/* =========================
+   BẢNG DANH SÁCH HỌC PHÍ
+========================= */
+.fees-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #dbe3ef;
+    border-radius: 0 0 14px 14px;
+    background: #ffffff;
+}
+
+.fees-list-table {
+    width: 100%;
+    min-width: 1080px;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+/* Chia đúng 100% cho 6 cột */
+.fees-list-table .fee-col-time {
+    width: 18%;
+}
+
+.fees-list-table .fee-col-license {
+    width: 13%;
+}
+
+.fees-list-table .fee-col-name {
+    width: 20%;
+}
+
+.fees-list-table .fee-col-amount {
+    width: 11%;
+}
+
+.fees-list-table .fee-col-content {
+    width: 17%;
+}
+
+.fees-list-table .fee-col-note {
+    width: 21%;
+}
+
+.fees-list-table th {
+    padding: 11px 9px;
+    background: #f8fafc;
+    color: #0f172a;
+    border-right: 1px solid #dbe3ef;
+    border-bottom: 1px solid #dbe3ef;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.fees-list-table td {
+    padding: 9px;
+    color: #1e293b;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.fees-list-table th:last-child,
+.fees-list-table td:last-child {
+    border-right: 0;
+}
+
+.fees-list-table tbody tr:hover td {
+    background: #f8fbff;
+}
+
+/* Thời gian */
+.fee-time-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mã hội viên */
+.fee-license-cell {
+    color: #1d4ed8;
+    font-weight: 850;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Họ tên */
+.fee-name-cell {
+    color: #0f172a;
+    font-weight: 900;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Số tiền */
+.fee-amount-cell {
+    color: #9a3412;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+/* Nội dung đóng phí */
+.fee-content-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Ghi chú */
+.fee-note-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+    .fees-list-table {
+        min-width: 980px;
+    }
+
+    .fees-list-table th,
+    .fees-list-table td {
+        padding: 8px 7px;
+        font-size: 12px;
+    }
+}
+
+/* =========================
+   POPUP LỖI TRÙNG HỌC PHÍ
+========================= */
+.fee-error-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.68);
+    backdrop-filter: blur(3px);
+    animation: feeErrorFadeIn 0.18s ease;
+}
+
+.fee-error-dialog {
+    width: min(470px, 100%);
+    border-radius: 22px;
+    padding: 26px 26px 22px;
+    background: #ffffff;
+    border: 2px solid #fecaca;
+    box-shadow:
+        0 24px 70px rgba(15, 23, 42, 0.32),
+        0 0 0 6px rgba(239, 68, 68, 0.08);
+    text-align: center;
+    animation: feeErrorDialogIn 0.22s ease;
+}
+
+.fee-error-icon {
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 32px;
+}
+
+.fee-error-title {
+    color: #991b1b;
+    font-size: 22px;
+    font-weight: 950;
+    line-height: 1.25;
+}
+
+.fee-error-message {
+    margin-top: 14px;
+    padding: 15px 16px;
+    border-radius: 14px;
+    background: #fff7f7;
+    border: 1px solid #fecaca;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 750;
+    line-height: 1.65;
+    text-align: left;
+    white-space: pre-line;
+}
+
+.fee-error-close-btn {
+    width: 100%;
+    height: 46px;
+    margin-top: 18px;
+    border: 0;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 950;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(220, 38, 38, 0.24);
+    transition: 0.18s ease;
+}
+
+.fee-error-close-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+}
+
+.fee-error-close-btn:focus {
+    outline: 4px solid rgba(239, 68, 68, 0.20);
+}
+
+.fee-error-modal.fee-error-closing {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+@keyframes feeErrorFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes feeErrorDialogIn {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 600px) {
+    .fee-error-dialog {
+        padding: 22px 18px 18px;
+        border-radius: 18px;
+    }
+
+    .fee-error-title {
+        font-size: 19px;
+    }
+
+    .fee-error-message {
+        font-size: 13px;
+    }
+}
+</style>
+{% endblock %}
